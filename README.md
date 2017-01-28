@@ -1,6 +1,5 @@
 [![Dependencies Status](http://jarkeeper.com/camsaul/toucan/status.png)](http://jarkeeper.com/camsaul/toucan)
 [![Circle CI](https://circleci.com/gh/metabase/toucan.svg?style=svg)](https://circleci.com/gh/metabase/toucan)
-[![GitHub license](https://img.shields.io/badge/license-3%E2%80%92Clause%20BSD-blue.svg)](https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt)
 
 [![Clojars Project](https://clojars.org/toucan/latest-version.svg)](http://clojars.org/toucan)
 
@@ -188,8 +187,3 @@ These tests and linters also run on [CircleCI](https://circleci.com/) for all co
 
 We try to keep Toucan well-tested, so new features should include new tests for them; bugfixes should include failing tests.
 Make sure to properly document new features as well! :yum:
-
-
-## License
-
-[3-Clause BSD](https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt).
