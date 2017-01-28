@@ -1,0 +1,17 @@
+\#*\#
+.\#*
+/target
+/classes
+/checkouts
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+/.lein-env
+/.lein-failures
+/.lein-repl-history
+/.nrepl-port
+.idea/
+profiles.clj
+/.env
+/build.xml
