@@ -1,4 +1,4 @@
-[![Dependencies Status](http://jarkeeper.com/camsaul/toucan/status.png)](http://jarkeeper.com/camsaul/toucan)
+[![Dependencies Status](http://jarkeeper.com/metabase/toucan/status.png)](http://jarkeeper.com/metabase/toucan)
 [![Circle CI](https://circleci.com/gh/metabase/toucan.svg?style=svg)](https://circleci.com/gh/metabase/toucan)
 
 [![Clojars Project](https://clojars.org/toucan/latest-version.svg)](http://clojars.org/toucan)
