@@ -187,3 +187,10 @@ These tests and linters also run on [CircleCI](https://circleci.com/) for all co
 
 We try to keep Toucan well-tested, so new features should include new tests for them; bugfixes should include failing tests.
 Make sure to properly document new features as well! :yum:
+
+
+### License
+
+Code and documentation copyright (c) 2017 Metabase, Inc. Artwork copyright (c) 2017 Cam Saül.
+
+Distributed under the [Eclipse Public License](https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt), same as Clojure.

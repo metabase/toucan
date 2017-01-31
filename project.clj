@@ -1,8 +1,8 @@
 (defproject toucan "1.0.2"
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
-  :license {:name "3-Clause BSD"
-            :url "https://github.com/metabase/toucan/blob/master/LICENSE.txt"}
+  :license {:name "Eclipse Public License"
+            :url "https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt"}
   :min-lein-version "2.5.0"
   :dependencies [[org.clojure/java.classpath "0.2.3"]
                  [org.clojure/java.jdbc "0.6.1"]
