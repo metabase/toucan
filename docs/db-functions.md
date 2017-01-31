@@ -279,7 +279,7 @@ Most of the examples above are explored in more detail in the [guide to defining
 
 **Note**: Unlike `insert!`, `insert-many!` does *not* currently call `post-insert` on the newly created objects. If you need
 `post-insert` behavior, be sure to use `insert!` for the time being. This is subject to change in the future; there is an
-[open issue to consider it](https://github.com/metabase/toucan/issues/7).
+[open issue to consider it](https://github.com/metabase/toucan/issues/4).
 
 
 #### simple-insert! and simple-insert-many!
@@ -338,7 +338,7 @@ Like `update!`, `update-where!` returns `true` if any objects were affected, `fa
 
 **NOTE** Unlike `update!`, `update-where!` *does not* perform automatic type conversions or invoke property functions or `pre-update`
 implementations on the objects that will be updated. This is subject to change in the future;
-[this GitHub issue](https://github.com/metabase/toucan/issues/9) is open to consider changing this behavior. Because this is desirable
+[this GitHub issue](https://github.com/metabase/toucan/issues/5) is open to consider changing this behavior. Because this is desirable
 in some situations, we'll likely add a `simple-update-where!` function that maintains the original functionality.
 
 

@@ -3213,7 +3213,7 @@ a C3PO connection pool.</p>
    Returns a sequence of the IDs of the newly created objects.</p>
 
 <p>   Note: this <em>does not</em> call <code>post-insert</code> on newly created objects. If you need <code>post-insert</code> behavior, use <code>insert!</code> instead.
-   (This might change in the future: there is an <a href="https://github.com/metabase/toucan/issues/7">open issue to consider this</a>).</p>
+   (This might change in the future: there is an <a href="https://github.com/metabase/toucan/issues/4">open issue to consider this</a>).</p>
 
 <pre><code> (db/insert-many! 'Label [{:name "Toucan Friendly"}
                           {:name "Bird Approved"}]) -&gt; [38 39]

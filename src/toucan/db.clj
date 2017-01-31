@@ -444,7 +444,7 @@
    Returns a sequence of the IDs of the newly created objects.
 
    Note: this *does not* call `post-insert` on newly created objects. If you need `post-insert` behavior, use `insert!` instead.
-   (This might change in the future: there is an [open issue to consider this](https://github.com/metabase/toucan/issues/7)).
+   (This might change in the future: there is an [open issue to consider this](https://github.com/metabase/toucan/issues/4)).
 
      (db/insert-many! 'Label [{:name \"Toucan Friendly\"}
                               {:name \"Bird Approved\"}]) -> [38 39]"
