@@ -157,7 +157,21 @@ Read more about setting up the DB and configuring options such as identifier quo
 
 ## Test Utilities
 
-Toucan provides several utility macros that making writing tests easy. See the guide to Toucan test utilities [here](docs/test-utils.md).
+Toucan provides several utility macros that making writing tests easy. For example, you can easily create temporary objects so your tests don't affect the state of your test DB:
+
+```clojure
+(require '[toucan.util.test :as tt])
+
+;; create a temporary Venue with the supplied values for use in a test.
+;; the object will be removed from the database afterwards (even if the macro body throws an Exception)
+;; which makes it easy to write tests that don't change the state of the DB
+(expect
+  "hos_bootleg_tavern"
+  (tt/with-temp Venue [venue {:name "Ho's Bootleg Tavern"}]
+    (venue-slug venue))
+```
+
+Read more about Toucan test utilities [here](docs/test-utils.md).
 
 
 ## Annotated Source Code
