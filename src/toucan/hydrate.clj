@@ -127,12 +127,12 @@
            (keyword? (first k))
            (every? valid-hydration-form? (rest k)))))
 
-(defn- k->k_id
-  "Append `_id` to a keyword.
+(defn- kw-append
+  "Append to a keyword.
 
-     (k->k_id :user) -> :user_id"
-  [k]
-  (keyword (str (name k) "_id")))
+     (kw-append :user \"_id\") -> :user_id"
+  [k suffix]
+  (keyword (str (name k) suffix)))
 
 (defn- lookup-functions-with-metadata-key
   "Return a map of hydration keywords to functions that should be used to hydrate them, e.g.
@@ -183,27 +183,32 @@
 (defn- can-automagically-batched-hydrate?
   "Can we do a batched hydration of RESULTS with key K?"
   [results k]
-  (and (contains? @automagic-batched-hydration-keys k)
-       (every? #(contains? % (k->k_id k)) results)))
-
+  (let [k-id-u (kw-append k "_id")
+        k-id-d (kw-append k "-id")
+        contains-k-id? (fn [obj]
+                         (or (contains? obj k-id-u)
+                             (contains? obj k-id-d)))]
+    (and (contains? @automagic-batched-hydration-keys k)
+         (every? contains-k-id? results))))
 
 (defn- automagically-batched-hydrate
   "Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (`DEST-KEY_id`),
    doing a single `db/select`, and mapping corresponding objects to DEST-KEY."
   [results dest-key]
   {:pre [(keyword? dest-key)]}
-  (let [model     (@automagic-batched-hydration-key->model dest-key)
-        source-key (k->k_id dest-key)
-        ids        (set (for [result results
-                              :when  (not (get result dest-key))
-                              :let   [k (source-key result)]
-                              :when  k]
-                          k))
-        objs       (if (seq ids)
-                     (into {} (for [item (db/select model, :id [:in ids])]
-                                {(:id item) item}))
-                     (constantly nil))]
-    (for [{source-id source-key, :as result} results]
+  (let [model       (@automagic-batched-hydration-key->model dest-key)
+        source-keys #{(kw-append dest-key "_id") (kw-append dest-key "-id")}
+        ids         (set (for [result results
+                               :when  (not (get result dest-key))
+                               :let   [k (some source-keys result)]
+                               :when  k]
+                           k))
+        objs        (if (seq ids)
+                      (into {} (for [item (db/select model, :id [:in ids])]
+                                 {(:id item) item}))
+                      (constantly nil))]
+    (for [result results
+          :let [source-id (some source-keys result)]]
       (if (get result dest-key)
         result
         (assoc result dest-key (objs source-id))))))

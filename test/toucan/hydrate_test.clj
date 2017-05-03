@@ -16,15 +16,15 @@
 ;; ## TESTS FOR HYDRATION HELPER FNS
 
 ;; ### k->k_id
-(def k->k_id (ns-resolve 'toucan.hydrate 'k->k_id))
+(def kw-append (ns-resolve 'toucan.hydrate 'kw-append))
 
 (expect
   :user_id
-  (k->k_id :user))
+  (kw-append :user "_id"))
 
 (expect
-  :toucan_id
-  (k->k_id :toucan))
+  :toucan-id
+  (kw-append :toucan "-id"))
 
 ;; ### can-automagically-batched-hydrate?
 (def can-automagically-batched-hydrate? (ns-resolve 'toucan.hydrate 'can-automagically-batched-hydrate?))
@@ -35,9 +35,14 @@
   (can-automagically-batched-hydrate? [{:a_id 1} {:a_id 2}] :a))
 
 ;; should work for known keys if k_id present in every map
-;; TODO
-#_(expect
-    (can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2}] :user))
+(expect
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:user})]
+   (can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2}] :user)))
+
+;; should work for both k_id and k-id style keys
+(expect
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:user})]
+   (can-automagically-batched-hydrate? [{:user_id 1} {:user-id 2}] :user)))
 
 ;; should fail for known keys if k_id isn't present in every map
 (expect
