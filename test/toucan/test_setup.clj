@@ -10,6 +10,9 @@
             [toucan.util.test :as u])
   (:import java.sql.Timestamp))
 
+;; Don't run unit tests whenever JVM shuts down
+(expectations/disable-run-on-shutdown)
+
 ;;; Basic Setup
 
 (defn- configure-db! []
