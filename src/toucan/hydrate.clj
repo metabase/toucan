@@ -200,7 +200,7 @@
         source-keys #{(kw-append dest-key "_id") (kw-append dest-key "-id")}
         ids         (set (for [result results
                                :when  (not (get result dest-key))
-                               :let   [k (some source-keys result)]
+                               :let   [k (some result source-keys)]
                                :when  k]
                            k))
         objs        (if (seq ids)
@@ -208,7 +208,7 @@
                                  {(:id item) item}))
                       (constantly nil))]
     (for [result results
-          :let [source-id (some source-keys result)]]
+          :let [source-id (some result source-keys)]]
       (if (get result dest-key)
         result
         (assoc result dest-key (objs source-id))))))

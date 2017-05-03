@@ -1,7 +1,9 @@
 (ns toucan.hydrate-test
   (:require [expectations :refer :all]
             [toucan.hydrate :refer [hydrate]]
-            toucan.test-setup))
+            [toucan.test-models.venue :refer [Venue]]
+            toucan.test-setup
+            [toucan.db :as db]))
 
 (defn- ^:hydrate x [{:keys [id]}]
   id)
@@ -48,6 +50,19 @@
 (expect
   false
   (can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2} {:x 3}] :user))
+
+;; ### automagically-batched-hydrate
+(def automagically-batched-hydrate (ns-resolve 'toucan.hydrate 'automagically-batched-hydrate))
+
+;; it should correctly hydrate
+(expect
+ '({:venue_id 1
+    :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}}
+   {:venue-id 2
+    :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Ho's Tavern", :id 2}})
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:venue})
+               toucan.hydrate/automagic-batched-hydration-key->model (ref {:venue Venue})]
+   (automagically-batched-hydrate [{:venue_id 1} {:venue-id 2}] :venue)))
 
 ;; ### valid-hydration-form?
 (def valid-hydration-form? (ns-resolve 'toucan.hydrate 'valid-hydration-form?))
