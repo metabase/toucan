@@ -5,7 +5,7 @@
             [toucan.test-setup :as test]
             (toucan.test-models [category :refer [Category], :as category]
                                 [user :refer [User]]
-                                [venue :refer [Venue]])
+                                [venue :refer [Venue map->VenueInstance]])
             [toucan.util.test :as tu]))
 
 ;; Test types (keyword)
@@ -139,7 +139,7 @@
 
 ;; check that we can still override default-fields
 (expect
- #toucan.test_models.venue.VenueInstance{:created-at #inst "2017-01-01T08:00:00.000000000-00:00"}
+ (map->VenueInstance {:created-at test/jan-first-2017})
  (db/select-one [Venue :created-at] :id 1))
 
 ;; Test invoking model as a function (no args)

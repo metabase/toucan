@@ -1,7 +1,9 @@
 (ns toucan.hydrate-test
   (:require [expectations :refer :all]
             [toucan.hydrate :refer [hydrate]]
-            toucan.test-setup))
+            [toucan.test-models.venue :refer [Venue]]
+            toucan.test-setup
+            [toucan.db :as db]))
 
 (defn- ^:hydrate x [{:keys [id]}]
   id)
@@ -16,15 +18,15 @@
 ;; ## TESTS FOR HYDRATION HELPER FNS
 
 ;; ### k->k_id
-(def k->k_id (ns-resolve 'toucan.hydrate 'k->k_id))
+(def kw-append (ns-resolve 'toucan.hydrate 'kw-append))
 
 (expect
   :user_id
-  (k->k_id :user))
+  (kw-append :user "_id"))
 
 (expect
-  :toucan_id
-  (k->k_id :toucan))
+  :toucan-id
+  (kw-append :toucan "-id"))
 
 ;; ### can-automagically-batched-hydrate?
 (def can-automagically-batched-hydrate? (ns-resolve 'toucan.hydrate 'can-automagically-batched-hydrate?))
@@ -35,14 +37,32 @@
   (can-automagically-batched-hydrate? [{:a_id 1} {:a_id 2}] :a))
 
 ;; should work for known keys if k_id present in every map
-;; TODO
-#_(expect
-    (can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2}] :user))
+(expect
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:user})]
+   (can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2}] :user)))
+
+;; should work for both k_id and k-id style keys
+(expect
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:user})]
+   (can-automagically-batched-hydrate? [{:user_id 1} {:user-id 2}] :user)))
 
 ;; should fail for known keys if k_id isn't present in every map
 (expect
   false
   (can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2} {:x 3}] :user))
+
+;; ### automagically-batched-hydrate
+(def automagically-batched-hydrate (ns-resolve 'toucan.hydrate 'automagically-batched-hydrate))
+
+;; it should correctly hydrate
+(expect
+ '({:venue_id 1
+    :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}}
+   {:venue-id 2
+    :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Ho's Tavern", :id 2}})
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:venue})
+               toucan.hydrate/automagic-batched-hydration-key->model (ref {:venue Venue})]
+   (automagically-batched-hydrate [{:venue_id 1} {:venue-id 2}] :venue)))
 
 ;; ### valid-hydration-form?
 (def valid-hydration-form? (ns-resolve 'toucan.hydrate 'valid-hydration-form?))
