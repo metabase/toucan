@@ -1,5 +1,9 @@
 # Toucan Version History & Release Notes
 
+### 1.0.3 (May 3rd, 2017)
+
+*  Fixed [#6](https://github.com/metabase/toucan/issues/6): Fix hydration for fields that end in `-id`. Credit: [@plexus](https://github.com/plexus)
+
 ### 1.0.2 (Jan 27th, 2017)
 
 *  Minor documentation tweaks.
