@@ -2,7 +2,7 @@
 
 *  [Setup](setup.md)
    *  [Setting up connection pools](connection-pools.md)
-*  [Defining Models](definition-models.md)
+*  [Defining Models](defining-models.md)
 *  [DB Functions](db-functions.md)
 *  [Hydration](hydration.md)
 *  [Test Utilities](test-utils.md)
