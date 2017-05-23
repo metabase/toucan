@@ -203,6 +203,11 @@ These tests and linters also run on [CircleCI](https://circleci.com/) for all co
 We try to keep Toucan well-tested, so new features should include new tests for them; bugfixes should include failing tests.
 Make sure to properly document new features as well! :yum:
 
+A few more things: please carefully review your own changes and revert any superfluous ones. (A good example would be moving
+words in the Markdown documentation to different lines in a way that wouldn't change how the rendered
+page itself would appear. These sorts of changes make a PR bigger than it needs to be, and, thus, harder
+to review.) And please include a detailed explanation of what changes you're making and why you've made them. This will help us understand what's going on while we review it. Thanks! :heart_eyes_cat:
+
 
 ### License
 
