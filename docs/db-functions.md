@@ -429,8 +429,8 @@ say admins have permissions to modify any User, and non-admins only have permiss
 (defprotocol IPermissions
   (can-write? [this]))
 
-(extend-protocol IPermissions
-  (class User)
+(defmodel User :user_table
+  IPermissions
   (can-write? [user]
     (or (current-user-is-admin?)
         (is-current-user? user))))
@@ -445,9 +445,10 @@ This could be taken a step further, and you could implement automatic permission
                     "You don't have permissions to do that.")
             obj))
 
-(extend (class User)
-  models/IModel (merge models/IModelDefaults
-                       {:properties (constantly {:write-check? true})}))
+(defmodel User :user_table
+  models/IModel
+  (properties [_]
+    {:write-check? true}))
 ```
 
 Now whenever you try to `update!` an object with the `:write-check?` property (such as User), `can-write?` must return a truthy

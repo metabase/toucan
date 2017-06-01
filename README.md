@@ -82,12 +82,10 @@ With Toucan, you just need to define the model, and tell that you want `:status`
 
 ```clojure
 ;; define the User model
-(defmodel User :user)
-
-;; tell Toucan to automatically do Keyword <-> String conversion for :status
-(extend (class User)
-   IModel (merge IModelDefaults
-                 {:types (constantly {:status :keyword})}))
+(defmodel User :user
+  IModel
+  (types [this] ;; tell Toucan to automatically do Keyword <-> String conversion for :status
+    {:status :keyword}))
 ```
 
 After that, whenever you fetch, insert, or update a User, `:status` will automatically be converted appropriately:

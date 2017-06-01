@@ -159,6 +159,11 @@
  #toucan.test_models.venue.VenueInstance{:category :store, :name "BevMo", :id 3}
  (Venue :name "BevMo"))
 
+;; Test invoking model as a function with apply
+(expect
+ #toucan.test_models.venue.VenueInstance{:category :store, :name "BevMo", :id 3}
+ (apply Venue [:name "BevMo"]))
+
 ;; Test using model in HoneySQL form
 (expect
  [{:id 1, :name "Tempest"}
@@ -167,3 +172,8 @@
  (db/query {:select   [:id :name]
             :from     [Venue]
             :order-by [:id]}))
+
+;; Test (empty)
+(expect
+ #toucan.test_models.venue.VenueInstance{}
+ (empty (Venue :name "BevMo")))
