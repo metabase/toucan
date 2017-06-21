@@ -431,13 +431,15 @@
    Returns a sequences of IDs of newly inserted objects.
 
      (db/simple-insert-many! 'Label [{:name \"Toucan Friendly\"}
-                                     {:name \"Bird Approved\"}]) -> [38 39]"
+                                     {:name \"Bird Approved\"}]) ;;=> (38 39)"
   {:style/indent 1}
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model (resolve-model model)]
-      (map (insert-id-key) (jdbc/insert-multi! (connection) (keyword (:table model)) row-maps {:entities (quote-fn)})))))
+    (let [model    (resolve-model model)
+          to-sql   (fn [row] (honeysql->sql {:insert-into model :values [row]}))
+          do-query (fn [qry] (jdbc/db-do-prepared-return-keys (connection) false qry {}))]
+      (doall (map (comp (insert-id-key) do-query to-sql) row-maps)))))
 
 (defn insert-many!
   "Insert several new rows into the Database. Resolves ENTITY, and calls `pre-insert` on each of the ROW-MAPS.

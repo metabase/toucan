@@ -3,7 +3,8 @@
             (toucan [db :as db]
                     [models :as models])
             (toucan.test-models [user :refer [User]]
-                                [venue :refer [Venue]])
+                                [venue :refer [Venue]]
+                                [category :refer [Category]])
             [toucan.test-setup :as test]
             [toucan.util.test :as tu]))
 
@@ -169,17 +170,51 @@
 
 ;; TODO - Test simple-delete!
 
-;; TODO - Test simple-insert-many!
+;;; Test simple-insert-many!
 
-;; TODO - Test insert-many!
+;; It must return the inserted ids
+(expect
+ [5]
+ (test/with-clean-db
+   (db/simple-insert-many! Category [{:name "seafood" :parent-category-id 100}])))
+
+;; it must not fail when using SQL function calls.
+(expect
+ [4 5]
+ (test/with-clean-db
+   (db/simple-insert-many! User [{:first-name "Grass" :last-name #sql/call [:upper "Hopper"]}
+                                 {:first-name "Ko" :last-name "Libri"}])))
+
+;;; Test insert-many!
+
+;; It must return the inserted ids, it must not fail when using SQL function calls.
+(expect
+ [4 5]
+ (test/with-clean-db
+   (db/insert-many! User [{:first-name "Grass" :last-name #sql/call [:upper "Hopper"]}
+                          {:first-name "Ko" :last-name "Libri"}])))
+
+;; It must call pre-insert hooks
+(expect
+ AssertionError ; triggered by pre-insert hook
+ (test/with-clean-db
+   (db/insert-many! Category [{:name "seafood" :parent-category-id 100}])))
 
 ;; TODO - Test simple-insert!
 
-;; Test insert!
+;;; Test insert!
+
+;; It must return the inserted model
 (expect
  #toucan.test_models.user.UserInstance{:id 4, :first-name "Trash", :last-name "Bird"}
  (test/with-clean-db
    (db/insert! User {:first-name "Trash", :last-name "Bird"})))
+
+;; The returned data must match what's been inserted in the table
+(expect
+ #toucan.test_models.user.UserInstance{:id 4, :first-name "Grass", :last-name "HOPPER"}
+ (test/with-clean-db
+   (db/insert! User {:first-name "Grass" :last-name #sql/call [:upper "Hopper"]})))
 
 ;; Test select-one
 (expect
