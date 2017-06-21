@@ -156,9 +156,10 @@ fetching instances of a model. Without `default-fields`, fetching a User might l
 Not ideal! Let's define some `:default-fields` for User:
 
 ```clojure
-(extend (class User)
-  IModel (merge IModelDefaults
-                {:default-fields (constantly [:id :first-name :last-name])}))
+(defmodel User :user_table
+  IModel
+  (default_fields [_]
+    [:id :first-name :last-name]))
 ```
 
 Now, when we fetch a User, we'll only see the `default-fields`:
@@ -193,12 +194,10 @@ be converted to a Keyword when it comes out of the DB, and back into a string wh
 know to take care of this by defining the model as follows:
 
 ```clojure
-(defmodel Venue :my_venue_table)
-
-(extend (class Venue)
-  models/IModel
-  (merge models/IModelDefaults
-         {:types (constantly {:category :keyword})}))
+(defmodel Venue :my_venue_table
+  IModel
+  (types [_]
+    {:category :keyword}))
 ```
 
 Whenever you fetch a Venue, Toucan will automatically apply the appropriate `:out` function for values of `:category`:
@@ -252,12 +251,10 @@ defining a new *property* that can be shared by multiple models:
   :update (fn [obj _]
             (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
 
-(defmodel Venue :my_venue_table)
-
-(extend (class Venue)
-  models/IModel
-  (merge models/IModelDefaults
-         {:properties (constantly {:timestamped? true})}))
+(defmodel Venue :my_venue_table
+  IModel
+  (properties [_]
+    {:timestamped? true}))
 ```
 
 In this example, before a Venue is inserted, a new value for `:created-at` and `:updated-at` will be added; before
@@ -292,13 +289,12 @@ any desired changes.
 This provides an opportunity to do things like encode JSON or provide default values for certain fields.
 
 ```clojure
-(defn- pre-insert [user]
-  (let [defaults {:version 1}]
-    (merge defaults user))) ; set some default values"
+(defmodel User :user_table
+  IModel
+  (pre-insert [user]
+    (let [defaults {:version 1}]
+      (merge defaults user)))) ; set some default values"
 
-(extend (class User)
-  IModel (merge IModelDefaults
-                {:pre-insert pre-insert}))
 ```
 
 `pre-insert` is a good opportunity to set default values for things, as shown above, or do constraint checking that would otherwise
@@ -395,9 +391,10 @@ to find the User ID, and fetch the `Users` corresponding to those values.
 
 ```clojure
 ;; tell hydrate to fetch Users when hydrating :creator
-(extend (class User)
-  IModel (merge IModelDefaults
-           {:hydration-keys (constantly [:creator])}))
+(defmodel User :user_table
+  IModel
+  (hydration-keys [_]
+    [:creator]))
 ```
 
 e.g.

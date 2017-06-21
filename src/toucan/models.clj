@@ -1,9 +1,11 @@
 (ns toucan.models
   "The `defmodel` macro, used to define Toucan models, and
    the `IModel` protocol and default implementations, which implement Toucan model functionality."
-  (:require [honeysql.format :as hformat]
+  (:require [clojure.walk :refer [postwalk]]
+            [honeysql.format :as hformat]
             [toucan.util :as u])
-  (:import honeysql.format.ToSql))
+  (:import clojure.lang.IFn
+           honeysql.format.ToSql))
 
 ;;;                                                      Configuration
 ;;; ========================================================================================================================
@@ -371,6 +373,45 @@
 ;;;                                                      DEFMODEL MACRO
 ;;; ========================================================================================================================
 
+(defn- ifn-invoke-forms
+  "Macro helper, generates
+
+       (~'invoke [this#]
+        (invoke-model-or-instance this#))
+       (~'invoke [this# id#]
+        (invoke-model-or-instance this# id#))
+       (~'invoke [this# arg1# arg2#]
+        (invoke-model-or-instance this# arg1# arg2#))
+       ,,,"
+  []
+  (let [args (map #(symbol (str "arg" %)) (range 1 19))
+        arg-lists (reductions conj ['this] args)]
+    (for [l arg-lists]
+      (list 'invoke l (concat `(invoke-model-or-instance) l)))))
+
+(defn- fully-qualified-symbol
+  "Make a symbol fully qualified by resolving it as a var in the current namespace.
+
+     conj        ;;=> clojure.core/conj
+     str/join    ;;=> clojure.string/join
+     foo.bar/baz ;;=> foo.bar/baz "
+  [s]
+  (let [{:keys [ns name]} (meta (resolve s))]
+    (symbol (str ns "/" name))))
+
+(defn- method-forms-map
+  "Take in forms as passed to defrecord or extend-type (protocol or interface
+  name followed by method definitions), and return a map suitable for use with
+  extend.
+
+  (IFn (invoke [this] this)) ;;=> {IFn {:invoke (fn [this] this)}}
+  "
+  [forms]
+  (second
+   (reduce (fn [[type acc] form]
+             (if (symbol? form)
+               [(fully-qualified-symbol form) acc]
+               [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))
 
 (defmacro defmodel
   "Define a new \"model\". Models encapsulate information and behaviors related to a specific table in the application DB,
@@ -388,8 +429,19 @@
 
      (db/select User, ...)  ; use with `toucan.db` functions. All results are instances of `UserInstance`
 
-   The record type automatically extends `IModel` with `IModelDefaults`, but you may call `extend` again if you need to
-   override default behaviors:
+   The record type automatically extends `IModel` with `IModelDefaults`, but you can override specific methods, or implement
+   other protocols, by passing them to `defmodel`, the same way you would with `defrecord`.
+
+     (defmodel User :user_table
+       IModel
+       (hydration-keys [_]
+         [:user])
+       (properties [_]
+         {:timestamped true})
+       (pre-insert [user]
+         user))
+
+   This is equivalent to:
 
      (extend (class User)             ; it's somewhat more readable to write `(class User)` instead of `UserInstance`
        IModel (merge IModelDefaults
@@ -401,84 +453,47 @@
      (Database)                       ; return a seq of *all* Databases (as instances of `DatabaseInstance`)
      (Database 1)                     ; return Database 1"
   {:arglists     '([model table-name] [model docstr? table-name])
-   :style/indent 2}
+   :style/indent [2 :form :form [1]]}
   [model & args]
   (let [[docstr table-name] (if (string? (first args))
                               args
-                              (cons nil args))
+                              (list nil (first args)))
+        extend-forms        (if (string? (first args))
+                              (drop 2 args)
+                              (drop 1 args))
         instance            (symbol (str model "Instance"))
-        map->instance       (symbol (str "map->" instance))]
-    `(do
-       (defrecord ~instance []
-         clojure.lang.Named
-         (~'getName [~'_]
-          ~(name model))
+        map->instance       (symbol (str "map->" instance))
+        defrecord-form      `(defrecord ~instance []
+                               clojure.lang.Named
+                               (~'getName [~'_] ~(name model))
 
-         clojure.lang.IFn
-         (~'invoke [this#]
-          (invoke-model-or-instance this#))
-         (~'invoke [this# id#]
-          (invoke-model-or-instance this# id#))
-         (~'invoke [this# arg1# arg2#]
-          (invoke-model-or-instance this# arg1# arg2#))
-         (~'invoke [this# arg1# arg2# arg3#]
-          (invoke-model-or-instance this# arg1# arg2# arg3#))
-         (~'invoke [this# arg1# arg2# arg3# arg4#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12# arg13#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                    arg13# arg14#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13# arg14#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                    arg13# arg14# arg15#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13# arg14# arg15#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                    arg13# arg14# arg15# arg16#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13# arg14# arg15# arg16#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                    arg13# arg14# arg15# arg16# arg17#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13# arg14# arg15# arg16# arg17#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                    arg13# arg14# arg15# arg16# arg17# arg18#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13# arg14# arg15# arg16# arg17# arg18#))
-         (~'invoke [this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                    arg13# arg14# arg15# arg16# arg17# arg18# arg19#]
-          (invoke-model-or-instance this# arg1# arg2# arg3# arg4# arg5# arg6# arg7# arg8# arg9# arg10# arg11# arg12#
-                                    arg13# arg14# arg15# arg16# arg17# arg18# arg19#)))
+                               clojure.lang.IFn
+                               ~@(ifn-invoke-forms)
+                               (~'applyTo [~'this ^ISeq ~'args]
+                                (apply invoke-model-or-instance ~'this ~'args)))
+
+        ;; Replace the implementation of `empty`. It's either this, or using the
+        ;; lower level `deftype`, and re-implementing all of `defrecord`
+        defrecord-form (postwalk (fn [f]
+                                   (if (and (seq? f) (= (first f) 'clojure.core/empty))
+                                     `(empty [_#] (~map->instance {}))
+                                     f))
+                                 (macroexpand defrecord-form))]
+    `(do
+       ~defrecord-form
 
        (extend ~instance
-         IModel                IModelDefaults
-         ICreateFromMap        {:map-> (fn [~'_ & args#] (apply ~map->instance args#))}
-         honeysql.format/ToSql {:to-sql (comp hformat/to-sql keyword :table)})
+         ~@(mapcat identity (merge-with (fn [this that] `(merge ~this ~that))
+                              `{toucan.models/IModel         models/IModelDefaults
+                                toucan.models/ICreateFromMap {:map-> (fn [~'_ & args#] (apply ~map->instance args#))}
+                                honeysql.format/ToSql        {:to-sql (comp hformat/to-sql keyword :table)}}
+                              (method-forms-map extend-forms))))
 
        (def ~(vary-meta model assoc
                         :tag      (symbol (str (namespace-munge *ns*) \. instance))
                         :arglists ''([] [id] [& kvs])
                         :doc      (or docstr
                                       (format "Entity for '%s' table; instance of %s." (name table-name) instance)))
-         (~map->instance {:table   ~table-name
-                          :name    ~(name model)
+         (~map->instance {:table  ~table-name
+                          :name   ~(name model)
                           ::model true})))))

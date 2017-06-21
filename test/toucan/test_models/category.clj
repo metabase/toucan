@@ -40,10 +40,15 @@
   new-category)
 
 
-(extend (class Category)
+(models/defmodel Category :categories
   models/IModel
-  (merge models/IModelDefaults {:types       (constantly {:name :lowercase-string})
-                                :pre-insert  assert-parent-category-exists
-                                :post-insert add-category-to-moderation-queue!
-                                :pre-update  assert-parent-category-exists
-                                :pre-delete  delete-child-categories}))
+  (types [_]
+    {:name :lowercase-string})
+  (pre-insert [this]
+    (assert-parent-category-exists this))
+  (post-insert [this]
+    (add-category-to-moderation-queue! this))
+  (pre-update [this]
+    (assert-parent-category-exists this))
+  (pre-delete [this]
+    (delete-child-categories this)))

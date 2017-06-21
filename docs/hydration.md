@@ -66,13 +66,11 @@ If the key being hydrated is defined as one of some model's `hydration-keys`,
 is found in the objects being batch hydrated.
 
 ```clojure
-(models/defmodel User :users)
-
-;; tell Toucan to do batched hydration of the key `:user` by fetching instances of User with given `:id`s
-(extend (class User)
-   models/IModel
-   (merge models/IModelDefaults
-          {:hydration-keys (constantly [:user])}))
+(models/defmodel User :users
+  models/IModel
+  ;; tell Toucan to do batched hydration of the key `:user` by fetching instances of User with given `:id`s
+  (hydration-keys []
+    [:user]))
 
 ;; ... later, somewhere else ...
 
