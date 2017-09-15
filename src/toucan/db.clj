@@ -91,7 +91,7 @@
   (or *db-connection*
       *transaction-connection*
       @default-db-connection
-      (throw (Exception. "DB is not set up. Make sure to bind call set-default-db-connection! or bind *db-connection*."))))
+      (throw (Exception. "DB is not set up. Make sure to call set-default-db-connection! or bind *db-connection*."))))
 
 (defn do-in-transaction
   "Execute F inside a DB transaction. Prefer macro form `transaction` to using this directly."
