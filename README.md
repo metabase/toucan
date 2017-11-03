@@ -209,6 +209,6 @@ to review.) And please include a detailed explanation of what changes you're mak
 
 ### License
 
-Code and documentation copyright (c) 2017 Metabase, Inc. Artwork copyright (c) 2017 Cam Saül.
+Code and documentation copyright (c) 2017 Metabase, Inc. Artwork copyright (c) 2017 Cam Saul.
 
 Distributed under the [Eclipse Public License](https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt), same as Clojure.
