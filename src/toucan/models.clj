@@ -484,7 +484,7 @@
 
        (extend ~instance
          ~@(mapcat identity (merge-with (fn [this that] `(merge ~this ~that))
-                              `{toucan.models/IModel         models/IModelDefaults
+                              `{toucan.models/IModel         toucan.models/IModelDefaults
                                 toucan.models/ICreateFromMap {:map-> (fn [~'_ & args#] (apply ~map->instance args#))}
                                 honeysql.format/ToSql        {:to-sql (comp hformat/to-sql keyword :table)}}
                               (method-forms-map extend-forms))))
