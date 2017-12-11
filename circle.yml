@@ -1,7 +1,9 @@
 machine:
   timezone:
     America/Los_Angeles
+  environment:
+    TOUCAN_TEST_DB_NAME: circle_test
+    TOUCAN_TEST_DB_USER: ubuntu
 test:
   override:
-    - case $CIRCLE_NODE_INDEX in 0) lein test ;; 1) lein eastwood ;; 2) lein bikeshed ;; 3) lein docstring-checker ;; esac:
-        parallel: true
+    - lein test && lein lint
