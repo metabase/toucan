@@ -1,5 +1,11 @@
 # Toucan Version History & Release Notes
 
+### [1.1.1](https://github.com/metabase/toucan/compare/1.1.0...1.1.1) (December 11th, 2017)
+
+*  `update!` now works correctly with non-integer IDs.(#20) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
+*  Fix issue where `defmodel` macro didn't work correctly inside of other macros (#19) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
+*  Improvements to make tests & linters easier to run locally (#19, #21) (Credits: [@camsaul](https://github.com/camsaul), [@AndreTheHunter](https://github.com/AndreTheHunter))
+
 ### [1.1.0](https://github.com/metabase/toucan/compare/1.0.3...1.1.0) (June 21st, 2017)
 
 *  Make `toucan.db/insert!` and friends use HoneySQL, so that you can use `honeysql.core/call` for SQL function calls. (Credit: [@plexus](https://github.com/plexus))
