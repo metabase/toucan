@@ -193,7 +193,7 @@ There's lots of ways Toucan can be improved and we need people like you to make 
 Before submitting a PR, you should also make sure tests and the linters pass. You can run tests and linters as follows:
 
 ```bash
-lein test && lein eastwood && lein bikeshed && lein docstring-checker
+lein test && lein lint
 ```
 
 These tests and linters also run on [CircleCI](https://circleci.com/) for all commits and PRs.

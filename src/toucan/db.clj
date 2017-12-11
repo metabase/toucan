@@ -379,7 +379,7 @@
                                 honeysql-form)))))
 
   (^Boolean [model id kvs]
-   {:pre [(integer? id) (map? kvs) (every? keyword? (keys kvs))]}
+   {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
    (let [model (resolve-model model)
          kvs    (-> (models/do-pre-update model (assoc kvs :id id))
                     (dissoc :id))]
