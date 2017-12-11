@@ -133,8 +133,8 @@
    (db/update! User 1 :last-name "Era")
    (db/select-one User :id 1)))
 
-(expect
-  (let [id (UUID/randomUUID)]
+(let [id (UUID/randomUUID)]
+  (expect
     #toucan.test_models.user.UserInstance{:id id, :first-name "Cam", :last-name "Era"}
     (test/with-clean-db
       (db/update! User id :last-name "Era")
