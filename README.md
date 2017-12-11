@@ -196,6 +196,42 @@ Before submitting a PR, you should also make sure tests and the linters pass. Yo
 lein test && lein lint
 ```
 
+Tests assume you have Postgres running locally and have a test DB set up with read/write permissions. Toucan will populate this database with appropriate test data.
+To configure access to this database, set the following env vars as needed:
+
+<table>
+    <tr>
+        <th>Env Var</th>
+        <th>Default Value</th>
+        <th>Notes</th>
+    </tr>
+    <tr>
+        <td><tt>TOUCAN_TEST_DB_HOST</tt></td>
+        <td><tt>localhost</tt></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td><tt>TOUCAN_TEST_DB_PORT</tt></td>
+        <td><tt>5432</tt></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td><tt>TOUCAN_TEST_DB_NAME</tt></td>
+        <td><tt>toucan_test</tt></td>
+        <td></td>
+    </tr>
+    <tr>
+        <td><tt>TOUCAN_TEST_DB_USER</tt></td>
+        <td></td>
+        <td><i>Optional.</i></td>
+    </tr>
+    <tr>
+        <td><tt>TOUCAN_TEST_DB_PASS</tt></td>
+        <td></td>
+        <td><i>Optional.</i></td>
+    </tr>
+</table>
+
 These tests and linters also run on [CircleCI](https://circleci.com/) for all commits and PRs.
 
 We try to keep Toucan well-tested, so new features should include new tests for them; bugfixes should include failing tests.

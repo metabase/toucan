@@ -19,10 +19,14 @@
   (db/set-default-db-connection!
     (merge {:classname   "org.postgresql.Driver"
             :subprotocol "postgresql"
-            :subname     "//localhost:5432/toucan_test"}
-           (when (System/getenv "CIRCLECI")
-             {:user    "ubuntu"
-              :subname "//localhost:5432/circle_test"}))))
+            :subname     (format "//%s:%s/%s"
+                                 (or (System/getenv "TOUCAN_TEST_DB_HOST") "localhost")
+                                 (or (System/getenv "TOUCAN_TEST_DB_PORT") "5432")
+                                 (or (System/getenv "TOUCAN_TEST_DB_NAME") "toucan_test"))}
+           (when-let [user (System/getenv "TOUCAN_TEST_DB_USER")]
+             {:user user})
+           (when-let [password (System/getenv "TOUCAN_TEST_DB_PASS")]
+             {:password password}))))
 
 (defn- execute! {:style/indent 0} [& statements]
   (doseq [sql statements]
