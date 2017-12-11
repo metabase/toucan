@@ -3,7 +3,7 @@ Thanks for contributing to Toucan. Before open a pull request, please take a mom
 - [ ] Ensure the PR follows the [Clojure Style Guide](https://github.com/bbatsov/clojure-style-guide) and the [Metabase Clojure Style Guide](https://github.com/metabase/metabase/wiki/Metabase-Clojure-Style-Guide).
 - [ ] Tests and linters pass. You can run them locally as follows:
 
-      lein test && lein eastwood && lein bikeshed && lein docstring-checker
+      lein test && lein lint
 
     (CircleCI will also run these same tests against your PR.)
 - [ ] Make sure you've included new tests for any new features or bugfixes
