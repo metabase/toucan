@@ -6,8 +6,7 @@
                                 [venue :refer [Venue]]
                                 [category :refer [Category]])
             [toucan.test-setup :as test]
-            [toucan.util.test :as tu])
-  (:import (java.util UUID)))
+            [toucan.util.test :as tu]))
 
 ;; TODO - Test quoting-style
 
@@ -132,13 +131,6 @@
  (test/with-clean-db
    (db/update! User 1 :last-name "Era")
    (db/select-one User :id 1)))
-
-(let [id (UUID/randomUUID)]
-  (expect
-    #toucan.test_models.user.UserInstance{:id id, :first-name "Cam", :last-name "Era"}
-    (test/with-clean-db
-      (db/update! User id :last-name "Era")
-      (db/select-one User :id id))))
 
 ;; Test update-where!
 (expect
