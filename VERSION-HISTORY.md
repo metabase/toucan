@@ -2,7 +2,7 @@
 
 ### [1.1.1](https://github.com/metabase/toucan/compare/1.1.0...1.1.1) (December 11th, 2017)
 
-*  `update!` now works correctly with non-integer IDs.([#20](https://github.com/metabase/toucan/issues/20)) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
+*  `update!` now works correctly with non-integer IDs. ([#20](https://github.com/metabase/toucan/issues/20)) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
 *  Fix issue where `defmodel` macro didn't work correctly inside of other macros ([#19](https://github.com/metabase/toucan/issues/19)) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
 *  Improvements to make tests & linters easier to run locally ([#19](https://github.com/metabase/toucan/issues/19), [#21](https://github.com/metabase/toucan/issues/21)) (Credits: [@camsaul](https://github.com/camsaul), [@AndreTheHunter](https://github.com/AndreTheHunter))
 
