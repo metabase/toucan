@@ -2,17 +2,17 @@
 
 ### [1.1.1](https://github.com/metabase/toucan/compare/1.1.0...1.1.1) (December 11th, 2017)
 
-*  `update!` now works correctly with non-integer IDs.(#20) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
-*  Fix issue where `defmodel` macro didn't work correctly inside of other macros (#19) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
-*  Improvements to make tests & linters easier to run locally (#19, #21) (Credits: [@camsaul](https://github.com/camsaul), [@AndreTheHunter](https://github.com/AndreTheHunter))
+*  `update!` now works correctly with non-integer IDs.([#20](https://github.com/metabase/toucan/issues/20)) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
+*  Fix issue where `defmodel` macro didn't work correctly inside of other macros ([#19](https://github.com/metabase/toucan/issues/19)) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
+*  Improvements to make tests & linters easier to run locally ([#19](https://github.com/metabase/toucan/issues/19), [#21](https://github.com/metabase/toucan/issues/21)) (Credits: [@camsaul](https://github.com/camsaul), [@AndreTheHunter](https://github.com/AndreTheHunter))
 
 ### [1.1.0](https://github.com/metabase/toucan/compare/1.0.3...1.1.0) (June 21st, 2017)
 
 *  Make `toucan.db/insert!` and friends use HoneySQL, so that you can use `honeysql.core/call` for SQL function calls. (Credit: [@plexus](https://github.com/plexus))
 *  You can now pass protocol implementations directly to `defmodel`, the same way as you would with `defrecord` or `deftype`
-   (#9) (Credit: [@plexus](https://github.com/plexus))
-*  Toucan models now implement `empty` (#1) and `apply` (#2) (Credit: [@plexus](https://github.com/plexus))
-*  Fix typo in error message (#8) (Credit: [@bandresen](https://github.com/bandresen))
+   ([#9](https://github.com/metabase/toucan/issues/9)) (Credit: [@plexus](https://github.com/plexus))
+*  Toucan models now implement `empty` ([#1](https://github.com/metabase/toucan/issues/1)) and `apply` ([#2](https://github.com/metabase/toucan/issues/2)) (Credit: [@plexus](https://github.com/plexus))
+*  Fix typo in error message ([#8](https://github.com/metabase/toucan/issues/8)) (Credit: [@bandresen](https://github.com/bandresen))
 
 
 ### [1.0.3](https://github.com/metabase/toucan/compare/1.0.2...1.0.3) (May 3rd, 2017)
