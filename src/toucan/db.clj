@@ -368,6 +368,9 @@
 
 ;;; ### UPDATE!
 
+(defn- method-implemented? [method model]
+  (not (nil? (find-protocol-method models/IModel method model))))
+
 (defn update!
   "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise.
    Accepts either a single map of updates to make or kwargs. ENTITY is automatically resolved,
@@ -386,9 +389,12 @@
    {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
    (let [model (resolve-model model)
          kvs    (-> (models/do-pre-update model (assoc kvs :id id))
-                    (dissoc :id))]
-     (update! model (-> (h/sset {} kvs)
-                         (where :id id)))))
+                    (dissoc :id))
+         updated? (update! model (-> (h/sset {} kvs)
+                                     (where :id id)))]
+        (when (and updated? (method-implemented? :post-update model))
+          (models/post-update (model id)))
+     updated?))
 
   (^Boolean [model id k v & more]
    (update! model id (apply array-map k v more))))
