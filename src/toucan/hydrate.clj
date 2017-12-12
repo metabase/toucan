@@ -6,8 +6,8 @@
             (toucan [db :as db]
                     [models :as models])))
 
-;;;                                          Counts Destructuring & Restructuring
-;;; ========================================================================================================================
+;;;                                       Counts Destructuring & Restructuring
+;;; ==================================================================================================================
 
 ;; #### *DISCLAIMER*
 ;;
@@ -116,8 +116,8 @@
     (map merge coll new-vals)))
 
 
-;;;                                                        Util Fns
-;;; ========================================================================================================================
+;;;                                                     Util Fns
+;;; ==================================================================================================================
 
 (defn- valid-hydration-form?
   "Is this a valid argument to `hydrate`?"
@@ -153,12 +153,13 @@
                                    hydration-key) varr])]
     (cond
       (not k) m
-      (m k)   (throw (Exception. (format "Duplicate `^%s` functions for key '%s': %s and %s." metadata-key k (m k) f)))
+      (m k)   (throw (Exception.
+                      (format "Duplicate `^%s` functions for key '%s': %s and %s." metadata-key k (m k) f)))
       :else   (recur (assoc m k f) more))))
 
 
-;;;                                     Automagic Batched Hydration (via :model-keys)
-;;; ========================================================================================================================
+;;;                                  Automagic Batched Hydration (via :model-keys)
+;;; ==================================================================================================================
 
 (def ^:private automagic-batched-hydration-key->model
   "Delay that returns map of `hydration-key` -> model
@@ -214,8 +215,8 @@
         (assoc result dest-key (objs source-id))))))
 
 
-;;;                            Function-Based Batched Hydration (fns marked ^:batched-hydrate)
-;;; ========================================================================================================================
+;;;                         Function-Based Batched Hydration (fns marked ^:batched-hydrate)
+;;; ==================================================================================================================
 
 (def ^:private k->batched-f (delay (lookup-functions-with-metadata-key :batched-hydrate)))
 
@@ -237,8 +238,8 @@
   ((hydration-key->batched-f k) results))
 
 
-;;;                                 Function-Based Simple Hydration (fns marked ^:hydrate)
-;;; ========================================================================================================================
+;;;                              Function-Based Simple Hydration (fns marked ^:hydrate)
+;;; ==================================================================================================================
 
 (def ^:private k->f (delay (lookup-functions-with-metadata-key :hydrate)))
 
@@ -261,8 +262,8 @@
 
 
 
-;;;                                                  Primary Hydration Fns
-;;; ========================================================================================================================
+;;;                                               Primary Hydration Fns
+;;; ==================================================================================================================
 
 (declare hydrate)
 
@@ -302,8 +303,8 @@
       (recur results (first more) (rest more)))))
 
 
-;;;                                                    Public Interface
-;;; ========================================================================================================================
+;;;                                                 Public Interface
+;;; ==================================================================================================================
 
 ;;                              hydrate <-------------+
 ;;                                |                   |

@@ -10,14 +10,14 @@
                       [helpers :as h])
             [toucan.models :as models]))
 
-;;;                                                      CONFIGURATION
-;;; ========================================================================================================================
+;;;                                                   CONFIGURATION
+;;; ==================================================================================================================
 
 ;;; #### Quoting Style
 
-;; The quoting style is the HoneySQL quoting style that should be used to quote identifiers. By default, this is `:ansi`,
-;; which wraps identifers in double-quotes. Alternatively, you can specify `:mysql` (backticks), or `:sqlserver`
-;; (square bracketS)
+;; The quoting style is the HoneySQL quoting style that should be used to quote identifiers. By default, this is
+;; `:ansi`, which wraps identifers in double-quotes. Alternatively, you can specify `:mysql` (backticks), or
+;; `:sqlserver` (square brackets)
 
 (defonce ^:private default-quoting-style (atom :ansi))
 
@@ -74,8 +74,8 @@
   (reset! default-db-connection db-connection-map))
 
 
-;;;                                            TRANSACTION & CONNECTION UTIL FNS
-;;; ========================================================================================================================
+;;;                                         TRANSACTION & CONNECTION UTIL FNS
+;;; ==================================================================================================================
 
 (def ^:private ^:dynamic *transaction-connection*
   "Transaction connection to the application DB. Used internally by `transaction`."
@@ -107,8 +107,8 @@
   `(do-in-transaction (fn [] ~@body)))
 
 
-;;;                                                      QUERY UTIL FNS
-;;; ========================================================================================================================
+;;;                                                   QUERY UTIL FNS
+;;; ==================================================================================================================
 
 (def ^:dynamic ^Boolean *disable-db-logging*
   "Should we disable logging for database queries? Normally `false`, but bind this to `true` to keep logging
@@ -161,8 +161,9 @@
   nil)
 
 (defn -do-with-call-counting
-  "Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve
-   the current call count. (It's probably more useful to use the macro form of this function, `with-call-counting`, instead.)"
+  "Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve the
+  current call count. (It's probably more useful to use the macro form of this function, `with-call-counting`,
+  instead.)"
   {:style/indent 0}
   [f]
   (binding [*call-count* (atom 0)]
@@ -191,7 +192,8 @@
 
 (defn- format-sql [sql]
   (when sql
-    (loop [sql sql, [k & more] ["FROM" "LEFT JOIN" "INNER JOIN" "WHERE" "GROUP BY" "HAVING" "ORDER BY" "OFFSET" "LIMIT"]]
+    (loop [sql sql, [k & more] ["FROM" "LEFT JOIN" "INNER JOIN" "WHERE" "GROUP BY" "HAVING" "ORDER BY" "OFFSET"
+                                "LIMIT"]]
       (if-not k
         sql
         (recur (s/replace sql (re-pattern (format "\\s+%s\\s+" k)) (format "\n%s " k))
@@ -200,13 +202,15 @@
 (def ^:dynamic ^:private *debug-print-queries* false)
 
 (defn -do-with-debug-print-queries
-  "Execute F with debug query logging enabled. Don't use this directly; prefer the `debug-print-queries` macro form instead."
+  "Execute F with debug query logging enabled. Don't use this directly; prefer the `debug-print-queries` macro form
+  instead."
   [f]
   (binding [*debug-print-queries* true]
     (f)))
 
 (defmacro debug-print-queries
-  "Print the HoneySQL and SQL forms of any queries executed inside BODY to `stdout`. Intended for use during REPL development."
+  "Print the HoneySQL and SQL forms of any queries executed inside BODY to `stdout`. Intended for use during REPL
+  development."
   {:style/indent 0}
   [& body]
   `(-do-with-debug-print-queries (fn [] ~@body)))
@@ -238,8 +242,8 @@
 
 
 (defn qualify
-  "Qualify a FIELD-NAME name with the name its ENTITY. This is necessary for disambiguating fields for HoneySQL queries
-   that contain joins.
+  "Qualify a FIELD-NAME name with the name its ENTITY. This is necessary for disambiguating fields for HoneySQL
+  queries that contain joins.
 
      (db/qualify 'CardFavorite :id) -> :report_cardfavorite.id"
   ^clojure.lang.Keyword [model field-name]
@@ -445,8 +449,9 @@
   "Insert several new rows into the Database. Resolves ENTITY, and calls `pre-insert` on each of the ROW-MAPS.
    Returns a sequence of the IDs of the newly created objects.
 
-   Note: this *does not* call `post-insert` on newly created objects. If you need `post-insert` behavior, use `insert!` instead.
-   (This might change in the future: there is an [open issue to consider this](https://github.com/metabase/toucan/issues/4)).
+   Note: this *does not* call `post-insert` on newly created objects. If you need `post-insert` behavior, use
+   `insert!` instead. (This might change in the future: there is an [open issue to consider
+   this](https://github.com/metabase/toucan/issues/4)).
 
      (db/insert-many! 'Label [{:name \"Toucan Friendly\"}
                               {:name \"Bird Approved\"}]) -> [38 39]"
@@ -628,10 +633,9 @@
 
      (delete! Database :id 1)
 
-   NOTE: This function assumes objects have an `:id` column. There's an [open issue](https://github.com/metabase/toucan/issues/3)
-   to support objects that don't have one; until that is resolved, you'll have to use `simple-delete!` instead when deleting
-   objects with no `:id`."
-  {:style/indent 1}
+   NOTE: This function assumes objects have an `:id` column. There's an [open
+   issue](https://github.com/metabase/toucan/issues/3) to support objects that don't have one; until that is resolved,
+   you'll have to use `simple-delete!` instead when deleting objects with no `:id`." {:style/indent 1}
   [model & conditions]
   (let [model (resolve-model model)]
     (doseq [object (apply select model conditions)]

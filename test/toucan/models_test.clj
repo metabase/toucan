@@ -34,7 +34,8 @@
    (db/update! Venue 1 :category :bar/dive-bar)
    (db/select-one Venue :id 1)))
 
-;; Test custom types. Category.name is a custom type,:lowercase-string, that automatically lowercases strings as they come in
+;; Test custom types. Category.name is a custom type,:lowercase-string, that automatically lowercases strings as they
+;; come in
 (expect
  #toucan.test_models.category.CategoryInstance{:id 5, :name "wine-bar", :parent-category-id nil}
  (test/with-clean-db
@@ -76,8 +77,8 @@
 
 ;; Test pre-insert
 
-;; for Category, we set up `pre-insert` and `pre-update` to assert that a Category with `parent-category-id` exists before
-;; setting it.
+;; for Category, we set up `pre-insert` and `pre-update` to assert that a Category with `parent-category-id` exists
+;; before setting it.
 
 (expect
  AssertionError
@@ -101,9 +102,9 @@
    (db/update! Category 2
      :parent-category-id 4)))
 
-;; Test post-insert
-;; Categories adds the IDs of recently created Categories to a "moderation queue" as part of its `post-insert` implementation;
-;; check that creating a new Category results in the ID of the new Category being at the front of the queue
+;; Test post-insert Categories adds the IDs of recently created Categories to a "moderation queue" as part of its
+;; `post-insert` implementation; check that creating a new Category results in the ID of the new Category being at the
+;; front of the queue
 (expect
  5
  (test/with-clean-db
