@@ -1,5 +1,6 @@
 (ns toucan.test-setup
-  "Test setup logic and helper functions. All test namespaces should require this one to make sure the env is set up properly."
+  "Test setup logic and helper functions. All test namespaces should require this one to make sure the env is set up
+  properly."
   (:require [clojure.java.jdbc :as jdbc]
             [expectations :refer :all]
             (toucan [db :as db]

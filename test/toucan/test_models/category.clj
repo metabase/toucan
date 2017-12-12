@@ -1,7 +1,8 @@
 (ns toucan.test-models.category
   "A model with custom implementations of:
 
-   *  `types`                       -- `:lowercase-string` for `:name`, which lowercases values coming in or out of the DB;
+   *  `types`                       -- `:lowercase-string` for `:name`, which lowercases values coming in or out of
+                                       the DB;
    *  `pre-update` and `pre-insert` -- which check that a parent Category exists when setting `:parent-category-id`;
    *  `post-insert`                 -- which adds IDs of newly created Categories to a \"moderation queue\";
    *  `pre-delete`                  -- which deletes child Categories when deleting a Category;"

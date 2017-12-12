@@ -7,18 +7,19 @@
   (:import clojure.lang.IFn
            honeysql.format.ToSql))
 
-;;;                                                      Configuration
-;;; ========================================================================================================================
+;;;                                                   Configuration
+;;; ==================================================================================================================
 
 ;;; ### Root Model Namespace
 
-;; The root model namespace is the parent namespace of all Toucan models.
-;; Toucan knows how to automatically load namespaces where models live, which is handy for avoiding circular references;
-;; to facilitate this, Toucan models need to live in places that match an expected pattern.
+;; The root model namespace is the parent namespace of all Toucan models. Toucan knows how to automatically load
+;; namespaces where models live, which is handy for avoiding circular references; to facilitate this, Toucan models
+;; need to live in places that match an expected pattern.
 ;;
 ;; For example, a model named `UserFollow` must live in the namespace `<root-model-namespace>.user-follow`.
 ;;
-;; The root model namespace defaults to `models`; in the example above, `UserFollow` would live in `models.user-follow`.
+;; The root model namespace defaults to `models`; in the example above, `UserFollow` would live in
+;; `models.user-follow`.
 ;;
 ;; This is almost certainly not what you want; set your own value by calling `set-root-namespace!`:
 ;;
@@ -35,7 +36,7 @@
 
      (set-root-namespace! 'my-project.models)
 
-   In this example, Toucan would look for a model named `UserFollow` in the namespace `my-project.models.user-follow`."
+  In this example, Toucan would look for a model named `UserFollow` in the namespace `my-project.models.user-follow`."
   [new-root-namespace]
   {:pre [(symbol? new-root-namespace)]}
   (reset! -root-namespace new-root-namespace))
@@ -62,11 +63,13 @@
 ;;       (merge models/IModelDefaults
 ;;              {:types (constantly {:category :keyword})}))
 ;;
-;; Whenever you fetch a Venue, Toucan will automatically apply the appropriate `:out` function for values of `:category`:
+;; Whenever you fetch a Venue, Toucan will automatically apply the appropriate `:out` function for values of
+;; `:category`:
 ;;
 ;;     (db/select-one Venue) ; -> {:id 1, :category :bar, ...}
 ;;
-;; In the other direction, `insert!` and `update!` will automatically do the reverse, and call the appropriate `:in` function.
+;; In the other direction, `insert!` and `update!` will automatically do the reverse, and call the appropriate `:in`
+;; function.
 ;;
 ;; `:keyword` is the only Toucan type defined by default, but adding more is simple.
 ;;
@@ -112,12 +115,12 @@
 ;; that have the same property, without having to define repetitive code in model methods such as `pre-insert!`.
 ;;
 ;; For example, suppose you have several models with `:created-at` and `:updated-at` columns. Whenever a new instance
-;; of these models is inserted, you want to set `:created-at` and `:updated-at` to be the current time; whenever an instance
-;; is updated, you want to update `:updated-at`.
+;; of these models is inserted, you want to set `:created-at` and `:updated-at` to be the current time; whenever an
+;; instance is updated, you want to update `:updated-at`.
 ;;
-;; You *could* handle this behavior by defining custom implementations for `pre-insert` and `pre-update` for each of these
-;; models, but that gets repetitive quickly. Instead, you can simplfy this behavior by defining a new *property* that can be
-;; shared by multiple models:
+;; You *could* handle this behavior by defining custom implementations for `pre-insert` and `pre-update` for each of
+;; these models, but that gets repetitive quickly. Instead, you can simplfy this behavior by defining a new *property*
+;; that can be shared by multiple models:
 ;;
 ;;     (add-property! :timestamped?
 ;;       :insert (fn [obj _]
@@ -169,8 +172,8 @@
   (swap! property-fns assoc k {:insert insert, :update update, :select select}))
 
 
-;;;                                                    IModel Interface
-;;; ========================================================================================================================
+;;;                                                 IModel Interface
+;;; ==================================================================================================================
 
 (defprotocol IModel
   "The `IModel` protocol defines the various methods that are used to provide custom behavior for various models.
@@ -211,8 +214,8 @@
      or to check preconditions.")
 
   (post-select [this]
-    "Called on the results from a call to `select` and similar functions. Default implementation doesn't do anything, but
-     you can provide custom implementations to do things like remove sensitive fields or add dynamic new ones.
+    "Called on the results from a call to `select` and similar functions. Default implementation doesn't do anything,
+     but you can provide custom implementations to do things like remove sensitive fields or add dynamic new ones.
 
   For example, let's say we want to add a `:name` field to Users that combines their `:first-name` and `:last-name`:
 
@@ -245,9 +248,10 @@
      corresponding to those values.")
 
   (types ^clojure.lang.IPersistentMap [this]
-    "Return a map of keyword field names to their types for fields that should be serialized/deserialized in a special way.
-     Values belonging to a type are sent through an input function before being inserted into the DB, and sent through an
-     output function on their way out. `:keyword` is the only type enabled by default; you can add more by calling `add-type!`:
+    "Return a map of keyword field names to their types for fields that should be serialized/deserialized in a special
+     way. Values belonging to a type are sent through an input function before being inserted into the DB, and sent
+     through an output function on their way out. `:keyword` is the only type enabled by default; you can add more by
+     calling `add-type!`:
 
        (add-type! :json, :in json/generate-string, :out json/parse-string)
 
@@ -257,8 +261,8 @@
        (types [_] {:category :keyword})")
 
   (properties ^clojure.lang.IPersistentMap [this]
-    "Return a map of properties of this model. Properties can be used to implement advanced behavior across many different models;
-     see the documentation for more details. Declare a model's properties as such:
+    "Return a map of properties of this model. Properties can be used to implement advanced behavior across many
+     different models; see the documentation for more details. Declare a model's properties as such:
 
        (properties [_] {:timestamped? true})
 
@@ -269,8 +273,8 @@
         :update (fn [obj] (assoc obj :updated-at (new-timestamp))))"))
 
 
-;;;                                                      INTERNAL IMPL
-;;; ========================================================================================================================
+;;;                                                   INTERNAL IMPL
+;;; ==================================================================================================================
 
 (defn- apply-type-fns
   "Apply the appropriate `type-fns` for OBJ."
@@ -370,8 +374,8 @@
          obj args))
 
 
-;;;                                                      DEFMODEL MACRO
-;;; ========================================================================================================================
+;;;                                                   DEFMODEL MACRO
+;;; ==================================================================================================================
 
 (defn- ifn-invoke-forms
   "Macro helper, generates
@@ -404,8 +408,7 @@
   name followed by method definitions), and return a map suitable for use with
   extend.
 
-  (IFn (invoke [this] this)) ;;=> {IFn {:invoke (fn [this] this)}}
-  "
+    (IFn (invoke [this] this)) ;;=> {IFn {:invoke (fn [this] this)}}"
   [forms]
   (second
    (reduce (fn [[type acc] form]
@@ -414,23 +417,23 @@
                [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))
 
 (defmacro defmodel
-  "Define a new \"model\". Models encapsulate information and behaviors related to a specific table in the application DB,
-   and have their own unique record type.
+  "Define a new \"model\". Models encapsulate information and behaviors related to a specific table in the application
+  DB, and have their own unique record type.
 
-   `defmodel` defines a backing record type following the format `<model>Instance`. For example, the class associated with
-   `User` is `<root-namespace>.user/UserInstance`. (The root namespace defaults to `models` but can be configured via
-    `set-root-namespace!`)
+  `defmodel` defines a backing record type following the format `<model>Instance`. For example, the class associated
+  with `User` is `<root-namespace>.user/UserInstance`. (The root namespace defaults to `models` but can be configured
+  via `set-root-namespace!`)
 
-   This class is used for both the titular model (e.g. `User`) and
-   for objects that are fetched from the DB. This means they can share the `IModel` protocol and simplifies the interface
-   somewhat; functions like `types` work on either the model or instances fetched from the DB.
+  This class is used for both the titular model (e.g. `User`) and for objects that are fetched from the DB. This means
+  they can share the `IModel` protocol and simplifies the interface somewhat; functions like `types` work on either
+  the model or instances fetched from the DB.
 
      (defmodel User :user_table)  ; creates class `UserInstance` and DB model `User`
 
      (db/select User, ...)  ; use with `toucan.db` functions. All results are instances of `UserInstance`
 
-   The record type automatically extends `IModel` with `IModelDefaults`, but you can override specific methods, or implement
-   other protocols, by passing them to `defmodel`, the same way you would with `defrecord`.
+  The record type automatically extends `IModel` with `IModelDefaults`, but you can override specific methods, or
+  implement other protocols, by passing them to `defmodel`, the same way you would with `defrecord`.
 
      (defmodel User :user_table
        IModel
@@ -447,8 +450,8 @@
        IModel (merge IModelDefaults
                       {...}))
 
-   Finally, the model itself is invokable. Calling with no args returns *all* values of that object; calling with a single
-   arg can be used to fetch a specific instance by its integer ID.
+   Finally, the model itself is invokable. Calling with no args returns *all* values of that object; calling with a
+  single arg can be used to fetch a specific instance by its integer ID.
 
      (Database)                       ; return a seq of *all* Databases (as instances of `DatabaseInstance`)
      (Database 1)                     ; return Database 1"
