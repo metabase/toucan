@@ -392,7 +392,8 @@
                     (dissoc :id))
          updated? (update! model (-> (h/sset {} kvs)
                                      (where :id id)))]
-        (when (and updated? (method-implemented? :post-update model))
+        (when (and updated?
+                   (method-implemented? :post-update model))
           (models/post-update (model id)))
      updated?))
 
