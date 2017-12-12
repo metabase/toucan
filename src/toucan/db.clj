@@ -368,8 +368,8 @@
 
 ;;; ### UPDATE!
 
-(defn- method-implemented? [method model]
-  (not (nil? (find-protocol-method models/IModel method model))))
+(defn- method-implemented? [^clojure.lang.Keyword methodk model]
+  (not (nil? (find-protocol-method models/IModel methodk model))))
 
 (defn update!
   "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise.
