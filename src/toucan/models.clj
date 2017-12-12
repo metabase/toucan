@@ -219,6 +219,8 @@
      The value returned by this method is not returned to the caller of `update!`. The default
      implementation is `nil` (not invoked).
 
+     Note: This method is *not* invoked when calling `update!` with a `honeysql-form` form.
+
        (post-update [user]
          (audit-user-updated! user)")
 
