@@ -213,6 +213,17 @@
     "Called by `update!` before DB operations happen. A good place to set updated values for fields like `updated-at`,
      or to check preconditions.")
 
+  (post-update [this]
+    "Gets called by `update!` with an object that was successfully updated in the database.
+     This provides an opportunity to trigger specific logic that should occur when an object is updated.
+     The value returned by this method is not returned to the caller of `update!`. The default
+     implementation is `nil` (not invoked).
+
+     Note: This method is *not* invoked when calling `update!` with a `honeysql-form` form.
+
+       (post-update [user]
+         (audit-user-updated! user)")
+
   (post-select [this]
     "Called on the results from a call to `select` and similar functions. Default implementation doesn't do anything,
      but you can provide custom implementations to do things like remove sensitive fields or add dynamic new ones.
@@ -339,6 +350,7 @@
    :pre-insert     identity
    :post-insert    identity
    :pre-update     identity
+   :post-update    nil
    :post-select    identity
    :pre-delete     (constantly nil)
    :hydration-keys (constantly nil)})

@@ -114,6 +114,24 @@
 
 ;; TODO - Test post-select
 
+;; Test post-update Categories adds the IDs of recently updated Categories to a "update queue" as part of its
+;; `post-update` implementation; check that updating a Category results in the ID of the updated Category being at the
+;; front of the queue
+(expect
+  2
+  (test/with-clean-db
+    (reset! category/categories-recently-updated (clojure.lang.PersistentQueue/EMPTY))
+    (db/update! Category 2 :name "lobster")
+    (peek @category/categories-recently-updated)))
+
+(expect
+  [1 2]
+  (test/with-clean-db
+    (reset! category/categories-recently-updated (clojure.lang.PersistentQueue/EMPTY))
+    (db/update! Category 1 :name "fine-dining")
+    (db/update! Category 2 :name "steak-house")
+    @category/categories-recently-updated))
+
 ;; Test pre-delete
 ;; For Category, deleting a parent category should also delete any child categories.
 (expect
