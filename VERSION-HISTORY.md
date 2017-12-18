@@ -1,5 +1,9 @@
 # Toucan Version History & Release Notes
 
+### [1.1.2](https://github.com/metabase/toucan/compare/1.1.1...1.1.2) (December 18th, 2017)
+
+*  Add optional new `post-update` handler. (PR [#23](https://github.com/metabase/toucan/issues/23), Credit: [@axrs](https://github.com/axrs))
+
 ### [1.1.1](https://github.com/metabase/toucan/compare/1.1.0...1.1.1) (December 11th, 2017)
 
 *  `update!` now works correctly with non-integer IDs. ([#20](https://github.com/metabase/toucan/issues/20)) (Credit: [@AndreTheHunter](https://github.com/AndreTheHunter))
