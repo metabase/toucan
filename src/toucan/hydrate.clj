@@ -218,12 +218,21 @@
 ;;;                         Function-Based Batched Hydration (fns marked ^:batched-hydrate)
 ;;; ==================================================================================================================
 
-(def ^:private k->batched-f (delay (lookup-functions-with-metadata-key :batched-hydrate)))
+(def ^:private k->batched-f (atom nil))
+
+(defn- hydration-fn
+  "Get the function marked `^:hydrate` for K."
+  [atom type k]
+  (if-let [m @atom]
+    (m k)
+    (do
+      (reset! atom (lookup-functions-with-metadata-key type))
+      (hydration-fn atom type k))))
 
 (defn- hydration-key->batched-f
   "Get the function marked `^:batched-hydrate` for K."
   [k]
-  (@k->batched-f k))
+  (hydration-fn k->batched-f :batched-hydrate k))
 
 (def ^:private fn-based-batched-hydration-keys
   "Delay that returns set of keys that are elligible for batched hydration."
@@ -241,12 +250,12 @@
 ;;;                              Function-Based Simple Hydration (fns marked ^:hydrate)
 ;;; ==================================================================================================================
 
-(def ^:private k->f (delay (lookup-functions-with-metadata-key :hydrate)))
+(def ^:private k->f (atom nil))
 
 (defn- hydration-key->f
   "Get the function marked `^:hydrate` for K."
   [k]
-  (@k->f k))
+  (hydration-fn k->f :hydrate k))
 
 (defn- simple-hydrate
   "Hydrate keyword K in results by dereferencing corresponding delays when applicable."
@@ -268,8 +277,7 @@
 (defn refresh!
   "Resets the hydration lookup values. Useful in the event of newly resolved models"
   []
-  (set! k->batched-f (delay (lookup-functions-with-metadata-key :batched-hydrate)))
-  (set! k->f (delay (lookup-functions-with-metadata-key :hydrate))))
+  (reset! k->f nil))
 
 (declare hydrate)
 
