@@ -265,6 +265,12 @@
 ;;;                                               Primary Hydration Fns
 ;;; ==================================================================================================================
 
+(defn refresh!
+  "Resets the hydration lookup values. Useful in the event of newly resolved models"
+  []
+  (set! k->batched-f (delay (lookup-functions-with-metadata-key :batched-hydrate)))
+  (set! k->f (delay (lookup-functions-with-metadata-key :hydrate))))
+
 (declare hydrate)
 
 (defn- hydrate-vector
