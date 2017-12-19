@@ -341,6 +341,19 @@ Called by `update!` before DB operations happen. A good place to set updated val
 This method is exactly list `pre-insert`, but is invoked when calling `db/update!` and `db/update-where!` instead of the `insert!`
 family of functions.
 
+### post-update
+
+Gets called by `update!` with an object that was successfully updated in the database.
+This provides an opportunity to trigger specific logic that should occur when an object is updated.
+The value returned by this method is not returned to the caller of `update!`. The default
+implementation is `nil` (not invoked).
+
+Note: This method is *not* invoked when calling `update!` with a `honeysql-form` form.
+
+```clojure
+(defn- post-update [user]
+  (audit-user-updated! user))
+```
 
 ### post-select
 

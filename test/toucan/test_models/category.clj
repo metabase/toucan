@@ -40,6 +40,12 @@
   (swap! categories-awaiting-moderation conj id)
   new-category)
 
+(def categories-recently-updated
+  "A simple queue of recently updated Category IDs."
+  (atom (clojure.lang.PersistentQueue/EMPTY)))
+
+(defn add-category-to-updated-queue! [{:keys [id]}]
+  (swap! categories-recently-updated conj id))
 
 (models/defmodel Category :categories
   models/IModel
@@ -51,5 +57,7 @@
     (add-category-to-moderation-queue! this))
   (pre-update [this]
     (assert-parent-category-exists this))
+  (post-update [this]
+    (add-category-to-updated-queue! this))
   (pre-delete [this]
     (delete-child-categories this)))
