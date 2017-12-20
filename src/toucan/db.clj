@@ -43,6 +43,32 @@
   (or *quoting-style*
       @default-quoting-style))
 
+;;; #### Allow Dashed Names
+
+;; Allow dashes in field names. Sets the :allow-dashed-names argument in the HoneySQL `format` function.
+;; By default, this is `true`.
+
+(defonce ^:private default-allow-dashed-names (atom true))
+
+(def ^:dynamic *allow-dashed-names*
+  "Bind this to override allowing dashed field names.
+   Provided for cases where you want to override allowing dashes in field names (such as when connecting to a different DB)
+   without changing the default value."
+  nil)
+
+(defn set-default-allow-dashed-names!
+  "Set the default value for allowing dashes in field names. Defaults to `true`."
+  [^Boolean new-allow-dashed-names]
+  (reset! default-allow-dashed-names new-allow-dashed-names))
+
+(defn allow-dashed-names
+  "Fetch the values for allowing dashes in field names.
+
+   Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
+   which is normally `true`; this can be changed by calling `set-default-allow-dashed-names!`."
+  ^Boolean []
+  (or *allow-dashed-names*
+      @default-allow-dashed-names))
 
 ;;; #### DB Connection
 
@@ -224,7 +250,7 @@
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? true))]
+                                    (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? (allow-dashed-names)))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -303,9 +329,9 @@
   [model honeysql-form]
   (let [model (resolve-model model)]
     (do-post-select model (query (merge {:select (or (models/default-fields model)
-                                                      [:*])
+                                                     [:*])
                                           :from   [model]}
-                                         honeysql-form)))))
+                                        honeysql-form)))))
 
 (defn simple-select-one
   "Select a single object from the database.
@@ -550,8 +576,8 @@
   {:style/indent 1}
   [model & options]
   (simple-select model (where+ {:select (or (model->fields model)
-                                             [:*])}
-                                options)))
+                                            [:*])}
+                               options)))
 
 (defn select-field
   "Select values of a single field for multiple objects. These are returned as a set if any matching fields
