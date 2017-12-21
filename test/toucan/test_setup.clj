@@ -5,7 +5,8 @@
             [expectations :refer :all]
             (toucan [db :as db]
                     [models :as models])
-            (toucan.test-models [category :refer [Category]]
+            (toucan.test-models [address :refer [Address]]
+                                [category :refer [Category]]
                                 [user :refer [User]]
                                 [venue :refer [Venue]])
             [toucan.util.test :as u])
@@ -84,7 +85,9 @@
     [{:name "bar"}
      {:name "dive-bar", :parent-category-id 1}
      {:name "resturaunt"}
-     {:name "mexican-resturaunt", :parent-category-id 3}]))
+     {:name "mexican-resturaunt", :parent-category-id 3}])
+  ;; Address
+  (db/simple-insert! Address {:street_name "1 Toucan Drive"}))
 
 (defn reset-db!
   "Reset the DB to its initial state, creating tables if needed and inserting the initial test data."

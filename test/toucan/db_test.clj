@@ -3,9 +3,9 @@
             (toucan [db :as db]
                     [models :as models])
             (toucan.test-models [address :refer [Address]]
+                                [category :refer [Category]]
                                 [user :refer [User]]
-                                [venue :refer [Venue]]
-                                [category :refer [Category]])
+                                [venue :refer [Venue]])
             [toucan.test-setup :as test]
             [toucan.util.test :as tu]))
 
@@ -39,13 +39,13 @@
     (db/allow-dashed-names)))
 
 (expect
-  {:id 1, :street_name "1 Toucan Drive"}
-  (binding [db/*allow-dashed-names* false]
-    (db/insert! Address {:street-name "1 Toucan Drive"})))
+  {:street_name "1 Toucan Drive"}
+  (db/select-one [Address :street_name]))
 
 (expect
-  {:id 2, :street_name "2 Toucan Drive"}
-  (db/insert! Address {:street_name "2 Toucan Drive"}))
+  {:street_name "1 Toucan Drive"}
+  (binding [db/*allow-dashed-names* false]
+    (db/select-one [Address :street-name])))
 
 ;; TODO - Test DB connection (how?)
 

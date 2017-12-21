@@ -60,6 +60,20 @@ LIMIT 1
 The quoting style is passed directly to HoneySQL and can be anything it supports. At the time of this writing, it supports `:ansi`
 (Toucan's default), `:mysql`, or [legacy] `:sqlserver` (i.e., square brackets around identifiers).
 
+### Configuring Allowed Dashed Names
+
+Toucan by default tells HoneySQL to allow dashes in field names using the `:allow-dashed-names` argument. If disabled, 
+HoneySQL will convert incoming field names to contain underscore:
+
+```clojure
+(db/select-one [Address :street_name])
+;; -> {:street_name "1 Toucan Drive"}
+
+(db/set-default-allow-dashed-names! false)
+
+(db/select-one [Address :street-name])
+;; -> {:street_name "1 Toucan Drive"}
+```
 
 ## Configuring the Root Model Namespace
 

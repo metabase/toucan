@@ -24,8 +24,7 @@
                              [lein-bikeshed "0.5.0"]
                              [lein-expectations "0.0.8"]
                              [org.clojure/tools.cli "0.3.5"] ;Added because of https://github.com/dakrone/lein-bikeshed/issues/33
-                             [lein-shell "0.5.0"]
-                             [lein-auto "0.1.3"]]
+                             [lein-shell "0.5.0"]]
                    :jvm-opts ["-Xverify:none"]
                    :eastwood {:add-linters [:unused-locals
                                             :unused-private-vars]
