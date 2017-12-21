@@ -2,10 +2,10 @@
   (:require [expectations :refer :all]
             (toucan [db :as db]
                     [models :as models])
-            (toucan.test-models [user :refer [User]]
+            (toucan.test-models [address :refer [Address]]
+                                [user :refer [User]]
                                 [venue :refer [Venue]]
-                                [category :refer [Category]]
-                                [address :refer [Address]])
+                                [category :refer [Category]])
             [toucan.test-setup :as test]
             [toucan.util.test :as tu]))
 
