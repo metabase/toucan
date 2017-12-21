@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+docker run \
+	--name toucan_test \
+	--rm \
+	--detach \
+	-p 5432:${TOUCAN_TEST_DB_PORT:-5432} \
+	--env POSTGRES_DB=${TOUCAN_TEST_DB_NAME:-toucan_test} \
+	--env POSTGRES_USER=${TOUCAN_TEST_DB_USER} \
+	--env POSTGRES_PASSWORD=${TOUCAN_TEST_DB_PASS} \
+	postgres:9-alpine

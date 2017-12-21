@@ -52,8 +52,8 @@
 
 (def ^:dynamic *allow-dashed-names*
   "Bind this to override allowing dashed field names.
-   Provided for cases where you want to override allowing dashes in field names (such as when connecting to a different DB)
-   without changing the default value."
+   Provided for cases where you want to override allowing dashes in field names
+   (such as when connecting to a different DB) without changing the default value."
   nil)
 
 (defn set-default-allow-dashed-names!
@@ -67,8 +67,9 @@
    Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
    which is normally `true`; this can be changed by calling `set-default-allow-dashed-names!`."
   ^Boolean []
-  (or *allow-dashed-names*
-      @default-allow-dashed-names))
+  (if (nil? *allow-dashed-names*)
+    @default-allow-dashed-names
+    *allow-dashed-names*))
 
 ;;; #### DB Connection
 
@@ -250,7 +251,9 @@
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? (allow-dashed-names)))]
+                                    (hsql/format honeysql-form,
+                                                 :quoting (quoting-style),
+                                                 :allow-dashed-names? (allow-dashed-names)))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))

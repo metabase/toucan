@@ -12,7 +12,9 @@
   :javac-options ["-target" "1.7", "-source" "1.7"]
   :aliases {"bikeshed" ["bikeshed" "--max-line-length" "118" "--var-redefs" "false"]
             "lint" ["do" ["eastwood"] "bikeshed" "docstring-checker"]
-            "test" ["expectations"]}
+            "test" ["expectations"]
+            "start-db" ["shell" "./start-db"]
+            "stop-db" ["shell" "docker" "stop" "toucan_test"]}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.9.0"]
                                   [expectations "2.1.9"]
                                   [postgresql "9.3-1102.jdbc41"]]
@@ -20,7 +22,10 @@
                              [jonase/eastwood "0.2.5"
                               :exclusions [org.clojure/clojure]]
                              [lein-bikeshed "0.5.0"]
-                             [lein-expectations "0.0.8"]]
+                             [lein-expectations "0.0.8"]
+                             [org.clojure/tools.cli "0.3.5"] ;Added because of https://github.com/dakrone/lein-bikeshed/issues/33
+                             [lein-shell "0.5.0"]
+                             [lein-auto "0.1.3"]]
                    :jvm-opts ["-Xverify:none"]
                    :eastwood {:add-linters [:unused-locals
                                             :unused-private-vars]

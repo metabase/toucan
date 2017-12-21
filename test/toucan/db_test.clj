@@ -4,7 +4,8 @@
                     [models :as models])
             (toucan.test-models [user :refer [User]]
                                 [venue :refer [Venue]]
-                                [category :refer [Category]])
+                                [category :refer [Category]]
+                                [address :refer [Address]])
             [toucan.test-setup :as test]
             [toucan.util.test :as tu]))
 
@@ -25,6 +26,26 @@
  "[toucan]"
  (binding [db/*quoting-style* :sqlserver]
    ((db/quote-fn) "toucan")))
+
+;; Test allowing dashed field names
+(expect (db/allow-dashed-names))
+
+(expect
+  (binding [db/*allow-dashed-names* true]
+    (db/allow-dashed-names)))
+
+(expect false
+  (binding [db/*allow-dashed-names* false]
+    (db/allow-dashed-names)))
+
+(expect
+  {:id 1, :street_name "1 Toucan Drive"}
+  (binding [db/*allow-dashed-names* false]
+    (db/insert! Address {:street-name "1 Toucan Drive"})))
+
+(expect
+  {:id 2, :street_name "2 Toucan Drive"}
+  (db/insert! Address {:street_name "2 Toucan Drive"}))
 
 ;; TODO - Test DB connection (how?)
 
