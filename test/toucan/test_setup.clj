@@ -5,7 +5,8 @@
             [expectations :refer :all]
             (toucan [db :as db]
                     [models :as models])
-            (toucan.test-models [category :refer [Category]]
+            (toucan.test-models [address :refer [Address]]
+                                [category :refer [Category]]
                                 [user :refer [User]]
                                 [venue :refer [Venue]])
             [toucan.util.test :as u])
@@ -57,7 +58,14 @@
        name VARCHAR(256) UNIQUE NOT NULL,
        \"parent-category-id\" INTEGER
      );"
-    "TRUNCATE TABLE categories RESTART IDENTITY CASCADE;"))
+    "TRUNCATE TABLE categories RESTART IDENTITY CASCADE;"
+    ;; Address
+    "CREATE TABLE IF NOT EXISTS address (
+       id SERIAL PRIMARY KEY,
+       street_name text NOT NULL
+     );"
+     "TRUNCATE TABLE address RESTART IDENTITY CASCADE;"))
+
 
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))
 
@@ -77,7 +85,9 @@
     [{:name "bar"}
      {:name "dive-bar", :parent-category-id 1}
      {:name "resturaunt"}
-     {:name "mexican-resturaunt", :parent-category-id 3}]))
+     {:name "mexican-resturaunt", :parent-category-id 3}])
+  ;; Address
+  (db/simple-insert! Address {:street_name "1 Toucan Drive"}))
 
 (defn reset-db!
   "Reset the DB to its initial state, creating tables if needed and inserting the initial test data."
