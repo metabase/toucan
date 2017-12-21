@@ -221,13 +221,12 @@
 (def ^:private k->batched-f (atom nil))
 
 (defn- hydration-fn
-  "Get the function marked `^:hydrate` for K."
-  [atom type k]
-  (if-let [m @atom]
-    (m k)
+  [a typek k]
+  (if-let [fns @a]
+    (fns k)
     (do
-      (reset! atom (lookup-functions-with-metadata-key type))
-      (hydration-fn atom type k))))
+      (reset! a (lookup-functions-with-metadata-key typek))
+      (hydration-fn a typek k))))
 
 (defn- hydration-key->batched-f
   "Get the function marked `^:batched-hydrate` for K."
