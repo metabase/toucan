@@ -277,7 +277,8 @@
 (defn refresh!
   "Resets the hydration lookup values. Useful in the event of newly resolved models"
   []
-  (reset! k->f nil))
+  (reset! k->f nil)
+  (reset! k->batched-f nil))
 
 (declare hydrate)
 
