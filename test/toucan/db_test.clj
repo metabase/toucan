@@ -43,9 +43,14 @@
   (db/select-one [Address :street_name]))
 
 (expect
-  {:street_name "1 Toucan Drive"}
+  {:street-name "1 Toucan Drive"}
   (binding [db/*allow-dashed-names* false]
     (db/select-one [Address :street-name])))
+
+(expect
+  "1 Toucan Drive"
+  (binding [db/*allow-dashed-names* false]
+    (db/select-one-field :street-name Address)))
 
 ;; TODO - Test DB connection (how?)
 

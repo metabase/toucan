@@ -8,7 +8,10 @@
             (honeysql [core :as hsql]
                       [format :as hformat]
                       [helpers :as h])
-            [toucan.models :as models]))
+            [toucan.models :as models]
+            [clojure.walk :as walk]
+            [clojure.string :as string])
+  (:import (clojure.lang Keyword)))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
@@ -310,15 +313,32 @@
         (maybe-qualify model field)))
     (models/default-fields (resolve-model model))))
 
+(defn- replace-underscore [^Keyword k]
+  (let [k-str (name k)]
+    (if (string/index-of k-str \_)
+      (keyword (string/replace k-str \_ \-))
+      k)))
+
+(defn- transform-keys [f m]
+  (walk/postwalk
+    (fn [x]
+      (if (map? x)
+        (into {} (map
+                   (fn [[k v]]
+                     [(f k) v])
+                   x))
+        x))
+    m))
 
 (defn do-post-select
   "Perform post-processing for objects fetched from the DB.
    Convert results OBJECTS to ENTITY record types and call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
-  (let [model (resolve-model model)]
+  (let [model (resolve-model model)
+        post-select (if (allow-dashed-names) identity (partial transform-keys replace-underscore))]
     (vec (for [object objects]
-           (models/do-post-select model object)))))
+           (models/do-post-select model (post-select object))))))
 
 (defn simple-select
   "Select objects from the database.
