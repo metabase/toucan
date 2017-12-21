@@ -165,3 +165,14 @@ will be hydrated *inside* the corresponding values for that key.
   [:a [:b :c] :e])
 ;; -> {:a {:b {:c 1} :e 2}}
 ```
+
+## Refreshing Hydrations
+
+Simple and batch hydration functions are lazily resolved within loaded namespaces on first call of `hydrate`. If hydrate
+has been called, which results in resolution of new models which contain hydrations in the same namespace; these new
+hydrations will not be evaluated. Invoking `refresh!` will clear the previously resolved hydration functions (resulting
+in a need to re-scan the namespaces on next hydrate).
+
+```clojure
+(refresh!)
+```
