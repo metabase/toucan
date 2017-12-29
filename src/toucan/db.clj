@@ -8,7 +8,10 @@
             (honeysql [core :as hsql]
                       [format :as hformat]
                       [helpers :as h])
-            [toucan.models :as models]))
+            [toucan.models :as models]
+            [clojure.walk :as walk]
+            [clojure.string :as string])
+  (:import (clojure.lang Keyword)))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
@@ -43,6 +46,33 @@
   (or *quoting-style*
       @default-quoting-style))
 
+;;; #### Allow Dashed Names
+
+;; Allow dashes in field names. Sets the :allow-dashed-names argument in the HoneySQL `format` function.
+;; By default, this is `true`.
+
+(defonce ^:private default-allow-dashed-names (atom true))
+
+(def ^:dynamic *allow-dashed-names*
+  "Bind this to override allowing dashed field names.
+   Provided for cases where you want to override allowing dashes in field names
+   (such as when connecting to a different DB) without changing the default value."
+  nil)
+
+(defn set-default-allow-dashed-names!
+  "Set the default value for allowing dashes in field names. Defaults to `true`."
+  [^Boolean new-allow-dashed-names]
+  (reset! default-allow-dashed-names new-allow-dashed-names))
+
+(defn allow-dashed-names
+  "Fetch the values for allowing dashes in field names.
+
+   Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
+   which is normally `true`; this can be changed by calling `set-default-allow-dashed-names!`."
+  ^Boolean []
+  (if (nil? *allow-dashed-names*)
+    @default-allow-dashed-names
+    *allow-dashed-names*))
 
 ;;; #### DB Connection
 
@@ -224,7 +254,9 @@
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? true))]
+                                    (hsql/format honeysql-form,
+                                                 :quoting (quoting-style),
+                                                 :allow-dashed-names? (allow-dashed-names)))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -281,15 +313,32 @@
         (maybe-qualify model field)))
     (models/default-fields (resolve-model model))))
 
+(defn- replace-underscore [^Keyword k]
+  (let [k-str (name k)]
+    (if (string/index-of k-str \_)
+      (keyword (string/replace k-str \_ \-))
+      k)))
+
+(defn- transform-keys [f m]
+  (walk/postwalk
+    (fn [x]
+      (if (map? x)
+        (into {} (map
+                   (fn [[k v]]
+                     [(f k) v])
+                   x))
+        x))
+    m))
 
 (defn do-post-select
   "Perform post-processing for objects fetched from the DB.
    Convert results OBJECTS to ENTITY record types and call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
-  (let [model (resolve-model model)]
+  (let [model (resolve-model model)
+        post-select (if (allow-dashed-names) identity (partial transform-keys replace-underscore))]
     (vec (for [object objects]
-           (models/do-post-select model object)))))
+           (models/do-post-select model (post-select object))))))
 
 (defn simple-select
   "Select objects from the database.
@@ -303,9 +352,9 @@
   [model honeysql-form]
   (let [model (resolve-model model)]
     (do-post-select model (query (merge {:select (or (models/default-fields model)
-                                                      [:*])
+                                                     [:*])
                                           :from   [model]}
-                                         honeysql-form)))))
+                                        honeysql-form)))))
 
 (defn simple-select-one
   "Select a single object from the database.
@@ -550,8 +599,8 @@
   {:style/indent 1}
   [model & options]
   (simple-select model (where+ {:select (or (model->fields model)
-                                             [:*])}
-                                options)))
+                                            [:*])}
+                               options)))
 
 (defn select-field
   "Select values of a single field for multiple objects. These are returned as a set if any matching fields

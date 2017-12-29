@@ -16,3 +16,4 @@ profiles.clj
 /.env
 /build.xml
 /*.iml
+.envrc
