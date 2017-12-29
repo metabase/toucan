@@ -9,8 +9,6 @@
              [user :refer [User]]
              [venue :refer [Venue]]]))
 
-;; TODO - Test quoting-style
-
 ;; Test overriding quoting-style
 (expect
  "`toucan`"
@@ -51,6 +49,26 @@
   "1 Toucan Drive"
   (binding [db/*allow-dashed-names* false]
     (db/select-one-field :street-name Address)))
+
+;; Test replace-underscores
+(expect
+ :2-cans
+ (#'db/replace-underscores :2_cans))
+
+;; shouldn't do anything to keywords with no underscores
+(expect
+ :2-cans
+ (#'db/replace-underscores :2-cans))
+
+;; should work with strings as well
+(expect
+ :2-cans
+ (#'db/replace-underscores "2_cans"))
+
+;; don't barf if there's a nil input
+(expect
+ nil
+ (#'db/replace-underscores nil))
 
 ;; TODO - Test DB connection (how?)
 

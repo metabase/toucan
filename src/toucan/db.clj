@@ -314,11 +314,16 @@
         (maybe-qualify model field)))
     (models/default-fields (resolve-model model))))
 
-(defn- replace-underscore [^Keyword k]
-  (let [k-str (name k)]
-    (if (s/index-of k-str \_)
-      (keyword (s/replace k-str \_ \-))
-      k)))
+(defn- replace-underscores
+  "Replace underscores in `k` with dashes. In other words, converts a keyword from `:snake_case` to `:lisp-case`.
+
+     (replace-underscores :2_cans) ; -> :2-cans"
+  ^clojure.lang.Keyword [^Keyword k]
+  (when k
+    (let [k-str (name k)]
+      (if (s/index-of k-str \_)
+        (keyword (s/replace k-str \_ \-))
+        k))))
 
 (defn- transform-keys [f m]
   (walk/postwalk
@@ -335,7 +340,7 @@
   {:style/indent 1}
   [model objects]
   (let [model       (resolve-model model)
-        post-select (if (allow-dashed-names?) identity (partial transform-keys replace-underscore))]
+        post-select (if (allow-dashed-names?) identity (partial transform-keys replace-underscores))]
     (vec (for [object objects]
            (models/do-post-select model (post-select object))))))
 
