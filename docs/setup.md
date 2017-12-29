@@ -57,22 +57,42 @@ FROM `users`
 LIMIT 1
 ```
 
-The quoting style is passed directly to HoneySQL and can be anything it supports. At the time of this writing, it supports `:ansi`
-(Toucan's default), `:mysql`, or [legacy] `:sqlserver` (i.e., square brackets around identifiers).
+The quoting style is passed directly to HoneySQL and can be anything it supports. At the time of this writing, it supports `:ansi` (Toucan's default), `:mysql`, or [legacy] `:sqlserver` (i.e., square brackets around identifiers).
 
-### Configuring Allowed Dashed Names
+Note that you can also temporarily change the value by binding `db/*quoting-style*`.
 
-Toucan by default tells HoneySQL to allow dashes in field names using the `:allow-dashed-names` argument 
-(see [HoneySQL Readme](https://github.com/jkk/honeysql/blob/master/README.md#usage)). 
-If disabled, field names are converted to contain underscore:
+### Configuring Allowing Dashed Names
+
+Toucan by default tells HoneySQL to leave dashes in field names as-is by passing [the `:allow-dashed-names` option](https://github.com/jkk/honeysql/blob/master/README.md#usage)to HoneySQL. This means keywords with dashes used as identifiers for tables or fields are passed to the database as-is; in other words, 
 
 ```clojure
-;database column is address.street_name
+(db/select [Address :street-name])
+``` 
+
+will generate a query like:
+
+```sql
+SELECT "street-name" FROM "address"
+```
+
+If you'd rather HoneySQL automatically assume dashes should be replaced with underscores in the query, you can configure Toucan by either binding `db/*allow-dashes-names*` or by calling `(db/set-default-allow-dashed-names! false)` to disable allowing dashed names. The example `select` call above will then generate a query like:
+
+```sql
+SELECT "street_name" FROM "address"
+```
+
+When disabled, field names are converted to contain underscores instead of dashes:
+
+```clojure
+;; database column is address.street_name
+
+;; with default behavior (allow-dashed-names = true)
 (db/select-one [Address :street_name]) 
 ;; -> {:street_name "1 Toucan Drive"}
 
 (db/set-default-allow-dashed-names! false)
 
+;; with allow-dashed-names = false
 (db/select-one [Address :street-name])
 ;; -> {:street-name "1 Toucan Drive"}
 ```
