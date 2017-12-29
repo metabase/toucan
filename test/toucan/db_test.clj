@@ -1,15 +1,13 @@
 (ns toucan.db-test
   (:require [expectations :refer :all]
-            (toucan [db :as db]
-                    [models :as models])
-            (toucan.test-models [address :refer [Address]]
-                                [category :refer [Category]]
-                                [user :refer [User]]
-                                [venue :refer [Venue]])
-            [toucan.test-setup :as test]
-            [toucan.util.test :as tu]))
-
-;; TODO - Test quoting-style
+            [toucan
+             [db :as db]
+             [test-setup :as test]]
+            [toucan.test-models
+             [address :refer [Address]]
+             [category :refer [Category]]
+             [user :refer [User]]
+             [venue :refer [Venue]]]))
 
 ;; Test overriding quoting-style
 (expect
@@ -28,15 +26,15 @@
    ((db/quote-fn) "toucan")))
 
 ;; Test allowing dashed field names
-(expect (db/allow-dashed-names))
+(expect (db/allow-dashed-names?))
 
 (expect
   (binding [db/*allow-dashed-names* true]
-    (db/allow-dashed-names)))
+    (db/allow-dashed-names?)))
 
 (expect false
   (binding [db/*allow-dashed-names* false]
-    (db/allow-dashed-names)))
+    (db/allow-dashed-names?)))
 
 (expect
   {:street_name "1 Toucan Drive"}
@@ -51,6 +49,41 @@
   "1 Toucan Drive"
   (binding [db/*allow-dashed-names* false]
     (db/select-one-field :street-name Address)))
+
+;; Test replace-underscores
+(expect
+ :2-cans
+ (#'db/replace-underscores :2_cans))
+
+;; shouldn't do anything to keywords with no underscores
+(expect
+ :2-cans
+ (#'db/replace-underscores :2-cans))
+
+;; should work with strings as well
+(expect
+ :2-cans
+ (#'db/replace-underscores "2_cans"))
+
+;; make sure it respects namespaced keywords or keywords with slashes in them
+(expect
+ :bird-types/two-cans
+ (#'db/replace-underscores :bird-types/two_cans))
+
+;; don't barf if there's a nil input
+(expect
+ nil
+ (#'db/replace-underscores nil))
+
+;; Test transform-keys
+(expect
+ {:2-cans true}
+ (#'db/transform-keys #'db/replace-underscores {:2_cans true}))
+
+;; make sure it works recursively and inside arrays
+(expect
+ [{:2-cans {:2-cans true}}]
+ (#'db/transform-keys #'db/replace-underscores [{:2_cans {:2_cans true}}]))
 
 ;; TODO - Test DB connection (how?)
 

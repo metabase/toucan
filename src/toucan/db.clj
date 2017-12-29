@@ -1,17 +1,20 @@
 (ns toucan.db
   "Helper functions for querying the DB and inserting or updating records using Toucan models."
   (:refer-clojure :exclude [count])
-  (:require [clojure.java.jdbc :as jdbc]
-            [clojure.pprint :refer [pprint]]
-            [clojure.string :as s]
+  (:require [clojure
+             [pprint :refer [pprint]]
+             [string :as s]
+             [walk :as walk]]
+            [clojure.java.jdbc :as jdbc]
             [clojure.tools.logging :as log]
-            (honeysql [core :as hsql]
-                      [format :as hformat]
-                      [helpers :as h])
-            [toucan.models :as models]
-            [clojure.walk :as walk]
-            [clojure.string :as string])
-  (:import (clojure.lang Keyword)))
+            [honeysql
+             [core :as hsql]
+             [format :as hformat]
+             [helpers :as h]]
+            [toucan
+             [models :as models]
+             [util :as u]])
+  (:import clojure.lang.Keyword))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
@@ -64,7 +67,7 @@
   [^Boolean new-allow-dashed-names]
   (reset! default-allow-dashed-names new-allow-dashed-names))
 
-(defn allow-dashed-names
+(defn allow-dashed-names?
   "Fetch the values for allowing dashes in field names.
 
    Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
@@ -255,8 +258,8 @@
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
                                     (hsql/format honeysql-form,
-                                                 :quoting (quoting-style),
-                                                 :allow-dashed-names? (allow-dashed-names)))]
+                                                 :quoting (quoting-style)
+                                                 :allow-dashed-names? (allow-dashed-names?)))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -313,30 +316,35 @@
         (maybe-qualify model field)))
     (models/default-fields (resolve-model model))))
 
-(defn- replace-underscore [^Keyword k]
-  (let [k-str (name k)]
-    (if (string/index-of k-str \_)
-      (keyword (string/replace k-str \_ \-))
-      k)))
+(defn- replace-underscores
+  "Replace underscores in `k` with dashes. In other words, converts a keyword from `:snake_case` to `:lisp-case`.
 
-(defn- transform-keys [f m]
+     (replace-underscores :2_cans) ; -> :2-cans"
+  ^clojure.lang.Keyword [^Keyword k]
+  (when k
+    (let [k-str (u/keyword->qualified-name k)]
+      (if (s/index-of k-str \_)
+        (keyword (s/replace k-str \_ \-))
+        k))))
+
+(defn- transform-keys
+  "Replace the keys in any maps in `x` with the result of `(f key)`. Recursively walks `x` using `clojure.walk`."
+  [f x]
   (walk/postwalk
-    (fn [x]
-      (if (map? x)
-        (into {} (map
-                   (fn [[k v]]
-                     [(f k) v])
-                   x))
-        x))
-    m))
+   (fn [y]
+     (if-not (map? y)
+       y
+       (into {} (for [[k v] y]
+                  [(f k) v]))))
+   x))
 
 (defn do-post-select
   "Perform post-processing for objects fetched from the DB.
    Convert results OBJECTS to ENTITY record types and call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
-  (let [model (resolve-model model)
-        post-select (if (allow-dashed-names) identity (partial transform-keys replace-underscore))]
+  (let [model       (resolve-model model)
+        post-select (if (allow-dashed-names?) identity (partial transform-keys replace-underscores))]
     (vec (for [object objects]
            (models/do-post-select model (post-select object))))))
 
