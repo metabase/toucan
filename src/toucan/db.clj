@@ -1,17 +1,18 @@
 (ns toucan.db
   "Helper functions for querying the DB and inserting or updating records using Toucan models."
   (:refer-clojure :exclude [count])
-  (:require [clojure.java.jdbc :as jdbc]
-            [clojure.pprint :refer [pprint]]
-            [clojure.string :as s]
+  (:require [clojure
+             [pprint :refer [pprint]]
+             [string :as s]
+             [walk :as walk]]
+            [clojure.java.jdbc :as jdbc]
             [clojure.tools.logging :as log]
-            (honeysql [core :as hsql]
-                      [format :as hformat]
-                      [helpers :as h])
-            [toucan.models :as models]
-            [clojure.walk :as walk]
-            [clojure.string :as string])
-  (:import (clojure.lang Keyword)))
+            [honeysql
+             [core :as hsql]
+             [format :as hformat]
+             [helpers :as h]]
+            [toucan.models :as models])
+  (:import clojure.lang.Keyword))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
@@ -315,8 +316,8 @@
 
 (defn- replace-underscore [^Keyword k]
   (let [k-str (name k)]
-    (if (string/index-of k-str \_)
-      (keyword (string/replace k-str \_ \-))
+    (if (s/index-of k-str \_)
+      (keyword (s/replace k-str \_ \-))
       k)))
 
 (defn- transform-keys [f m]

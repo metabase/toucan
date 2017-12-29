@@ -1,13 +1,13 @@
 (ns toucan.db-test
   (:require [expectations :refer :all]
-            (toucan [db :as db]
-                    [models :as models])
-            (toucan.test-models [address :refer [Address]]
-                                [category :refer [Category]]
-                                [user :refer [User]]
-                                [venue :refer [Venue]])
-            [toucan.test-setup :as test]
-            [toucan.util.test :as tu]))
+            [toucan
+             [db :as db]
+             [test-setup :as test]]
+            [toucan.test-models
+             [address :refer [Address]]
+             [category :refer [Category]]
+             [user :refer [User]]
+             [venue :refer [Venue]]]))
 
 ;; TODO - Test quoting-style
 

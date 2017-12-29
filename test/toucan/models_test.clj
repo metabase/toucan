@@ -1,12 +1,11 @@
 (ns toucan.models-test
   (:require [expectations :refer :all]
-            (toucan [db :as db]
-                    [models :as models])
-            [toucan.test-setup :as test]
-            (toucan.test-models [category :refer [Category], :as category]
-                                [user :refer [User]]
-                                [venue :refer [Venue map->VenueInstance]])
-            [toucan.util.test :as tu]))
+            [toucan
+             [db :as db]
+             [test-setup :as test]]
+            [toucan.test-models
+             [category :as category :refer [Category]]
+             [venue :refer [map->VenueInstance Venue]]]))
 
 ;; Test types (keyword)
 
