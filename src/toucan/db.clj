@@ -64,7 +64,7 @@
   [^Boolean new-allow-dashed-names]
   (reset! default-allow-dashed-names new-allow-dashed-names))
 
-(defn allow-dashed-names
+(defn allow-dashed-names?
   "Fetch the values for allowing dashes in field names.
 
    Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
@@ -255,8 +255,8 @@
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
                                     (hsql/format honeysql-form,
-                                                 :quoting (quoting-style),
-                                                 :allow-dashed-names? (allow-dashed-names)))]
+                                                 :quoting (quoting-style)
+                                                 :allow-dashed-names? (allow-dashed-names?)))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -321,22 +321,20 @@
 
 (defn- transform-keys [f m]
   (walk/postwalk
-    (fn [x]
-      (if (map? x)
-        (into {} (map
-                   (fn [[k v]]
-                     [(f k) v])
-                   x))
-        x))
-    m))
+   (fn [x]
+     (if (map? x)
+       (into {} (for [[k v] x]
+                  [(f k) v]))
+       x))
+   m))
 
 (defn do-post-select
   "Perform post-processing for objects fetched from the DB.
    Convert results OBJECTS to ENTITY record types and call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
-  (let [model (resolve-model model)
-        post-select (if (allow-dashed-names) identity (partial transform-keys replace-underscore))]
+  (let [model       (resolve-model model)
+        post-select (if (allow-dashed-names?) identity (partial transform-keys replace-underscore))]
     (vec (for [object objects]
            (models/do-post-select model (post-select object))))))
 

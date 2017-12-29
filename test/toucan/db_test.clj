@@ -28,15 +28,15 @@
    ((db/quote-fn) "toucan")))
 
 ;; Test allowing dashed field names
-(expect (db/allow-dashed-names))
+(expect (db/allow-dashed-names?))
 
 (expect
   (binding [db/*allow-dashed-names* true]
-    (db/allow-dashed-names)))
+    (db/allow-dashed-names?)))
 
 (expect false
   (binding [db/*allow-dashed-names* false]
-    (db/allow-dashed-names)))
+    (db/allow-dashed-names?)))
 
 (expect
   {:street_name "1 Toucan Drive"}
