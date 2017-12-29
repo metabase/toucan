@@ -197,10 +197,10 @@ lein test && lein lint
 ```
 
 Tests assume you have Postgres running locally and have a test DB set up with read/write permissions. Toucan will populate this database with appropriate test data.
-To run a local Docker database, run:
-```bash
-lein start-db
-```
+
+If you don't have Postgres running locally, you can instead the provided shell script to run Postgres via docker. Use `lein start-db` to start the database and `lein stop-db` to stop it.
+Note the script is a Bash script and won't work on Windows unless you're using the Windows Subsystem for Linux.
+
 To configure access to this database, set the following env vars as needed:
 
 | Env Var | Default Value | Notes |
@@ -208,8 +208,8 @@ To configure access to this database, set the following env vars as needed:
 | `TOUCAN_TEST_DB_HOST` | `localhost` | |
 | `TOUCAN_TEST_DB_PORT` | `5432` | |
 | `TOUCAN_TEST_DB_NAME` | `toucan_test` | |
-| `TOUCAN_TEST_DB_USER` | | *Optional* |
-| `TOUCAN_TEST_DB_PASS` | | *Optional* |
+| `TOUCAN_TEST_DB_USER` | | *Optional when running Postgres locally* |
+| `TOUCAN_TEST_DB_PASS` | | *Optional when running Postgres locally* |
 
 These tests and linters also run on [CircleCI](https://circleci.com/) for all commits and PRs.
 

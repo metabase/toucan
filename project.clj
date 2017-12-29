@@ -13,7 +13,7 @@
   :aliases {"bikeshed" ["bikeshed" "--max-line-length" "118" "--var-redefs" "false"]
             "lint" ["do" ["eastwood"] "bikeshed" "docstring-checker"]
             "test" ["expectations"]
-            "start-db" ["shell" "./start-db"]
+            "start-db" ["shell" "./start-db"] ; `lein start-db` and stop-db are conveniences for running a test database via Docker
             "stop-db" ["shell" "docker" "stop" "toucan_test"]}
   :profiles {:dev {:dependencies [[org.clojure/clojure "1.9.0"]
                                   [expectations "2.1.9"]
