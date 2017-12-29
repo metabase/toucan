@@ -70,6 +70,16 @@
  nil
  (#'db/replace-underscores nil))
 
+;; Test transform-keys
+(expect
+ {:2-cans true}
+ (#'db/transform-keys #'db/replace-underscores {:2_cans true}))
+
+;; make sure it works recursively and inside arrays
+(expect
+ [{:2-cans {:2-cans true}}]
+ (#'db/transform-keys #'db/replace-underscores [{:2_cans {:2_cans true}}]))
+
 ;; TODO - Test DB connection (how?)
 
 ;; TODO - Test overriding DB connection (how?)

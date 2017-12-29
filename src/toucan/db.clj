@@ -325,14 +325,16 @@
         (keyword (s/replace k-str \_ \-))
         k))))
 
-(defn- transform-keys [f m]
+(defn- transform-keys
+  "Replace the keys in any maps in `x` with the result of `(f key)`. Recursively walks `x` using `clojure.walk`."
+  [f x]
   (walk/postwalk
-   (fn [x]
-     (if (map? x)
-       (into {} (for [[k v] x]
-                  [(f k) v]))
-       x))
-   m))
+   (fn [y]
+     (if-not (map? y)
+       y
+       (into {} (for [[k v] y]
+                  [(f k) v]))))
+   x))
 
 (defn do-post-select
   "Perform post-processing for objects fetched from the DB.
