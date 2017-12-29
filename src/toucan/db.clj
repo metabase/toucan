@@ -11,7 +11,9 @@
              [core :as hsql]
              [format :as hformat]
              [helpers :as h]]
-            [toucan.models :as models])
+            [toucan
+             [models :as models]
+             [util :as u]])
   (:import clojure.lang.Keyword))
 
 ;;;                                                   CONFIGURATION
@@ -320,7 +322,7 @@
      (replace-underscores :2_cans) ; -> :2-cans"
   ^clojure.lang.Keyword [^Keyword k]
   (when k
-    (let [k-str (name k)]
+    (let [k-str (u/keyword->qualified-name k)]
       (if (s/index-of k-str \_)
         (keyword (s/replace k-str \_ \-))
         k))))

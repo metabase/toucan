@@ -65,6 +65,11 @@
  :2-cans
  (#'db/replace-underscores "2_cans"))
 
+;; make sure it respects namespaced keywords or keywords with slashes in them
+(expect
+ :bird-types/two-cans
+ (#'db/replace-underscores :bird-types/two_cans))
+
 ;; don't barf if there's a nil input
 (expect
  nil
