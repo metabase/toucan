@@ -1,4 +1,4 @@
-(defproject toucan "1.1.4-SNAPSHOT"
+(defproject toucan "1.1.3-SNAPSHOT"
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
   :license {:name "Eclipse Public License"
@@ -23,8 +23,7 @@
                               :exclusions [org.clojure/clojure]]
                              [lein-bikeshed "0.5.0"]
                              [lein-expectations "0.0.8"]
-                             [org.clojure/tools.cli "0.3.5"] ;Added because of https://github.com/dakrone/lein-bikeshed/issues/33
-                             [lein-shell "0.5.0"]]
+                             [org.clojure/tools.cli "0.3.5"]] ; Added because of https://github.com/dakrone/lein-bikeshed/issues/33
                    :jvm-opts ["-Xverify:none"]
                    :eastwood {:add-linters [:unused-locals
                                             :unused-private-vars]
