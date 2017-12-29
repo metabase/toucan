@@ -5,7 +5,7 @@
             :url "https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt"}
   :min-lein-version "2.5.0"
   :dependencies [[org.clojure/java.classpath "0.2.3"]
-                 [org.clojure/java.jdbc "0.7.4"]
+                 [org.clojure/java.jdbc "0.7.5"]
                  [org.clojure/tools.logging "0.4.0"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [honeysql "0.9.1"]]
