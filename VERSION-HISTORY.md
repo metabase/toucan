@@ -1,5 +1,11 @@
 # Toucan Version History & Release Notes
 
+### [1.1.3](https://github.com/metabase/toucan/compare/1.1.1...1.1.3) (Decmember 29th, 2017)
+
+*  Add option to automatically convert dashed names to underscores in queries, and underscores in result rows keys to dashes in query results.
+   (PRs [#26](https://github.com/metabase/toucan/issues/26), [#28](https://github.com/metabase/toucan/issues/28), and [#29](https://github.com/metabase/toucan/issues/29);
+   Credits: [@AndreTheHunter](https://github.com/AndreTheHunter) with some cleanup by [@camsaul](https://github.com/camsaul))
+
 ### [1.1.2](https://github.com/metabase/toucan/compare/1.1.1...1.1.2) (December 18th, 2017)
 
 *  Add optional new `post-update` handler. (PR [#23](https://github.com/metabase/toucan/issues/23), Credit: [@axrs](https://github.com/axrs))

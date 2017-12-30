@@ -1,4 +1,4 @@
-(defproject toucan "1.1.3-SNAPSHOT"
+(defproject toucan "1.1.3"
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
   :license {:name "Eclipse Public License"
