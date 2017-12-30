@@ -49,33 +49,35 @@
   (or *quoting-style*
       @default-quoting-style))
 
-;;; #### Allow Dashed Names
+;;; ### Additional HoneySQL options
 
-;; Allow dashes in field names. Sets the :allow-dashed-names argument in the HoneySQL `format` function.
-;; By default, this is `true`.
+;;; #### Automatically Convert Dashes & Underscores
 
-(defonce ^:private default-allow-dashed-names (atom true))
+;; Convert dashes to underscores in queries going into the DB, and underscores in results back to dashes coming out of
+;; the DB. By default, this is disabled. See the documentation in `setup.md` for more details.
 
-(def ^:dynamic *allow-dashed-names*
-  "Bind this to override allowing dashed field names.
-   Provided for cases where you want to override allowing dashes in field names
-   (such as when connecting to a different DB) without changing the default value."
+(defonce ^:private default-automatically-convert-dashes-and-underscores (atom false))
+
+(def ^:dynamic *automatically-convert-dashes-and-underscores*
+  "Bind this to enable automatic conversion between dashes and underscores for indentifiers. Provided for cases where
+  you want to override the behavior (such as when connecting to a different DB) without changing the default value."
   nil)
 
-(defn set-default-allow-dashed-names!
+(defn set-default-automatically-convert-dashes-and-underscores!
   "Set the default value for allowing dashes in field names. Defaults to `true`."
-  [^Boolean new-allow-dashed-names]
-  (reset! default-allow-dashed-names new-allow-dashed-names))
+  [^Boolean new-automatically-convert-dashes-and-underscores]
+  (reset! default-automatically-convert-dashes-and-underscores new-automatically-convert-dashes-and-underscores))
 
-(defn allow-dashed-names?
-  "Fetch the values for allowing dashes in field names.
+(defn automatically-convert-dashes-and-underscores?
+  "Deterimine whether we should automatically convert dashes and underscores in identifiers.
 
-   Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
-   which is normally `true`; this can be changed by calling `set-default-allow-dashed-names!`."
+  Returns the value of `*automatically-convert-dashes-and-underscores*` if it is bound, otherwise returns the
+  `default-automatically-convert-dashes-and-underscores`, which is normally `false`; this can be changed by calling
+  `set-default-automatically-convert-dashes-and-underscores!`."
   ^Boolean []
-  (if (nil? *allow-dashed-names*)
-    @default-allow-dashed-names
-    *allow-dashed-names*))
+  (if (nil? *automatically-convert-dashes-and-underscores*)
+    @default-automatically-convert-dashes-and-underscores
+    *automatically-convert-dashes-and-underscores*))
 
 ;;; #### DB Connection
 
@@ -257,9 +259,9 @@
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form,
-                                                 :quoting (quoting-style)
-                                                 :allow-dashed-names? (allow-dashed-names?)))]
+                                    (hsql/format honeysql-form
+                                      :quoting             (quoting-style)
+                                      :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -320,8 +322,10 @@
   "Replace underscores in `k` with dashes. In other words, converts a keyword from `:snake_case` to `:lisp-case`.
 
      (replace-underscores :2_cans) ; -> :2-cans"
-  ^clojure.lang.Keyword [^Keyword k]
-  (when k
+  ^clojure.lang.Keyword [k]
+  ;; if k is not a string or keyword don't transform it
+  (if-not ((some-fn string? keyword?) k)
+    k
     (let [k-str (u/keyword->qualified-name k)]
       (if (s/index-of k-str \_)
         (keyword (s/replace k-str \_ \-))
@@ -343,10 +347,12 @@
    Convert results OBJECTS to ENTITY record types and call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
-  (let [model       (resolve-model model)
-        post-select (if (allow-dashed-names?) identity (partial transform-keys replace-underscores))]
+  (let [model            (resolve-model model)
+        key-transform-fn (if-not (automatically-convert-dashes-and-underscores?)
+                           identity
+                           (partial transform-keys replace-underscores))]
     (vec (for [object objects]
-           (models/do-post-select model (post-select object))))))
+           (models/do-post-select model (key-transform-fn object))))))
 
 (defn simple-select
   "Select objects from the database.
