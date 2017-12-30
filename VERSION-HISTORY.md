@@ -3,6 +3,7 @@
 ### [1.1.3](https://github.com/metabase/toucan/compare/1.1.1...1.1.3) (Decmember 29th, 2017)
 
 *  Add option to automatically convert dashed names to underscores in queries, and underscores in result rows keys to dashes in query results.
+   See documentation [here](https://github.com/metabase/toucan/blob/master/docs/setup.md#automatically-converting-dashes-and-underscores).
    (PRs [#26](https://github.com/metabase/toucan/issues/26), [#28](https://github.com/metabase/toucan/issues/28), and [#29](https://github.com/metabase/toucan/issues/29);
    Credits: [@AndreTheHunter](https://github.com/AndreTheHunter) with some cleanup by [@camsaul](https://github.com/camsaul))
 
