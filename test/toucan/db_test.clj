@@ -26,15 +26,18 @@
    ((db/quote-fn) "toucan")))
 
 ;; Test allowing dashed field names
-(expect (db/allow-dashed-names?))
+(expect
+ false
+ (db/automatically-convert-dashes-and-underscores?))
 
 (expect
-  (binding [db/*allow-dashed-names* true]
-    (db/allow-dashed-names?)))
+  (binding [db/*automatically-convert-dashes-and-underscores* true]
+    (db/automatically-convert-dashes-and-underscores?)))
 
-(expect false
-  (binding [db/*allow-dashed-names* false]
-    (db/allow-dashed-names?)))
+(expect
+ false
+  (binding [db/*automatically-convert-dashes-and-underscores* false]
+    (db/automatically-convert-dashes-and-underscores?)))
 
 (expect
   {:street_name "1 Toucan Drive"}
@@ -42,12 +45,12 @@
 
 (expect
   {:street-name "1 Toucan Drive"}
-  (binding [db/*allow-dashed-names* false]
+  (binding [db/*automatically-convert-dashes-and-underscores* true]
     (db/select-one [Address :street-name])))
 
 (expect
   "1 Toucan Drive"
-  (binding [db/*allow-dashed-names* false]
+  (binding [db/*automatically-convert-dashes-and-underscores* true]
     (db/select-one-field :street-name Address)))
 
 ;; Test replace-underscores
@@ -74,6 +77,11 @@
 (expect
  nil
  (#'db/replace-underscores nil))
+
+;; shouldn't do anything for numbers!
+(expect
+ 2
+ (#'db/replace-underscores 2))
 
 ;; Test transform-keys
 (expect

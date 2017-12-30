@@ -2865,18 +2865,24 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.2-SNAPSHOT</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.2.3</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.3</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.0</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.1</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
+</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.3-SNAPSHOT</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.2.3</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.5</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.0</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.1</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.db
   (:refer-clojure :exclude [count])
-  (:require [clojure.java.jdbc :as jdbc]
-            [clojure.pprint :refer [pprint]]
-            [clojure.string :as s]
+  (:require [clojure
+             [pprint :refer [pprint]]
+             [string :as s]
+             [walk :as walk]]
+            [clojure.java.jdbc :as jdbc]
             [clojure.tools.logging :as log]
-            (honeysql [core :as hsql]
-                      [format :as hformat]
-                      [helpers :as h])
-            [toucan.models :as models]))</pre></td></tr><tr><td class="docs"><h1>                                                  CONFIGURATION</h1>
+            [honeysql
+             [core :as hsql]
+             [format :as hformat]
+             [helpers :as h]]
+            [toucan
+             [models :as models]
+             [util :as u]])
+  (:import clojure.lang.Keyword))</pre></td></tr><tr><td class="docs"><h1>                                                  CONFIGURATION</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><h4>Quoting Style</h4>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>The quoting style is the HoneySQL quoting style that should be used to quote identifiers. By default, this is
 <code>:ansi</code>, which wraps identifers in double-quotes. Alternatively, you can specify <code>:mysql</code> (backticks), or
@@ -2898,7 +2904,27 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(defn quoting-style
   ^clojure.lang.Keyword []
   (or *quoting-style*
-      @default-quoting-style))</pre></td></tr><tr><td class="docs"><h4>DB Connection</h4>
+      @default-quoting-style))</pre></td></tr><tr><td class="docs"><h3>Additional HoneySQL options</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><h4>Automatically Convert Dashes & Underscores</h4>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Convert dashes to underscores in queries going into the DB, and underscores in results back to dashes coming out of
+the DB. By default, this is disabled. See the documentation in <code>setup.md</code> for more details.</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-automatically-convert-dashes-and-underscores (atom false))</pre></td></tr><tr><td class="docs"><p>Bind this to enable automatic conversion between dashes and underscores for indentifiers. Provided for cases where
+  you want to override the behavior (such as when connecting to a different DB) without changing the default value.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *automatically-convert-dashes-and-underscores*
+  nil)</pre></td></tr><tr><td class="docs"><p>Set the default value for allowing dashes in field names. Defaults to <code>true</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn set-default-automatically-convert-dashes-and-underscores!
+  [^Boolean new-automatically-convert-dashes-and-underscores]
+  (reset! default-automatically-convert-dashes-and-underscores new-automatically-convert-dashes-and-underscores))</pre></td></tr><tr><td class="docs"><p>Deterimine whether we should automatically convert dashes and underscores in identifiers.</p>
+
+<p>  Returns the value of <code>*automatically-convert-dashes-and-underscores*</code> if it is bound, otherwise returns the
+  <code>default-automatically-convert-dashes-and-underscores</code>, which is normally <code>false</code>; this can be changed by calling
+  <code>set-default-automatically-convert-dashes-and-underscores!</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn automatically-convert-dashes-and-underscores?
+  ^Boolean []
+  (if (nil? *automatically-convert-dashes-and-underscores*)
+    @default-automatically-convert-dashes-and-underscores
+    *automatically-convert-dashes-and-underscores*))</pre></td></tr><tr><td class="docs"><h4>DB Connection</h4>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>The default DB connection is used automatically when accessing the DB; it can be anything that would normally be
 passed to <code>clojure.java.jdbc</code> functions -- normally a connection details map, but alternatively something like
 a C3PO connection pool.</p>
@@ -3035,7 +3061,9 @@ a C3PO connection pool.</p>
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like &quot;(UPDATE ...)&quot; which is invalid
   (let [[sql &amp; args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form, :quoting (quoting-style), :allow-dashed-names? true))]
+                                    (hsql/format honeysql-form
+                                      :quoting             (quoting-style)
+                                      :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format &quot;\n%s\n%s&quot; (format-sql sql) args)))
@@ -3080,14 +3108,38 @@ a C3PO connection pool.</p>
     (let [[model &amp; fields] model]
       (for [field fields]
         (maybe-qualify model field)))
-    (models/default-fields (resolve-model model))))</pre></td></tr><tr><td class="docs"><p>Perform post-processing for objects fetched from the DB.
+    (models/default-fields (resolve-model model))))</pre></td></tr><tr><td class="docs"><p>Replace underscores in <code>k</code> with dashes. In other words, converts a keyword from <code>:snake_case</code> to <code>:lisp-case</code>.</p>
+
+<pre><code> (replace-underscores :2_cans) ; -&gt; :2-cans
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- replace-underscores
+  ^clojure.lang.Keyword [k]
+  ;; if k is not a string or keyword don't transform it
+  (if-not ((some-fn string? keyword?) k)
+    k
+    (let [k-str (u/keyword-&gt;qualified-name k)]
+      (if (s/index-of k-str \_)
+        (keyword (s/replace k-str \_ \-))
+        k))))</pre></td></tr><tr><td class="docs"><p>Replace the keys in any maps in <code>x</code> with the result of <code>(f key)</code>. Recursively walks <code>x</code> using <code>clojure.walk</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- transform-keys
+  [f x]
+  (walk/postwalk
+   (fn [y]
+     (if-not (map? y)
+       y
+       (into {} (for [[k v] y]
+                  [(f k) v]))))
+   x))</pre></td></tr><tr><td class="docs"><p>Perform post-processing for objects fetched from the DB.
    Convert results OBJECTS to ENTITY record types and call the model's <code>post-select</code> method on them.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn do-post-select
   {:style/indent 1}
   [model objects]
-  (let [model (resolve-model model)]
+  (let [model            (resolve-model model)
+        key-transform-fn (if-not (automatically-convert-dashes-and-underscores?)
+                           identity
+                           (partial transform-keys replace-underscores))]
     (vec (for [object objects]
-           (models/do-post-select model object)))))</pre></td></tr><tr><td class="docs"><p>Select objects from the database.</p>
+           (models/do-post-select model (key-transform-fn object))))))</pre></td></tr><tr><td class="docs"><p>Select objects from the database.</p>
 
 <p>   Like <code>select</code>, but doesn't offer as many conveniences, so prefer that instead; like <code>select</code>,
    <code>simple-select</code> callts <code>post-select</code> on the results, but unlike <code>select</code>, only accepts a single
@@ -3100,9 +3152,9 @@ a C3PO connection pool.</p>
   [model honeysql-form]
   (let [model (resolve-model model)]
     (do-post-select model (query (merge {:select (or (models/default-fields model)
-                                                      [:*])
+                                                     [:*])
                                           :from   [model]}
-                                         honeysql-form)))))</pre></td></tr><tr><td class="docs"><p>Select a single object from the database.</p>
+                                        honeysql-form)))))</pre></td></tr><tr><td class="docs"><p>Select a single object from the database.</p>
 
 <p>   Like <code>select-one</code>, but doesn't offer as many conveniences, so prefer that instead; like <code>select-one</code>,
    <code>simple-select-one</code> callts <code>post-select</code> on the results, but unlike <code>select-one</code>, only accepts a single
@@ -3151,7 +3203,9 @@ a C3PO connection pool.</p>
       (keyword? first-option) (recur (where honeysql-form first-option second-option) more)
       first-option            (recur (merge honeysql-form first-option)               butfirst)
       :else                   honeysql-form)))</pre></td></tr><tr><td class="docs"><h3>UPDATE!</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Update a single row in the database. Returns <code>true</code> if a row was affected, <code>false</code> otherwise.
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- method-implemented? [^clojure.lang.Keyword methodk model]
+  (not (nil? (find-protocol-method models/IModel methodk model))))</pre></td></tr><tr><td class="docs"><p>Update a single row in the database. Returns <code>true</code> if a row was affected, <code>false</code> otherwise.
    Accepts either a single map of updates to make or kwargs. ENTITY is automatically resolved,
    and <code>pre-update</code> is called on KVS before the object is inserted into the database.</p>
 
@@ -3168,9 +3222,13 @@ a C3PO connection pool.</p>
    {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
    (let [model (resolve-model model)
          kvs    (-&gt; (models/do-pre-update model (assoc kvs :id id))
-                    (dissoc :id))]
-     (update! model (-&gt; (h/sset {} kvs)
-                         (where :id id)))))
+                    (dissoc :id))
+         updated? (update! model (-&gt; (h/sset {} kvs)
+                                     (where :id id)))]
+        (when (and updated?
+                   (method-implemented? :post-update model))
+          (models/post-update (model id)))
+     updated?))
   (^Boolean [model id k v &amp; more]
    (update! model id (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><p>Convenience for updating several objects matching CONDITIONS-MAP. Returns <code>true</code> if any objects were affected.
    For updating a single object, prefer using <code>update!</code>, which calls ENTITY's <code>pre-update</code> method first.</p>
@@ -3304,8 +3362,8 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   {:style/indent 1}
   [model &amp; options]
   (simple-select model (where+ {:select (or (model-&gt;fields model)
-                                             [:*])}
-                                options)))</pre></td></tr><tr><td class="docs"><p>Select values of a single field for multiple objects. These are returned as a set if any matching fields
+                                            [:*])}
+                               options)))</pre></td></tr><tr><td class="docs"><p>Select values of a single field for multiple objects. These are returned as a set if any matching fields
    were returned, otherwise <code>nil</code>.</p>
 
 <pre><code> (select-field :name 'Database) -&gt; #{"Sample Dataset", "test-data"}
@@ -3947,6 +4005,14 @@ making properties even more flexible.</p>
   (pre-update [this]
     &quot;Called by `update!` before DB operations happen. A good place to set updated values for fields like `updated-at`,
      or to check preconditions.&quot;)
+  (post-update [this]
+    &quot;Gets called by `update!` with an object that was successfully updated in the database.
+     This provides an opportunity to trigger specific logic that should occur when an object is updated.
+     The value returned by this method is not returned to the caller of `update!`. The default
+     implementation is `nil` (not invoked).
+     Note: This method is *not* invoked when calling `update!` with a `honeysql-form` form.
+       (post-update [user]
+         (audit-user-updated! user)&quot;)
   (post-select [this]
     &quot;Called on the results from a call to `select` and similar functions. Default implementation doesn't do anything,
      but you can provide custom implementations to do things like remove sensitive fields or add dynamic new ones.
@@ -4038,6 +4104,7 @@ didn't do something that accidentally removed the typing</p>
    :pre-insert     identity
    :post-insert    identity
    :pre-update     identity
+   :post-update    nil
    :post-select    identity
    :pre-delete     (constantly nil)
    :hydration-keys (constantly nil)})</pre></td></tr><tr><td class="docs"><p>Fetch an object with a specific ID or all objects of type ENTITY from the DB.</p>
