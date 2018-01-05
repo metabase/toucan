@@ -22,8 +22,8 @@ The `select` family of functions is used to retrieve objects from the database.
 (db/select User) -> [...] ; return a sequence of Users
 ```
 
-`select` returns a sequence of model instances. You can restrict the set of values returned by passing key-value pairs of columns
-and values:
+`select` returns a eagerly fetched sequence of model instances. You can restrict the set of values returned by passing key-value
+pairs of columns and values:
 
 ##### Using key-value args to restrict results returned
 
@@ -228,6 +228,19 @@ syntax similar to the `select` family of functions, but returns a Boolean value:
 (db/exists? User :first-name "Cam") ; -> true
 (db/exists? User :first-name "Spam") ; -> false
 ```
+
+### select-reducible
+
+Using `select` will realize the full set of results in memory. For smaller sets of results this is fine but queries that
+could potentially return many rows, this could cause memory issues. `select-reducible` is an similar function to `select`,
+but will return a reducible sequence instead of a vector. Using this, it's possible to consume the query results as they
+are streamed from the database. Using this, you can avoid fully realizing the set of results in memory.
+
+```
+(transduce (filter complex-filter-logic-fn) serialize-to-http-response output-stream (db/select-reducible User :active true))
+```
+
+With `select-reducible`, rows are processed as they are streamed from the database.
 
 ### Inserting objects
 
