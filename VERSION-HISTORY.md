@@ -1,6 +1,11 @@
 # Toucan Version History & Release Notes
 
-### [1.1.3](https://github.com/metabase/toucan/compare/1.1.1...1.1.3) (Decmember 29th, 2017)
+### [1.1.4](https://github.com/metabase/toucan/compare/1.1.3...1.1.4) (January 17th, 2018)
+
+*  Add new [`select-reducible` function](https://github.com/metabase/toucan/blob/master/docs/db-functions.md#select-reducible) to fetch streams of results
+   from the database. (PR [#30](https://github.com/metabase/toucan/pull/30); Credit: [@senior](https://github.com/senior)).
+
+### [1.1.3](https://github.com/metabase/toucan/compare/1.1.2...1.1.3) (Decmember 29th, 2017)
 
 *  Add option to automatically convert dashed names to underscores in queries, and underscores in result rows keys to dashes in query results.
    See documentation [here](https://github.com/metabase/toucan/blob/master/docs/setup.md#automatically-converting-dashes-and-underscores).
