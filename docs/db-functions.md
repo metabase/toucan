@@ -237,7 +237,13 @@ but will return a reducible sequence instead of a vector. Using this, it's possi
 are streamed from the database. Using this, you can avoid fully realizing the set of results in memory.
 
 ```clj
-(transduce (filter complext-filter-logic-fn)
+;; Send every active user a push notification!
+(run! send-push-notification!
+      (db/select-reducible User :active true))
+
+;; Select every active user, filter some out with complex-filter-logic-fn,
+;; and serialize the rest to a streaming HTTP response
+(transduce (filter complex-filter-logic-fn)
            serialize-to-http-response
            (db/select-reducible User :active true))
 ```
