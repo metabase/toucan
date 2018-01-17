@@ -236,8 +236,10 @@ could potentially return many rows, this could cause memory issues. `select-redu
 but will return a reducible sequence instead of a vector. Using this, it's possible to consume the query results as they
 are streamed from the database. Using this, you can avoid fully realizing the set of results in memory.
 
-```
-(transduce (filter complex-filter-logic-fn) serialize-to-http-response output-stream (db/select-reducible User :active true))
+```clj
+(transduce (filter complext-filter-logic-fn)
+           serialize-to-http-response
+           (db/select-reducible User :active true))
 ```
 
 With `select-reducible`, rows are processed as they are streamed from the database.
