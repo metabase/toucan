@@ -492,7 +492,13 @@ There's more benefits to having record-typed objects. You can also call any `IMo
 Toucan makes it easy to run queries inside transactions with the `transaction` macro.
 
 ```clojure
+(require '[honeysql.core :as hsql])
+
+;; send some money from User 1 to User 2.
 (db/transaction
+  (db/update! User 1 :account_balance (hsql/call :- :account_balance 100)  ; SET account_balance = account_balance - 100
+  (db/update! User 2 :account_balance (hsql/call :+ :account_balance 100)) ; SET account_balance = account_balance + 100
+```
 
 ### Raw HoneySQL Queries with query and execute!
 
