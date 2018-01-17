@@ -161,6 +161,19 @@
              :order-by [:id]
              :limit    1}))
 
+(defn- transduce-to-set
+  "Process `reducible-query-result` using a transducer that puts the rows from the resultset into a set"
+  [reducible-query-result]
+  (transduce (map identity) conj #{} reducible-query-result))
+
+;; Test query-reducible
+(expect
+  #{{:id 1, :first-name "Cam", :last-name "Saul"}}
+  (transduce-to-set (db/reducible-query {:select   [:*]
+                                         :from     [:users]
+                                         :order-by [:id]
+                                         :limit    1})))
+
 ;; Test qualify
 (expect
   :users.first-name
@@ -184,6 +197,11 @@
 (expect
   [#toucan.test_models.user.UserInstance{:id 3, :first-name "Lucky", :last-name "Bird"}]
   (db/simple-select User {:where [:and [:not= :id 1] [:not= :id 2]]}))
+
+;; Test simple-select-reducible
+(expect
+  #{#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}}
+  (transduce-to-set (db/simple-select-reducible User {:where [:= :id 1]})))
 
 ;; Test simple-select-one
 (expect
@@ -342,6 +360,18 @@
    #toucan.test_models.user.UserInstance{:first-name "Rasta", :last-name "Toucan"}
    #toucan.test_models.user.UserInstance{:first-name "Lucky", :last-name "Bird"}]
   (db/select [User :first-name :last-name] {:order-by [:id]}))
+
+;; Test select-reducible
+(expect
+  #{#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam",   :last-name "Saul"}
+    #toucan.test_models.user.UserInstance{:id 2, :first-name "Rasta", :last-name "Toucan"}
+    #toucan.test_models.user.UserInstance{:id 3, :first-name "Lucky", :last-name "Bird"}}
+  (transduce-to-set (db/select-reducible User {:order-by [:id]})))
+
+;; Add up the ids of the users in a transducer
+(expect
+  6
+  (transduce (map :id) + 0 (db/select-reducible User {:order-by [:id]})))
 
 ;; Test select-field
 (expect

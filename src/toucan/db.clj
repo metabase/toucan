@@ -277,6 +277,13 @@
   [honeysql-form & {:as options}]
   (jdbc/query (connection) (honeysql->sql honeysql-form) options))
 
+(defn reducible-query
+  "Compile HONEYSQL-FROM and call `jdbc/reducible-query` against the application database.
+   Options are passed along to `jdbc/reducible-query`. Note that the query won't actually be executed until it's
+   reduced."
+  [honeysql-form & {:as options}]
+  (jdbc/reducible-query (connection) (honeysql->sql honeysql-form) options))
+
 
 (defn qualify
   "Qualify a FIELD-NAME name with the name its ENTITY. This is necessary for disambiguating fields for HoneySQL
@@ -354,6 +361,14 @@
     (vec (for [object objects]
            (models/do-post-select model (key-transform-fn object))))))
 
+(defn- merge-select-and-from
+  "Includes projected fields and a from clause for `honeysql-form`. Will not override if already present."
+  [resolved-model honeysql-form]
+  (merge {:select (or (models/default-fields resolved-model)
+                      [:*])
+          :from   [resolved-model]}
+         honeysql-form))
+
 (defn simple-select
   "Select objects from the database.
 
@@ -365,10 +380,20 @@
   {:style/indent 1}
   [model honeysql-form]
   (let [model (resolve-model model)]
-    (do-post-select model (query (merge {:select (or (models/default-fields model)
-                                                     [:*])
-                                          :from   [model]}
-                                        honeysql-form)))))
+    (do-post-select model (query (merge-select-and-from model honeysql-form)))))
+
+(defn simple-select-reducible
+  "Select objects from the database.
+
+   Same as `simple-select`, but returns something reducible instead of a result set. Like
+   `simple-select`, will call `post-select` on the results, but will do so lazily.
+
+     (transduce (filter can-read?) conj [] (simple-select-reducible 'User {:where [:= :id 1]}))"
+  {:style/indent 1}
+  [model honeysql-form]
+  (let [model (resolve-model model)]
+    (eduction (map #(models/do-post-select model %))
+              (reducible-query (merge-select-and-from model honeysql-form)))))
 
 (defn simple-select-one
   "Select a single object from the database.
@@ -615,6 +640,17 @@
   (simple-select model (where+ {:select (or (model->fields model)
                                             [:*])}
                                options)))
+
+(defn select-reducible
+  "Select objects from the database, returns a reducible.
+
+     (transduce (map :name) conj [] (select 'Database :name [:not= nil] {:limit 2}))
+        -> [\"name1\", \"name2\"]"
+  {:style/indent 1}
+  [model & options]
+  (simple-select-reducible model (where+ {:select (or (model->fields model)
+                                                      [:*])}
+                                         options)))
 
 (defn select-field
   "Select values of a single field for multiple objects. These are returned as a set if any matching fields
