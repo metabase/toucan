@@ -741,7 +741,8 @@
 
    NOTE: This function assumes objects have an `:id` column. There's an [open
    issue](https://github.com/metabase/toucan/issues/3) to support objects that don't have one; until that is resolved,
-   you'll have to use `simple-delete!` instead when deleting objects with no `:id`." {:style/indent 1}
+   you'll have to use `simple-delete!` instead when deleting objects with no `:id`."
+  {:style/indent 1}
   [model & conditions]
   (let [model (resolve-model model)]
     (doseq [object (apply select model conditions)]
