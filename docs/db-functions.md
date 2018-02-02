@@ -237,7 +237,13 @@ but will return a reducible sequence instead of a vector. Using this, it's possi
 are streamed from the database. Using this, you can avoid fully realizing the set of results in memory.
 
 ```clj
-(transduce (filter complext-filter-logic-fn)
+;; Send every active user a push notification!
+(run! send-push-notification!
+      (db/select-reducible User :active true))
+
+;; Select every active user, filter some out with complex-filter-logic-fn,
+;; and serialize the rest to a streaming HTTP response
+(transduce (filter complex-filter-logic-fn)
            serialize-to-http-response
            (db/select-reducible User :active true))
 ```
@@ -486,7 +492,13 @@ There's more benefits to having record-typed objects. You can also call any `IMo
 Toucan makes it easy to run queries inside transactions with the `transaction` macro.
 
 ```clojure
+(require '[honeysql.core :as hsql])
+
+;; send some money from User 1 to User 2.
 (db/transaction
+  (db/update! User 1 :account_balance (hsql/call :- :account_balance 100)  ; SET account_balance = account_balance - 100
+  (db/update! User 2 :account_balance (hsql/call :+ :account_balance 100)) ; SET account_balance = account_balance + 100
+```
 
 ### Raw HoneySQL Queries with query and execute!
 
