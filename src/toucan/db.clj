@@ -33,13 +33,14 @@
   nil)
 
 (defn set-default-quoting-style!
-  "Set the default quoting style that should be used to quote identifiers. Defaults to `:ansi`, but you can instead set
-  it to `:mysql` or `:sqlserver`."
+  "Set the default quoting style that should be used to quote identifiers. Defaults to `:ansi`, but you can instead
+  set it to `:mysql` or `:sqlserver`."
   [new-quoting-style]
   (reset! default-quoting-style new-quoting-style))
 
 (defn quoting-style
-  "Fetch the HoneySQL quoting style that should be used to quote identifiers. One of `:ansi`, `:mysql`, or `:sqlserver`.
+  "Fetch the HoneySQL quoting style that should be used to quote identifiers. One of `:ansi`, `:mysql`, or
+  `:sqlserver`.
 
   Returns the value of `*quoting-style*` if it is bound, otherwise returns the default quoting style, which is
   normally `:ansi`; this can be changed by calling `set-default-quoting-style!`."
@@ -181,15 +182,15 @@
     :else                        (throw (Exception. (str "Invalid model: " model)))))
 
 (defn quote-fn
-  "The function that JDBC should use to quote identifiers for our database. This is passed as the `:entities` option to
-  functions like `jdbc/insert!`."
+  "The function that JDBC should use to quote identifiers for our database. This is passed as the `:entities` option
+  to functions like `jdbc/insert!`."
   []
   ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public
 
 
 (def ^:private ^:dynamic *call-count*
-  "Atom used as a counter for DB calls when enabled. This number isn't *perfectly* accurate, only mostly; DB calls made
-  directly to JDBC won't be logged."
+  "Atom used as a counter for DB calls when enabled. This number isn't *perfectly* accurate, only mostly; DB calls
+  made directly to JDBC won't be logged."
   nil)
 
 (defn -do-with-call-counting
@@ -274,8 +275,8 @@
   (jdbc/query (connection) (honeysql->sql honeysql-form) options))
 
 (defn reducible-query
-  "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along to
-  `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
+  "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
+  to `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
   [honeysql-form & {:as options}]
   (jdbc/reducible-query (connection) (honeysql->sql honeysql-form) options))
 
@@ -345,8 +346,8 @@
    x))
 
 (defn do-post-select
-  "Perform post-processing for objects fetched from the DB. Convert results `objects` to `entity` record types and call
-  the model's `post-select` method on them."
+  "Perform post-processing for objects fetched from the DB. Convert results `objects` to `entity` record types and
+  call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
   (let [model            (resolve-model model)
@@ -454,9 +455,9 @@
   (not (nil? (find-protocol-method models/IModel methodk model))))
 
 (defn update!
-  "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise. Accepts either a single
-  map of updates to make or kwargs. `entity` is automatically resolved, and `pre-update` is called on `kvs` before the
-  object is inserted into the database.
+  "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise. Accepts either a
+  single map of updates to make or kwargs. `entity` is automatically resolved, and `pre-update` is called on `kvs`
+  before the object is inserted into the database.
 
      (db/update! 'Label 11 :name \"ToucanFriendly\")
      (db/update! 'Label 11 {:name \"ToucanFriendly\"})"
