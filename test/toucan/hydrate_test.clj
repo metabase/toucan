@@ -34,12 +34,12 @@
 
 ;; should work for known keys if k_id present in every map
 (expect
- (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:user})]
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (constantly #{:user})]
    (#'hydrate/can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2}] :user)))
 
 ;; should work for both k_id and k-id style keys
 (expect
- (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:user})]
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (constantly #{:user})]
    (#'hydrate/can-automagically-batched-hydrate? [{:user_id 1} {:user-id 2}] :user)))
 
 ;; should fail for known keys if k_id isn't present in every map
@@ -55,8 +55,8 @@
     :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}}
    {:venue-id 2
     :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Ho's Tavern", :id 2}})
- (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (ref #{:venue})
-               toucan.hydrate/automagic-batched-hydration-key->model (ref {:venue Venue})]
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (constantly #{:venue})
+               toucan.hydrate/automagic-batched-hydration-key->model (constantly {:venue Venue})]
    (#'hydrate/automagically-batched-hydrate [{:venue_id 1} {:venue-id 2}] :venue)))
 
 ;; ### valid-hydration-form?
@@ -73,6 +73,45 @@
 (expect false (#'hydrate/valid-hydration-form? [:k 'k2]))
 (expect false (#'hydrate/valid-hydration-form? ['k :k2]))
 (expect false (#'hydrate/valid-hydration-form? "k"))
+
+;; Can we *refresh* Hydration keys?
+
+;; Here, we have a var named `awesome`. Note that you cannot hydrate with it
+(def ^:private awesome (constantly 100))
+
+;; and suddenly marking it 'hydrate' shouldn't change that fact, because hydration keys are cached
+(expect
+  {}
+  (try
+    ;; first, make sure the hydration keys get cached by calling the function that caches them
+    ;; hydrate/hydration-key->f
+    (#'hydrate/hydration-key->f)
+    ;; now alter the metadata for `awesome` so it becomes hydrateable
+    (alter-meta! #'awesome assoc :hydrate true)
+    ;; try hydrating with it -- shouldn't work because cache hasn't been updated
+    (hydrate {} :awesome)
+    ;; finally, at the end of everything, restore `awesome` to its original state so it doesn't affect future tests.
+    (finally
+      (alter-meta! #'awesome assoc :hydrate false)
+      ;; ...and manually remove `awesome` as a hydration key from the cache if it somehow got in there
+      (swap! @#'hydrate/hydration-key->f* dissoc :awesome))))
+
+;; ok, now try the same thing as above, but..
+(expect
+  {:awesome 100}
+  (try
+    (#'hydrate/hydration-key->f)
+    (alter-meta! #'awesome assoc :hydrate true)
+    ;; ...this time call our new function to flush the hydration keys caches (!)
+    (hydrate/flush-hydration-key-caches!)
+    ;; now hydration should work with the new key
+    (hydrate {} :awesome)
+    ;; finally, restore everthing to the way it was :D
+    (finally
+      (alter-meta! #'awesome assoc :hydrate false)
+      (swap! @#'hydrate/hydration-key->f* dissoc :awesome))))
+
+
 
 
 ;; ### counts-of
