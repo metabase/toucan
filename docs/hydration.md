@@ -165,3 +165,13 @@ will be hydrated *inside* the corresponding values for that key.
   [:a [:b :c] :e])
 ;; -> {:a {:b {:c 1} :e 2}}
 ```
+
+## Flushing the Hydration Key Caches for Interactive (REPL) Development
+
+The functions that can be used to hydrate things are resolved and cached the first time you call `hydrate`. In an
+interactive development environment (such as a REPL), you'll sometimes find yourself wanting to add new hydration
+functions. Luckily, one simple call can flush the caches, allowing you to add new hydration functions as you please:
+
+```clojure
+(toucan.hydrate/flush-hydration-key-caches!)
+```
