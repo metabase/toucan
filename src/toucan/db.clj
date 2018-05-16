@@ -514,14 +514,16 @@
 
 ;;; ### INSERT!
 
-(defn- insert-id-key
-  "The keyword name of the ID column of a newly inserted row returned by `jdbc/insert!`."
-  ^clojure.lang.Keyword []
-  (case (quoting-style)
-    :ansi      :id
-    :sqlserver :id                            ; not sure this is correct :/
-    :mysql     :generated_key
-    :h2        (keyword "scope_identity()")))
+(defn get-inserted-id
+  "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
+  [insert-result]
+  (or
+   ;; Postgres, newer H2, and most others return :id
+   (:id insert-result)
+   ;; :generated_key is returned by MySQL
+   (:generated_key insert-result)
+   ;; scope_identity() returned by older versions of H2
+   ((keyword "scope_identity()") insert-result)))
 
 (defn simple-insert-many!
   "Do a simple JDBC `insert!` of multiple objects into the database.
@@ -535,10 +537,12 @@
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model    (resolve-model model)
-          to-sql   (fn [row] (honeysql->sql {:insert-into model :values [row]}))
-          do-query (fn [qry] (jdbc/db-do-prepared-return-keys (connection) false qry {}))]
-      (doall (map (comp (insert-id-key) do-query to-sql) row-maps)))))
+    (let [model (resolve-model model)]
+      (doall
+       (for [row-map row-maps
+             :let    [sql (honeysql->sql {:insert-into model, :values [row-map]})]]
+         (-> (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
+             get-inserted-id))))))
 
 (defn insert-many!
   "Insert several new rows into the Database. Resolves ENTITY, and calls `pre-insert` on each of the ROW-MAPS.

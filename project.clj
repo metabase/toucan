@@ -1,14 +1,14 @@
-(defproject toucan "1.1.5-SNAPSHOT"
+(defproject toucan "1.1.5"
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
   :license {:name "Eclipse Public License"
             :url "https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt"}
   :min-lein-version "2.5.0"
-  :dependencies [[org.clojure/java.classpath "0.2.3"]
-                 [org.clojure/java.jdbc "0.7.5"]
-                 [org.clojure/tools.logging "0.4.0"]
+  :dependencies [[org.clojure/java.classpath "0.3.0"]
+                 [org.clojure/java.jdbc "0.7.6"]
+                 [org.clojure/tools.logging "0.4.1"]
                  [org.clojure/tools.namespace "0.2.10"]
-                 [honeysql "0.9.1"]]
+                 [honeysql "0.9.2"]]
   :javac-options ["-target" "1.7", "-source" "1.7"]
   :aliases {"bikeshed" ["bikeshed" "--max-line-length" "118" "--var-redefs" "false"]
             "lint" ["do" ["eastwood"] "bikeshed" "docstring-checker"]

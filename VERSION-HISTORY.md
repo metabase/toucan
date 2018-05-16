@@ -1,5 +1,9 @@
 # Toucan Version History & Release Notes
 
+### [1.1.5](https://github.com/metabase/toucan/compare/1.1.4...1.1.5) (May 15th, 2018)
+
+*  Add support for newer versions of H2 database.
+
 ### [1.1.4](https://github.com/metabase/toucan/compare/1.1.3...1.1.4) (January 17th, 2018)
 
 *  Add new [`select-reducible` function](https://github.com/metabase/toucan/blob/master/docs/db-functions.md#select-reducible) to fetch streams of results
