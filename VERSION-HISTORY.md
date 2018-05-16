@@ -4,6 +4,7 @@
 
 *  Add new [`toucan.hydrate/flush-hydration-key-caches!`](https://github.com/metabase/toucan/blob/master/docs/hydration.md#flushing-the-hydration-key-caches-for-interactive-repl-development)
    function for interactive development. (PRs [#27](https://github.com/metabase/toucan/pull/27) and [#35](https://github.com/metabase/toucan/pull/35), Credit: [@axrs](https://github.com/axrs) with some cleanup by [@camsaul](https://github.com/camsaul))
+*  Fix how `select` and related functions generate `WHERE` clauses when used with clauses with more than two arguments, such as `:between`. ([#33](https://github.com/metabase/toucan/issues/33); Credit: [@camsaul](https://github.com/camsaul))
 
 ### [1.1.5](https://github.com/metabase/toucan/compare/1.1.4...1.1.5) (May 15th, 2018)
 
