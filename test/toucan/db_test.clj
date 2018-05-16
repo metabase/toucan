@@ -361,6 +361,12 @@
    #toucan.test_models.user.UserInstance{:first-name "Lucky", :last-name "Bird"}]
   (db/select [User :first-name :last-name] {:order-by [:id]}))
 
+;; Check that `select` works as we'd expect with where clauses with more than two arguments, for example BETWEEN
+(expect
+  [#toucan.test_models.user.UserInstance{:first-name "Cam",   :last-name "Saul"}
+   #toucan.test_models.user.UserInstance{:first-name "Rasta", :last-name "Toucan"}]
+  (db/select [User :first-name :last-name] :id [:between 1 2] {:order-by [:id]}))
+
 ;; Test select-reducible
 (expect
   #{#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam",   :last-name "Saul"}

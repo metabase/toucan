@@ -422,14 +422,13 @@
    honeysql-form) ; no-op
 
   ([honeysql-form m]
-
    (apply where honeysql-form (apply concat m)))
 
   ([honeysql-form k v]
    (h/merge-where honeysql-form (if (vector? v)
-                                  (let [[f v] v] ; e.g. :id [:!= 1] -> [:!= :id 1]
+                                  (let [[f & args] v] ; e.g. :id [:!= 1] -> [:!= :id 1]
                                     (assert (keyword? f))
-                                    [f k v])
+                                    (vec (cons f (cons k args))))
                                   [:= k v])))
 
   ([honeysql-form k v & more]
@@ -437,16 +436,16 @@
 
 (defn- where+
   "Generate a HoneySQL form, converting pairs of arguments with keywords into a `where` clause, and merging other
-  HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So called because it handles `where`
+  HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So-called because it handles `where`
   *plus* other clauses).
 
      (where+ {} [:id 1 {:limit 10}]) -> {:where [:= :id 1], :limit 10}"
-  [honeysql-form options]
-  (loop [honeysql-form honeysql-form, [first-option & [second-option & more, :as butfirst]] options]
+  [honeysql-form args]
+  (loop [honeysql-form honeysql-form, [first-arg & [second-arg & more, :as butfirst]] args]
     (cond
-      (keyword? first-option) (recur (where honeysql-form first-option second-option) more)
-      first-option            (recur (merge honeysql-form first-option)               butfirst)
-      :else                   honeysql-form)))
+      (keyword? first-arg) (recur (where honeysql-form first-arg second-arg) more)
+      first-arg            (recur (merge honeysql-form first-arg)            butfirst)
+      :else                honeysql-form)))
 
 
 ;;; ### UPDATE!
