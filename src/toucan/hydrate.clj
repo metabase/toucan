@@ -282,7 +282,8 @@
 ;;; ==================================================================================================================
 
 (defn flush-hydration-key-caches!
-  "Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration functions."
+  "Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration
+  functions."
   []
   (reset! automagic-batched-hydration-key->model* nil)
   (reset! hydration-key->batched-f*               nil)
