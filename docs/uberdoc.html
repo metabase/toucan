@@ -2865,8 +2865,8 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.3-SNAPSHOT</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.2.3</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.5</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.0</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.1</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
+</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.6</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.6</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.1</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.2</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.db
   (:refer-clojure :exclude [count])
   (:require [clojure
@@ -2888,19 +2888,17 @@ net.brehaut.ClojureTools = (function (SH) {
 <code>:ansi</code>, which wraps identifers in double-quotes. Alternatively, you can specify <code>:mysql</code> (backticks), or
 <code>:sqlserver</code> (square brackets)</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-quoting-style (atom :ansi))</pre></td></tr><tr><td class="docs"><p>Bind this to override the identifier quoting style.
-   Provided for cases where you want to override the quoting style (such as when connecting to a different DB)
-   without changing the default value.</p>
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-quoting-style (atom :ansi))</pre></td></tr><tr><td class="docs"><p>Bind this to override the identifier quoting style. Provided for cases where you want to override the quoting
+  style (such as when connecting to a different DB) without changing the default value.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *quoting-style*
-  nil)</pre></td></tr><tr><td class="docs"><p>Set the default quoting style that should be used to quote identifiers.
-   Defaults to <code>:ansi</code>, but you can instead set it to <code>:mysql</code> or <code>:sqlserver</code>.</p>
+  nil)</pre></td></tr><tr><td class="docs"><p>Set the default quoting style that should be used to quote identifiers. Defaults to <code>:ansi</code>, but you can instead set
+  it to <code>:mysql</code> or <code>:sqlserver</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-default-quoting-style!
   [new-quoting-style]
-  (reset! default-quoting-style new-quoting-style))</pre></td></tr><tr><td class="docs"><p>Fetch the HoneySQL quoting style that should be used to quote identifiers.
-   One of <code>:ansi</code>, <code>:mysql</code>, or <code>:sqlserver</code>.</p>
+  (reset! default-quoting-style new-quoting-style))</pre></td></tr><tr><td class="docs"><p>Fetch the HoneySQL quoting style that should be used to quote identifiers. One of <code>:ansi</code>, <code>:mysql</code>, or <code>:sqlserver</code>.</p>
 
-<p>   Returns the value of <code>*quoting-style*</code> if it is bound, otherwise returns the default quoting style,
-   which is normally <code>:ansi</code>; this can be changed by calling <code>set-default-quoting-style!</code>.</p>
+<p>  Returns the value of <code>*quoting-style*</code> if it is bound, otherwise returns the default quoting style, which is
+  normally <code>:ansi</code>; this can be changed by calling <code>set-default-quoting-style!</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn quoting-style
   ^clojure.lang.Keyword []
   (or *quoting-style*
@@ -2929,14 +2927,13 @@ the DB. By default, this is disabled. See the documentation in <code>setup.md</c
 passed to <code>clojure.java.jdbc</code> functions -- normally a connection details map, but alternatively something like
 a C3PO connection pool.</p>
 </td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-db-connection (atom nil))</pre></td></tr><tr><td class="docs"><p>Bind this to override the default DB connection used by <code>toucan.db</code> functions.
-   Provided for situations where you'd like to connect to a DB other than the primary application DB,
-   or connect to it with different connection options.</p>
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-db-connection (atom nil))</pre></td></tr><tr><td class="docs"><p>Bind this to override the default DB connection used by <code>toucan.db</code> functions. Provided for situations where you'd
+  like to connect to a DB other than the primary application DB, or connect to it with different connection options.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *db-connection*
-  nil)</pre></td></tr><tr><td class="docs"><p>Set the JDBC connecton details map for the default application DB connection.
-   This connection is used by default by the various <code>toucan.db</code> functions.</p>
+  nil)</pre></td></tr><tr><td class="docs"><p>Set the JDBC connecton details map for the default application DB connection. This connection is used by default by
+  the various <code>toucan.db</code> functions.</p>
 
-<p>   DB-CONNECTION-MAP is passed directly to <code>clojure.java.jdbc</code>; it can be anything that is accepted by it.</p>
+<p>   <code>db-connection-map</code> is passed directly to <code>clojure.java.jdbc</code>; it can be anything that is accepted by it.</p>
 
 <pre><code> (db/set-default-db-connection!
    {:classname   "org.postgresql.Driver"
@@ -2950,11 +2947,11 @@ a C3PO connection pool.</p>
   (reset! default-db-connection db-connection-map))</pre></td></tr><tr><td class="docs"><h1>                                        TRANSACTION & CONNECTION UTIL FNS</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Transaction connection to the application DB. Used internally by <code>transaction</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:private ^:dynamic *transaction-connection*
-  nil)</pre></td></tr><tr><td class="docs"><p>Fetch the JDBC connection details for passing to <code>clojure.java.jdbc</code>.
-   Returns <code>*db-connection*</code>, if it is set; otherwise <code>*transaction-connection*</code>, if we're inside a <code>transaction</code>
-   (this is bound automatically); otherwise the default DB connection, set by <code>set-default-db-connection!</code>.</p>
+  nil)</pre></td></tr><tr><td class="docs"><p>Fetch the JDBC connection details for passing to <code>clojure.java.jdbc</code>. Returns <code>*db-connection*</code>, if it is set;
+  otherwise <code>*transaction-connection*</code>, if we're inside a <code>transaction</code> (this is bound automatically); otherwise the
+  default DB connection, set by <code>set-default-db-connection!</code>.</p>
 
-<p>   If no DB connection has been set this function will throw an exception.</p>
+<p>  If no DB connection has been set this function will throw an exception.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn connection
   []
   (or *db-connection*
@@ -2970,8 +2967,8 @@ a C3PO connection pool.</p>
   {:arglists '([body] [options &amp; body]), :style/indent 0}
   [&amp; body]
   `(do-in-transaction (fn [] ~@body)))</pre></td></tr><tr><td class="docs"><h1>                                                  QUERY UTIL FNS</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Should we disable logging for database queries? Normally <code>false</code>, but bind this to <code>true</code> to keep logging
-   from getting too noisy during operations that require a lot of DB access, like the sync process.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Should we disable logging for database queries? Normally <code>false</code>, but bind this to <code>true</code> to keep logging from
+  getting too noisy during operations that require a lot of DB access, like the sync process.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:dynamic ^Boolean *disable-db-logging*
   false)</pre></td></tr><tr><td class="docs"><p>Return the namespace symbol where we'd expect to find an model symbol.</p>
 
@@ -3003,12 +3000,12 @@ a C3PO connection pool.</p>
     (:toucan.models/model model) model
     (vector? model)              (resolve-model (first model))
     (symbol? model)              (resolve-model-from-symbol model)
-    :else                        (throw (Exception. (str &quot;Invalid model: &quot; model)))))</pre></td></tr><tr><td class="docs"><p>The function that JDBC should use to quote identifiers for our database.
-   This is passed as the <code>:entities</code> option to functions like <code>jdbc/insert!</code>.</p>
+    :else                        (throw (Exception. (str &quot;Invalid model: &quot; model)))))</pre></td></tr><tr><td class="docs"><p>The function that JDBC should use to quote identifiers for our database. This is passed as the <code>:entities</code> option to
+  functions like <code>jdbc/insert!</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn quote-fn
   []
-  ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public</pre></td></tr><tr><td class="docs"><p>Atom used as a counter for DB calls when enabled.
-   This number isn't <em>perfectly</em> accurate, only mostly; DB calls made directly to JDBC won't be logged.</p>
+  ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public</pre></td></tr><tr><td class="docs"><p>Atom used as a counter for DB calls when enabled. This number isn't <em>perfectly</em> accurate, only mostly; DB calls made
+  directly to JDBC won't be logged.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:private ^:dynamic *call-count*
   nil)</pre></td></tr><tr><td class="docs"><p>Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve the
   current call count. (It's probably more useful to use the macro form of this function, <code>with-call-counting</code>,
@@ -3017,17 +3014,16 @@ a C3PO connection pool.</p>
   {:style/indent 0}
   [f]
   (binding [*call-count* (atom 0)]
-    (f (partial deref *call-count*))))</pre></td></tr><tr><td class="docs"><p>Execute BODY and track the number of DB calls made inside it. CALL-COUNT-FN-BINDING is bound to a zero-arity
-   function that can be used to fetch the current DB call count.</p>
+    (f (partial deref *call-count*))))</pre></td></tr><tr><td class="docs"><p>Execute <code>body</code> and track the number of DB calls made inside it. <code>call-count-fn-binding</code> is bound to a zero-arity
+  function that can be used to fetch the current DB call count.</p>
 
-<pre><code> (db/with-call-counting [call-count]
-   ...
+<pre><code> (db/with-call-counting [call-count] ...
    (call-count))
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defmacro with-call-counting
   {:style/indent 1}
   [[call-count-fn-binding] &amp; body]
-  `(-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))</pre></td></tr><tr><td class="docs"><p>Print the number of DB calls executed inside BODY to <code>stdout</code>. Intended for use during REPL development.</p>
+  `(-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))</pre></td></tr><tr><td class="docs"><p>Print the number of DB calls executed inside <code>body</code> to <code>stdout</code>. Intended for use during REPL development.</p>
 </td><td class="codes"><pre class="brush: clojure">(defmacro debug-count-calls
   {:style/indent 0}
   [&amp; body]
@@ -3043,17 +3039,17 @@ a C3PO connection pool.</p>
         sql
         (recur (s/replace sql (re-pattern (format &quot;\\s+%s\\s+&quot; k)) (format &quot;\n%s &quot; k))
                more)))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def ^:dynamic ^:private *debug-print-queries* false)</pre></td></tr><tr><td class="docs"><p>Execute F with debug query logging enabled. Don't use this directly; prefer the <code>debug-print-queries</code> macro form
+</td><td class="codes"><pre class="brush: clojure">(def ^:dynamic ^:private *debug-print-queries* false)</pre></td></tr><tr><td class="docs"><p>Execute <code>f</code> with debug query logging enabled. Don't use this directly; prefer the <code>debug-print-queries</code> macro form
   instead.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn -do-with-debug-print-queries
   [f]
   (binding [*debug-print-queries* true]
-    (f)))</pre></td></tr><tr><td class="docs"><p>Print the HoneySQL and SQL forms of any queries executed inside BODY to <code>stdout</code>. Intended for use during REPL
+    (f)))</pre></td></tr><tr><td class="docs"><p>Print the HoneySQL and SQL forms of any queries executed inside <code>body</code> to <code>stdout</code>. Intended for use during REPL
   development.</p>
 </td><td class="codes"><pre class="brush: clojure">(defmacro debug-print-queries
   {:style/indent 0}
   [&amp; body]
-  `(-do-with-debug-print-queries (fn [] ~@body)))</pre></td></tr><tr><td class="docs"><p>Compile HONEYSQL-FORM to SQL.
+  `(-do-with-debug-print-queries (fn [] ~@body)))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-form</code> to SQL.
   This returns a vector with the SQL string as its first item and prepared statement params as the remaining items.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- honeysql-&gt;sql
   [honeysql-form]
@@ -3071,11 +3067,15 @@ a C3PO connection pool.</p>
       (log/debug (str &quot;DB Call: &quot; sql))
       (when *call-count*
         (swap! *call-count* inc)))
-    sql+args))</pre></td></tr><tr><td class="docs"><p>Compile HONEYSQL-FROM and call <code>jdbc/query</code> against the application database.
-   Options are passed along to <code>jdbc/query</code>.</p>
+    sql+args))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-from</code> and call <code>jdbc/query</code> against the application database. Options are passed along to
+  <code>jdbc/query</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn query
   [honeysql-form &amp; {:as options}]
-  (jdbc/query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Qualify a FIELD-NAME name with the name its ENTITY. This is necessary for disambiguating fields for HoneySQL
+  (jdbc/query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-from</code> and call <code>jdbc/reducible-query</code> against the application database. Options are passed along to
+  <code>jdbc/reducible-query</code>. Note that the query won't actually be executed until it's reduced.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn reducible-query
+  [honeysql-form &amp; {:as options}]
+  (jdbc/reducible-query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Qualify a <code>field-name</code> name with the name its <code>entity</code>. This is necessary for disambiguating fields for HoneySQL
   queries that contain joins.</p>
 
 <pre><code> (db/qualify 'CardFavorite :id) -&gt; :report_cardfavorite.id
@@ -3084,17 +3084,17 @@ a C3PO connection pool.</p>
   ^clojure.lang.Keyword [model field-name]
   (if (vector? field-name)
     [(qualify model (first field-name)) (second field-name)]
-    (hsql/qualify (:table (resolve-model model)) field-name)))</pre></td></tr><tr><td class="docs"><p>Is FIELD-NAME qualified by (e.g. with its table name)?</p>
+    (hsql/qualify (:table (resolve-model model)) field-name)))</pre></td></tr><tr><td class="docs"><p>Is <code>field-name</code> qualified (e.g. with its table name)?</p>
 </td><td class="codes"><pre class="brush: clojure">(defn qualified?
   ^Boolean [field-name]
   (if (vector? field-name)
     (qualified? (first field-name))
-    (boolean (re-find #&quot;\.&quot; (name field-name)))))</pre></td></tr><tr><td class="docs"><p>Qualify FIELD-NAME with its table name if it's not already qualified.</p>
+    (boolean (re-find #&quot;\.&quot; (name field-name)))))</pre></td></tr><tr><td class="docs"><p>Qualify <code>field-name</code> with its table name if it's not already qualified.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- maybe-qualify
   ^clojure.lang.Keyword [model field-name]
   (if (qualified? field-name)
     field-name
-    (qualify model field-name)))</pre></td></tr><tr><td class="docs"><p>Get the fields that should be used in a query, destructuring ENTITY if it's wrapped in a vector, otherwise
+    (qualify model field-name)))</pre></td></tr><tr><td class="docs"><p>Get the fields that should be used in a query, destructuring <code>entity</code> if it's wrapped in a vector, otherwise
    calling <code>default-fields</code>. This will return <code>nil</code> if the model isn't wrapped in a vector and uses the default
    implementation of <code>default-fields</code>.</p>
 
@@ -3129,8 +3129,8 @@ a C3PO connection pool.</p>
        y
        (into {} (for [[k v] y]
                   [(f k) v]))))
-   x))</pre></td></tr><tr><td class="docs"><p>Perform post-processing for objects fetched from the DB.
-   Convert results OBJECTS to ENTITY record types and call the model's <code>post-select</code> method on them.</p>
+   x))</pre></td></tr><tr><td class="docs"><p>Perform post-processing for objects fetched from the DB. Convert results <code>objects</code> to <code>entity</code> record types and call
+  the model's <code>post-select</code> method on them.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn do-post-select
   {:style/indent 1}
   [model objects]
@@ -3139,36 +3139,51 @@ a C3PO connection pool.</p>
                            identity
                            (partial transform-keys replace-underscores))]
     (vec (for [object objects]
-           (models/do-post-select model (key-transform-fn object))))))</pre></td></tr><tr><td class="docs"><p>Select objects from the database.</p>
+           (models/do-post-select model (key-transform-fn object))))))</pre></td></tr><tr><td class="docs"><p>Includes projected fields and a from clause for <code>honeysql-form</code>. Will not override if already present.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- merge-select-and-from
+  [resolved-model honeysql-form]
+  (merge {:select (or (models/default-fields resolved-model)
+                      [:*])
+          :from   [resolved-model]}
+         honeysql-form))</pre></td></tr><tr><td class="docs"><p>Select objects from the database.</p>
 
-<p>   Like <code>select</code>, but doesn't offer as many conveniences, so prefer that instead; like <code>select</code>,
-   <code>simple-select</code> callts <code>post-select</code> on the results, but unlike <code>select</code>, only accepts a single
-   raw HoneySQL form as an argument.</p>
+<p>  Like <code>select</code>, but doesn't offer as many conveniences, so prefer that instead; like <code>select</code>,
+  <code>simple-select</code> callts <code>post-select</code> on the results, but unlike <code>select</code>, only accepts a single
+  raw HoneySQL form as an argument.</p>
 
-<pre><code> (db/simple-select 'User {:where [:= :id 1]})
+<pre><code>(db/simple-select 'User {:where [:= :id 1]})
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn simple-select
   {:style/indent 1}
   [model honeysql-form]
   (let [model (resolve-model model)]
-    (do-post-select model (query (merge {:select (or (models/default-fields model)
-                                                     [:*])
-                                          :from   [model]}
-                                        honeysql-form)))))</pre></td></tr><tr><td class="docs"><p>Select a single object from the database.</p>
+    (do-post-select model (query (merge-select-and-from model honeysql-form)))))</pre></td></tr><tr><td class="docs"><p>Select objects from the database.</p>
 
-<p>   Like <code>select-one</code>, but doesn't offer as many conveniences, so prefer that instead; like <code>select-one</code>,
-   <code>simple-select-one</code> callts <code>post-select</code> on the results, but unlike <code>select-one</code>, only accepts a single
-   raw HoneySQL form as an argument.</p>
+<p>  Same as <code>simple-select</code>, but returns something reducible instead of a result set. Like <code>simple-select</code>, will call
+  <code>post-select</code> on the results, but will do so lazily.</p>
 
-<pre><code> (db/simple-select-one 'User (h/where [:= :first-name "Cam"]))
+<pre><code>(transduce (filter can-read?) conj [] (simple-select-reducible 'User {:where [:= :id 1]}))
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn simple-select-reducible
+  {:style/indent 1}
+  [model honeysql-form]
+  (let [model (resolve-model model)]
+    (eduction (map #(models/do-post-select model %))
+              (reducible-query (merge-select-and-from model honeysql-form)))))</pre></td></tr><tr><td class="docs"><p>Select a single object from the database.</p>
+
+<p>  Like <code>select-one</code>, but doesn't offer as many conveniences, so prefer that instead; like <code>select-one</code>,
+  <code>simple-select-one</code> callts <code>post-select</code> on the results, but unlike <code>select-one</code>, only accepts a single raw HoneySQL
+  form as an argument.</p>
+
+<pre><code>(db/simple-select-one 'User (h/where [:= :first-name "Cam"]))
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn simple-select-one
   ([model]
    (simple-select-one model {}))
   ([model honeysql-form]
-   (first (simple-select model (h/limit honeysql-form 1)))))</pre></td></tr><tr><td class="docs"><p>Compile HONEYSQL-FORM and call <code>jdbc/execute!</code> against the application DB.
-   OPTIONS are passed directly to <code>jdbc/execute!</code> and can be things like <code>:multi?</code> (default <code>false</code>)
-   or <code>:transaction?</code> (default <code>true</code>).</p>
+   (first (simple-select model (h/limit honeysql-form 1)))))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-form</code> and call <code>jdbc/execute!</code> against the application DB.
+  <code>options</code> are passed directly to <code>jdbc/execute!</code> and can be things like <code>:multi?</code> (default <code>false</code>) or
+  <code>:transaction?</code> (default <code>true</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(defn execute!
   [honeysql-form &amp; {:as options}]
   (jdbc/execute! (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Generate a HoneySQL <code>where</code> form using key-value args.</p>
@@ -3185,29 +3200,29 @@ a C3PO connection pool.</p>
    (apply where honeysql-form (apply concat m)))
   ([honeysql-form k v]
    (h/merge-where honeysql-form (if (vector? v)
-                                  (let [[f v] v] ; e.g. :id [:!= 1] -&gt; [:!= :id 1]
+                                  (let [[f &amp; args] v] ; e.g. :id [:!= 1] -&gt; [:!= :id 1]
                                     (assert (keyword? f))
-                                    [f k v])
+                                    (vec (cons f (cons k args))))
                                   [:= k v])))
   ([honeysql-form k v &amp; more]
    (apply where (where honeysql-form k v) more)))</pre></td></tr><tr><td class="docs"><p>Generate a HoneySQL form, converting pairs of arguments with keywords into a <code>where</code> clause, and merging other
-   HoneySQL clauses in as-is. Meant for internal use by functions like <code>select</code>. (So called because it handles
-   <code>where</code> <em>plus</em> other clauses).</p>
+  HoneySQL clauses in as-is. Meant for internal use by functions like <code>select</code>. (So-called because it handles <code>where</code>
+  <em>plus</em> other clauses).</p>
 
 <pre><code> (where+ {} [:id 1 {:limit 10}]) -&gt; {:where [:= :id 1], :limit 10}
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn- where+
-  [honeysql-form options]
-  (loop [honeysql-form honeysql-form, [first-option &amp; [second-option &amp; more, :as butfirst]] options]
+  [honeysql-form args]
+  (loop [honeysql-form honeysql-form, [first-arg &amp; [second-arg &amp; more, :as butfirst]] args]
     (cond
-      (keyword? first-option) (recur (where honeysql-form first-option second-option) more)
-      first-option            (recur (merge honeysql-form first-option)               butfirst)
-      :else                   honeysql-form)))</pre></td></tr><tr><td class="docs"><h3>UPDATE!</h3>
+      (keyword? first-arg) (recur (where honeysql-form first-arg second-arg) more)
+      first-arg            (recur (merge honeysql-form first-arg)            butfirst)
+      :else                honeysql-form)))</pre></td></tr><tr><td class="docs"><h3>UPDATE!</h3>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- method-implemented? [^clojure.lang.Keyword methodk model]
-  (not (nil? (find-protocol-method models/IModel methodk model))))</pre></td></tr><tr><td class="docs"><p>Update a single row in the database. Returns <code>true</code> if a row was affected, <code>false</code> otherwise.
-   Accepts either a single map of updates to make or kwargs. ENTITY is automatically resolved,
-   and <code>pre-update</code> is called on KVS before the object is inserted into the database.</p>
+  (not (nil? (find-protocol-method models/IModel methodk model))))</pre></td></tr><tr><td class="docs"><p>Update a single row in the database. Returns <code>true</code> if a row was affected, <code>false</code> otherwise. Accepts either a single
+  map of updates to make or kwargs. <code>entity</code> is automatically resolved, and <code>pre-update</code> is called on <code>kvs</code> before the
+  object is inserted into the database.</p>
 
 <pre><code> (db/update! 'Label 11 :name "ToucanFriendly")
  (db/update! 'Label 11 {:name "ToucanFriendly"})
@@ -3230,8 +3245,8 @@ a C3PO connection pool.</p>
           (models/post-update (model id)))
      updated?))
   (^Boolean [model id k v &amp; more]
-   (update! model id (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><p>Convenience for updating several objects matching CONDITIONS-MAP. Returns <code>true</code> if any objects were affected.
-   For updating a single object, prefer using <code>update!</code>, which calls ENTITY's <code>pre-update</code> method first.</p>
+   (update! model id (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><p>Convenience for updating several objects matching <code>conditions-map</code>. Returns <code>true</code> if any objects were affected.
+  For updating a single object, prefer using <code>update!</code>, which calls <code>entity</code>'s <code>pre-update</code> method first.</p>
 
 <pre><code> (db/update-where! Table {:name  table-name
                           :db_id (:id database)}
@@ -3250,17 +3265,19 @@ a C3PO connection pool.</p>
                                  [k v]))))
   ([model id k v &amp; more]
    (update-non-nil-keys! model id (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><h3>INSERT!</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>The keyword name of the ID column of a newly inserted row returned by <code>jdbc/insert!</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- insert-id-key
-  ^clojure.lang.Keyword []
-  (case (quoting-style)
-    :ansi      :id
-    :sqlserver :id                            ; not sure this is correct :/
-    :mysql     :generated_key
-    :h2        (keyword &quot;scope_identity()&quot;)))</pre></td></tr><tr><td class="docs"><p>Do a simple JDBC <code>insert!</code> of multiple objects into the database.
-   Normally you should use <code>insert-many!</code> instead, which calls the model's <code>pre-insert</code> method on the ROW-MAPS;
-   <code>simple-insert-many!</code> is offered for cases where you'd like to specifically avoid this behavior.
-   Returns a sequences of IDs of newly inserted objects.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Get the ID of a row inserted by <code>jdbc/db-do-prepared-return-keys</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn get-inserted-id
+  [insert-result]
+  (or
+   ;; Postgres, newer H2, and most others return :id
+   (:id insert-result)
+   ;; :generated_key is returned by MySQL
+   (:generated_key insert-result)
+   ;; scope_identity() returned by older versions of H2
+   ((keyword &quot;scope_identity()&quot;) insert-result)))</pre></td></tr><tr><td class="docs"><p>Do a simple JDBC <code>insert!</code> of multiple objects into the database.
+  Normally you should use <code>insert-many!</code> instead, which calls the model's <code>pre-insert</code> method on the <code>row-maps</code>;
+  <code>simple-insert-many!</code> is offered for cases where you'd like to specifically avoid this behavior. Returns a sequences
+  of IDs of newly inserted objects.</p>
 
 <pre><code> (db/simple-insert-many! 'Label [{:name "Toucan Friendly"}
                                  {:name "Bird Approved"}]) ;;=&gt; (38 39)
@@ -3270,15 +3287,17 @@ a C3PO connection pool.</p>
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model    (resolve-model model)
-          to-sql   (fn [row] (honeysql-&gt;sql {:insert-into model :values [row]}))
-          do-query (fn [qry] (jdbc/db-do-prepared-return-keys (connection) false qry {}))]
-      (doall (map (comp (insert-id-key) do-query to-sql) row-maps)))))</pre></td></tr><tr><td class="docs"><p>Insert several new rows into the Database. Resolves ENTITY, and calls <code>pre-insert</code> on each of the ROW-MAPS.
-   Returns a sequence of the IDs of the newly created objects.</p>
+    (let [model (resolve-model model)]
+      (doall
+       (for [row-map row-maps
+             :let    [sql (honeysql-&gt;sql {:insert-into model, :values [row-map]})]]
+         (-&gt; (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
+             get-inserted-id))))))</pre></td></tr><tr><td class="docs"><p>Insert several new rows into the Database. Resolves <code>entity</code>, and calls <code>pre-insert</code> on each of the <code>row-maps</code>.
+  Returns a sequence of the IDs of the newly created objects.</p>
 
-<p>   Note: this <em>does not</em> call <code>post-insert</code> on newly created objects. If you need <code>post-insert</code> behavior, use
-   <code>insert!</code> instead. (This might change in the future: there is an <a href="https://github.com/metabase/toucan/issues/4">open issue to consider
-   this</a>).</p>
+<p>  Note: this <em>does not</em> call <code>post-insert</code> on newly created objects. If you need <code>post-insert</code> behavior, use
+  <code>insert!</code> instead. (This might change in the future: there is an <a href="https://github.com/metabase/toucan/issues/4">open issue to consider
+  this</a>).</p>
 
 <pre><code> (db/insert-many! 'Label [{:name "Toucan Friendly"}
                           {:name "Bird Approved"}]) -&gt; [38 39]
@@ -3289,24 +3308,24 @@ a C3PO connection pool.</p>
   (let [model (resolve-model model)]
     (simple-insert-many! model (for [row-map row-maps]
                                   (models/do-pre-insert model row-map)))))</pre></td></tr><tr><td class="docs"><p>Do a simple JDBC <code>insert</code> of a single object.
-   This is similar to <code>insert!</code> but returns the ID of the newly created object rather than the object itself,
-   and does not call <code>pre-insert</code> or <code>post-insert</code>.</p>
+  This is similar to <code>insert!</code> but returns the ID of the newly created object rather than the object itself,
+  and does not call <code>pre-insert</code> or <code>post-insert</code>.</p>
 
 <pre><code> (db/simple-insert! 'Label :name "Toucan Friendly") -&gt; 1
 </code></pre>
 
-<p>   Like <code>insert!</code>, <code>simple-insert!</code> can be called with either a single ROW-MAP or kv-style arguments.</p>
+<p>  Like <code>insert!</code>, <code>simple-insert!</code> can be called with either a single <code>row-map</code> or kv-style arguments.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn simple-insert!
   {:style/indent 1}
   ([model row-map]
    {:pre [(map? row-map) (every? keyword? (keys row-map))]}
    (first (simple-insert-many! model [row-map])))
   ([model k v &amp; more]
-   (simple-insert! model (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><p>Insert a new object into the Database. Resolves ENTITY, calls its <code>pre-insert</code> method on ROW-MAP to prepare
-   it before insertion; after insert, it fetches and the newly created object, passes it to <code>post-insert</code>, and
-   returns the results.</p>
+   (simple-insert! model (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><p>Insert a new object into the Database. Resolves <code>entity</code>, calls its <code>pre-insert</code> method on <code>row-map</code> to prepare
+  it before insertion; after insert, it fetches and the newly created object, passes it to <code>post-insert</code>, and
+  returns the results.</p>
 
-<p>   For flexibility, <code>insert!</code> can handle either a single map or individual kwargs:</p>
+<p>  For flexibility, <code>insert!</code> can handle either a single map or individual kwargs:</p>
 
 <pre><code> (db/insert! Label {:name "Toucan Unfriendly"})
  (db/insert! 'Label :name "Toucan Friendly")
@@ -3330,7 +3349,7 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   {:style/indent 1}
   [model &amp; options]
   (let [fields (model-&gt;fields model)]
-    (simple-select-one model (where+ {:select (or fields [:*])} options))))</pre></td></tr><tr><td class="docs"><p>Select a single FIELD of a single object from the database.</p>
+    (simple-select-one model (where+ {:select (or fields [:*])} options))))</pre></td></tr><tr><td class="docs"><p>Select a single <code>field</code> of a single object from the database.</p>
 
 <pre><code> (select-one-field :name 'Database :id 1) -&gt; "Sample Dataset"
 </code></pre>
@@ -3363,7 +3382,17 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   [model &amp; options]
   (simple-select model (where+ {:select (or (model-&gt;fields model)
                                             [:*])}
-                               options)))</pre></td></tr><tr><td class="docs"><p>Select values of a single field for multiple objects. These are returned as a set if any matching fields
+                               options)))</pre></td></tr><tr><td class="docs"><p>Select objects from the database, returns a reducible.</p>
+
+<pre><code> (transduce (map :name) conj [] (select 'Database :name [:not= nil] {:limit 2}))
+    -&gt; ["name1", "name2"]
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn select-reducible
+  {:style/indent 1}
+  [model &amp; options]
+  (simple-select-reducible model (where+ {:select (or (model-&gt;fields model)
+                                                      [:*])}
+                                         options)))</pre></td></tr><tr><td class="docs"><p>Select values of a single field for multiple objects. These are returned as a set if any matching fields
    were returned, otherwise <code>nil</code>.</p>
 
 <pre><code> (select-field :name 'Database) -&gt; #{"Sample Dataset", "test-data"}
@@ -3380,7 +3409,7 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
 </td><td class="codes"><pre class="brush: clojure">(defn select-ids
   {:style/indent 1}
   [model &amp; options]
-  (apply select-field :id model options))</pre></td></tr><tr><td class="docs"><p>Select fields K and V from objects in the database, and return them as a map from K to V.</p>
+  (apply select-field :id model options))</pre></td></tr><tr><td class="docs"><p>Select fields <code>k</code> and <code>v</code> from objects in the database, and return them as a map from <code>k</code> to <code>v</code>.</p>
 
 <pre><code> (select-field-&gt;field :id :name 'Database) -&gt; {1 "Sample Dataset", 2 "test-data"}
 </code></pre>
@@ -3389,14 +3418,14 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   [k v model &amp; options]
   {:pre [(keyword? k) (keyword? v)]}
   (into {} (for [result (apply select [model k v] options)]
-             {(k result) (v result)})))</pre></td></tr><tr><td class="docs"><p>Select FIELD and <code>:id</code> from objects in the database, and return them as a map from FIELD to <code>:id</code>.</p>
+             {(k result) (v result)})))</pre></td></tr><tr><td class="docs"><p>Select FIELD and <code>:id</code> from objects in the database, and return them as a map from <code>field</code> to <code>:id</code>.</p>
 
 <pre><code> (select-field-&gt;id :name 'Database) -&gt; {"Sample Dataset" 1, "test-data" 2}
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn select-field-&gt;id
   {:style/indent 2}
   [field model &amp; options]
-  (apply select-field-&gt;field field :id model options))</pre></td></tr><tr><td class="docs"><p>Select FIELD and <code>:id</code> from objects in the database, and return them as a map from <code>:id</code> to FIELD.</p>
+  (apply select-field-&gt;field field :id model options))</pre></td></tr><tr><td class="docs"><p>Select <code>field</code> and <code>:id</code> from objects in the database, and return them as a map from <code>:id</code> to <code>field</code>.</p>
 
 <pre><code> (select-id-&gt;field :name 'Database) -&gt; {1 "Sample Dataset", 2 "test-data"}
 </code></pre>
@@ -3404,22 +3433,25 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   {:style/indent 2}
   [field model &amp; options]
   (apply select-field-&gt;field :id field model options))</pre></td></tr><tr><td class="docs"><h3>EXISTS?</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Easy way to see if something exists in the DB.
-    (db/exists? User :id 100)
-   NOTE: This only works for objects that have an <code>:id</code> field.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Easy way to see if something exists in the DB.</p>
+
+<pre><code>(db/exists? User :id 100)
+</code></pre>
+
+<p>  NOTE: This only works for objects that have an <code>:id</code> field.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn exists?
   {:style/indent 1}
   ^Boolean [model &amp; kvs]
   (boolean (select-one model (apply where (h/select {} :id) kvs))))</pre></td></tr><tr><td class="docs"><h3>DELETE!</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Delete an object or objects from the application DB matching certain constraints.
-   Returns <code>true</code> if something was deleted, <code>false</code> otherwise.</p>
+  Returns <code>true</code> if something was deleted, <code>false</code> otherwise.</p>
 
 <pre><code> (db/simple-delete! 'Label)                ; delete all Labels
  (db/simple-delete! Label :name "Cam")   ; delete labels where :name == "Cam"
  (db/simple-delete! Label {:name "Cam"}) ; for flexibility either a single map or kwargs are accepted
 </code></pre>
 
-<p>   Unlike <code>delete!</code>, this does not call <code>pre-delete</code> on the object about to be deleted.</p>
+<p>  Unlike <code>delete!</code>, this does not call <code>pre-delete</code> on the object about to be deleted.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn simple-delete!
   {:style/indent 1}
   ([model]
@@ -3431,18 +3463,18 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
                              (where conditions))))))
   ([model k v &amp; more]
    (simple-delete! model (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><p>Delete of object(s). For each matching object, the <code>pre-delete</code> multimethod is called, which should do
-   any cleanup needed before deleting the object, (such as deleting objects related to the object about to
-   be deleted), or otherwise enforce preconditions before deleting (such as refusing to delete the object if
-   something else depends on it).</p>
+  any cleanup needed before deleting the object, (such as deleting objects related to the object about to
+  be deleted), or otherwise enforce preconditions before deleting (such as refusing to delete the object if
+  something else depends on it).</p>
 
 <pre><code> (delete! Database :id 1)
 </code></pre>
 
-<p>   NOTE: This function assumes objects have an <code>:id</code> column. There's an <a href="https://github.com/metabase/toucan/issues/3">open
-   issue</a> to support objects that don't have one; until that is resolved,
-   you'll have to use <code>simple-delete!</code> instead when deleting objects with no <code>:id</code>.</p>
+<p>  NOTE: This function assumes objects have an <code>:id</code> column. There's an <a href="https://github.com/metabase/toucan/issues/3">open
+  issue</a> to support objects that don't have one; until that is resolved,
+  you'll have to use <code>simple-delete!</code> instead when deleting objects with no <code>:id</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn delete!
-   {:style/indent 1}
+  {:style/indent 1}
   [model &amp; conditions]
   (let [model (resolve-model model)]
     (doseq [object (apply select model conditions)]
@@ -3587,32 +3619,39 @@ seq -+--&gt; counts-of ------------------------------------+                    
                                     [symb varr] (ns-interns ns)
                                     :let        [hydration-key (metadata-key (meta varr))]
                                     :when       hydration-key]
-                                [(if (or (true? hydration-key)
-                                         (false? hydration-key)) ; boolean?
+                                [(if (boolean hydration-key)
                                    (keyword (name symb))
-                                   hydration-key) varr])]
+                                   hydration-key)
+                                 varr])]
     (cond
       (not k) m
       (m k)   (throw (Exception.
                       (format &quot;Duplicate `^%s` functions for key '%s': %s and %s.&quot; metadata-key k (m k) f)))
       :else   (recur (assoc m k f) more))))</pre></td></tr><tr><td class="docs"><h1>                                 Automagic Batched Hydration (via :model-keys)</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Delay that returns map of <code>hydration-key</code> -> model
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Return map of <code>hydration-key</code> -> model
    e.g. <code>:user -&gt; User</code>.</p>
 
 <p>   This is built pulling the <code>hydration-keys</code> set from all of our entities.</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^:private automagic-batched-hydration-key-&gt;model
-  (delay (for [ns-symb (ns-find/find-namespaces (classpath/classpath))
-               :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
-           (require ns-symb))
-         (into {} (for [ns       (all-ns)
-                        [_ varr] (ns-publics ns)
-                        :let     [model (var-get varr)]
-                        :when    (models/model? model)
-                        :let     [hydration-keys (models/hydration-keys model)]
-                        k        hydration-keys]
-                    {k model}))))</pre></td></tr><tr><td class="docs"><p>Delay that returns set of keys that are elligible for batched hydration.</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^:private automagic-batched-hydration-keys
-  (delay (set (keys @automagic-batched-hydration-key-&gt;model))))</pre></td></tr><tr><td class="docs"><p>Can we do a batched hydration of RESULTS with key K?</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- require-model-namespaces-and-find-hydration-fns
+  []
+  (for [ns-symb (ns-find/find-namespaces (classpath/classpath))
+        :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
+    (require ns-symb))
+  (into {} (for [ns       (all-ns)
+                 [_ varr] (ns-publics ns)
+                 :let     [model (var-get varr)]
+                 :when    (models/model? model)
+                 :let     [hydration-keys (models/hydration-keys model)]
+                 k        hydration-keys]
+             {k model})))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def ^:private automagic-batched-hydration-key-&gt;model* (atom nil))</pre></td></tr><tr><td class="docs"><p>Get a map of hydration keys to corresponding models.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- automagic-batched-hydration-key-&gt;model
+  []
+  (or @automagic-batched-hydration-key-&gt;model*
+      (reset! automagic-batched-hydration-key-&gt;model* (require-model-namespaces-and-find-hydration-fns))))</pre></td></tr><tr><td class="docs"><p>Get the set of keys that are elligible for batched hydration.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- automagic-batched-hydration-keys
+  []
+  (set (keys (automagic-batched-hydration-key-&gt;model))))</pre></td></tr><tr><td class="docs"><p>Can we do a batched hydration of RESULTS with key K?</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- can-automagically-batched-hydrate?
   [results k]
   (let [k-id-u (kw-append k &quot;_id&quot;)
@@ -3620,13 +3659,13 @@ seq -+--&gt; counts-of ------------------------------------+                    
         contains-k-id? (fn [obj]
                          (or (contains? obj k-id-u)
                              (contains? obj k-id-d)))]
-    (and (contains? @automagic-batched-hydration-keys k)
+    (and (contains? (automagic-batched-hydration-keys) k)
          (every? contains-k-id? results))))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (<code>DEST-KEY_id</code>),
    doing a single <code>db/select</code>, and mapping corresponding objects to DEST-KEY.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- automagically-batched-hydrate
   [results dest-key]
   {:pre [(keyword? dest-key)]}
-  (let [model       (@automagic-batched-hydration-key-&gt;model dest-key)
+  (let [model       ((automagic-batched-hydration-key-&gt;model) dest-key)
         source-keys #{(kw-append dest-key &quot;_id&quot;) (kw-append dest-key &quot;-id&quot;)}
         ids         (set (for [result results
                                :when  (not (get result dest-key))
@@ -3643,23 +3682,28 @@ seq -+--&gt; counts-of ------------------------------------+                    
         result
         (assoc result dest-key (objs source-id))))))</pre></td></tr><tr><td class="docs"><h1>                        Function-Based Batched Hydration (fns marked ^:batched-hydrate)</h1>
 </td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def ^:private k-&gt;batched-f (delay (lookup-functions-with-metadata-key :batched-hydrate)))</pre></td></tr><tr><td class="docs"><p>Get the function marked <code>^:batched-hydrate</code> for K.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:private hydration-key-&gt;batched-f*
+  (atom nil))</pre></td></tr><tr><td class="docs"><p>Map of keys to functions marked <code>^:batched-hydrate</code> for them.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- hydration-key-&gt;batched-f
-  [k]
-  (@k-&gt;batched-f k))</pre></td></tr><tr><td class="docs"><p>Delay that returns set of keys that are elligible for batched hydration.</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^:private fn-based-batched-hydration-keys
-  (delay (set (keys @k-&gt;batched-f))))</pre></td></tr><tr><td class="docs">
+  []
+  (or @hydration-key-&gt;batched-f*
+      (reset! hydration-key-&gt;batched-f* (lookup-functions-with-metadata-key :batched-hydrate))))</pre></td></tr><tr><td class="docs"><p>Set of keys that are elligible for batched hydration.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- fn-based-batched-hydration-keys
+  []
+  (set (keys (hydration-key-&gt;batched-f))))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- can-fn-based-batched-hydrate? [_ k]
-  (contains? @fn-based-batched-hydration-keys k))</pre></td></tr><tr><td class="docs">
+  (contains? (fn-based-batched-hydration-keys) k))</pre></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- fn-based-batched-hydrate
   [results k]
   {:pre [(keyword? k)]}
-  ((hydration-key-&gt;batched-f k) results))</pre></td></tr><tr><td class="docs"><h1>                             Function-Based Simple Hydration (fns marked ^:hydrate)</h1>
+  (((hydration-key-&gt;batched-f) k) results))</pre></td></tr><tr><td class="docs"><h1>                             Function-Based Simple Hydration (fns marked ^:hydrate)</h1>
 </td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def ^:private k-&gt;f (delay (lookup-functions-with-metadata-key :hydrate)))</pre></td></tr><tr><td class="docs"><p>Get the function marked <code>^:hydrate</code> for K.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:private hydration-key-&gt;f*
+  (atom nil))</pre></td></tr><tr><td class="docs"><p>Fetch a map of keys to functions marked <code>^:hydrate</code> for them.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- hydration-key-&gt;f
-  [k]
-  (@k-&gt;f k))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword K in results by dereferencing corresponding delays when applicable.</p>
+  []
+  (or @hydration-key-&gt;f*
+      (reset! hydration-key-&gt;f* (lookup-functions-with-metadata-key :hydrate))))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword K in results by calling corresponding functions when applicable.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- simple-hydrate
   [results k]
   {:pre [(keyword? k)]}
@@ -3667,9 +3711,15 @@ seq -+--&gt; counts-of ------------------------------------+                    
     ;; don't try to hydrate if they key is already present. If we find a matching fn, hydrate with it
     (when result
       (or (when-not (k result)
-            (when-let [f (hydration-key-&gt;f k)]
+            (when-let [f ((hydration-key-&gt;f) k)]
               (assoc result k (f result))))
-          result))))</pre></td></tr><tr><td class="docs"><h1>                                              Primary Hydration Fns</h1>
+          result))))</pre></td></tr><tr><td class="docs"><h1>                                    Resetting Hydration keys (for REPL usage)</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration functions.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn flush-hydration-key-caches!
+  []
+  (reset! automagic-batched-hydration-key-&gt;model* nil)
+  (reset! hydration-key-&gt;batched-f*               nil)
+  (reset! hydration-key-&gt;f*                       nil))</pre></td></tr><tr><td class="docs"><h1>                                              Primary Hydration Fns</h1>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(declare hydrate)</pre></td></tr><tr><td class="docs"><p>Hydrate a nested hydration form (vector) by recursively calling <code>hydrate</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- hydrate-vector
@@ -4256,7 +4306,7 @@ Invoking an instance calls get so you can do things like <code>(db :name)</code>
                           ::model true})))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util.test" name="toucan.util.test"><h1 class="project-name">toucan.util.test</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions for writing tests with Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.util.test
   (:require [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makings testing easy with <em>Temporary Objects</em>. A temporary object is created and made
+</td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makes testing easy with <em>Temporary Objects</em>. A temporary object is created and made
 available to some body of code, and then wiped from that database via a <code>finally</code> statement (i.e., whether the body
 completes successfully or not). This makes it easy to write tests that do not change your test database when they
 are ran.</p>
