@@ -1,7 +1,9 @@
 (ns toucan.hydrate-test
   (:require [expectations :refer [expect]]
             [toucan.hydrate :refer [hydrate] :as hydrate]
-            [toucan.test-models.venue :refer [Venue]]
+            [toucan.test-models
+             [user :refer [User]]
+             [venue :refer [Venue]]]
             toucan.test-setup))
 
 (defn- ^:hydrate x [{:keys [id]}]
@@ -34,12 +36,12 @@
 
 ;; should work for known keys if k_id present in every map
 (expect
- (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (constantly #{:user})]
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-key->model (constantly #{:user User})]
    (#'hydrate/can-automagically-batched-hydrate? [{:user_id 1} {:user_id 2}] :user)))
 
 ;; should work for both k_id and k-id style keys
 (expect
- (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (constantly #{:user})]
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-key->model (constantly #{:user User})]
    (#'hydrate/can-automagically-batched-hydrate? [{:user_id 1} {:user-id 2}] :user)))
 
 ;; should fail for known keys if k_id isn't present in every map
@@ -55,8 +57,7 @@
     :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}}
    {:venue-id 2
     :venue    #toucan.test_models.venue.VenueInstance{:category :bar, :name "Ho's Tavern", :id 2}})
- (with-redefs [toucan.hydrate/automagic-batched-hydration-keys (constantly #{:venue})
-               toucan.hydrate/automagic-batched-hydration-key->model (constantly {:venue Venue})]
+ (with-redefs [toucan.hydrate/automagic-batched-hydration-key->model (constantly {:venue Venue})]
    (#'hydrate/automagically-batched-hydrate [{:venue_id 1} {:venue-id 2}] :venue)))
 
 ;; ### valid-hydration-form?
@@ -545,3 +546,16 @@
         (hydrate {:user_id 1
                   :user "OK <3"}
                  :user))
+
+(defn- with-is-bird?
+  {:batched-hydrate :is-bird?}
+  [objects]
+  (for [object objects]
+    (assoc object :is-bird? true)))
+
+(expect
+  [{:type :toucan, :is-bird? true}
+   {:type :pigeon, :is-bird? true}]
+  (hydrate [{:type :toucan}
+            {:type :pigeon}]
+           :is-bird?))

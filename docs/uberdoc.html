@@ -2865,8 +2865,8 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.6</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.6</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.1</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.2</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
+</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.6.1</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.6</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.1</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.2</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.db
   (:refer-clojure :exclude [count])
   (:require [clojure
@@ -2891,11 +2891,12 @@ net.brehaut.ClojureTools = (function (SH) {
 </td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-quoting-style (atom :ansi))</pre></td></tr><tr><td class="docs"><p>Bind this to override the identifier quoting style. Provided for cases where you want to override the quoting
   style (such as when connecting to a different DB) without changing the default value.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *quoting-style*
-  nil)</pre></td></tr><tr><td class="docs"><p>Set the default quoting style that should be used to quote identifiers. Defaults to <code>:ansi</code>, but you can instead set
-  it to <code>:mysql</code> or <code>:sqlserver</code>.</p>
+  nil)</pre></td></tr><tr><td class="docs"><p>Set the default quoting style that should be used to quote identifiers. Defaults to <code>:ansi</code>, but you can instead
+  set it to <code>:mysql</code> or <code>:sqlserver</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-default-quoting-style!
   [new-quoting-style]
-  (reset! default-quoting-style new-quoting-style))</pre></td></tr><tr><td class="docs"><p>Fetch the HoneySQL quoting style that should be used to quote identifiers. One of <code>:ansi</code>, <code>:mysql</code>, or <code>:sqlserver</code>.</p>
+  (reset! default-quoting-style new-quoting-style))</pre></td></tr><tr><td class="docs"><p>Fetch the HoneySQL quoting style that should be used to quote identifiers. One of <code>:ansi</code>, <code>:mysql</code>, or
+  <code>:sqlserver</code>.</p>
 
 <p>  Returns the value of <code>*quoting-style*</code> if it is bound, otherwise returns the default quoting style, which is
   normally <code>:ansi</code>; this can be changed by calling <code>set-default-quoting-style!</code>.</p>
@@ -3000,12 +3001,12 @@ a C3PO connection pool.</p>
     (:toucan.models/model model) model
     (vector? model)              (resolve-model (first model))
     (symbol? model)              (resolve-model-from-symbol model)
-    :else                        (throw (Exception. (str &quot;Invalid model: &quot; model)))))</pre></td></tr><tr><td class="docs"><p>The function that JDBC should use to quote identifiers for our database. This is passed as the <code>:entities</code> option to
-  functions like <code>jdbc/insert!</code>.</p>
+    :else                        (throw (Exception. (str &quot;Invalid model: &quot; model)))))</pre></td></tr><tr><td class="docs"><p>The function that JDBC should use to quote identifiers for our database. This is passed as the <code>:entities</code> option
+  to functions like <code>jdbc/insert!</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn quote-fn
   []
-  ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public</pre></td></tr><tr><td class="docs"><p>Atom used as a counter for DB calls when enabled. This number isn't <em>perfectly</em> accurate, only mostly; DB calls made
-  directly to JDBC won't be logged.</p>
+  ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public</pre></td></tr><tr><td class="docs"><p>Atom used as a counter for DB calls when enabled. This number isn't <em>perfectly</em> accurate, only mostly; DB calls
+  made directly to JDBC won't be logged.</p>
 </td><td class="codes"><pre class="brush: clojure">(def ^:private ^:dynamic *call-count*
   nil)</pre></td></tr><tr><td class="docs"><p>Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve the
   current call count. (It's probably more useful to use the macro form of this function, <code>with-call-counting</code>,
@@ -3071,8 +3072,8 @@ a C3PO connection pool.</p>
   <code>jdbc/query</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn query
   [honeysql-form &amp; {:as options}]
-  (jdbc/query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-from</code> and call <code>jdbc/reducible-query</code> against the application database. Options are passed along to
-  <code>jdbc/reducible-query</code>. Note that the query won't actually be executed until it's reduced.</p>
+  (jdbc/query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-from</code> and call <code>jdbc/reducible-query</code> against the application database. Options are passed along
+  to <code>jdbc/reducible-query</code>. Note that the query won't actually be executed until it's reduced.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reducible-query
   [honeysql-form &amp; {:as options}]
   (jdbc/reducible-query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Qualify a <code>field-name</code> name with the name its <code>entity</code>. This is necessary for disambiguating fields for HoneySQL
@@ -3129,8 +3130,8 @@ a C3PO connection pool.</p>
        y
        (into {} (for [[k v] y]
                   [(f k) v]))))
-   x))</pre></td></tr><tr><td class="docs"><p>Perform post-processing for objects fetched from the DB. Convert results <code>objects</code> to <code>entity</code> record types and call
-  the model's <code>post-select</code> method on them.</p>
+   x))</pre></td></tr><tr><td class="docs"><p>Perform post-processing for objects fetched from the DB. Convert results <code>objects</code> to <code>entity</code> record types and
+  call the model's <code>post-select</code> method on them.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn do-post-select
   {:style/indent 1}
   [model objects]
@@ -3220,9 +3221,9 @@ a C3PO connection pool.</p>
       :else                honeysql-form)))</pre></td></tr><tr><td class="docs"><h3>UPDATE!</h3>
 </td><td class="codes"></td></tr><tr><td class="docs">
 </td><td class="codes"><pre class="brush: clojure">(defn- method-implemented? [^clojure.lang.Keyword methodk model]
-  (not (nil? (find-protocol-method models/IModel methodk model))))</pre></td></tr><tr><td class="docs"><p>Update a single row in the database. Returns <code>true</code> if a row was affected, <code>false</code> otherwise. Accepts either a single
-  map of updates to make or kwargs. <code>entity</code> is automatically resolved, and <code>pre-update</code> is called on <code>kvs</code> before the
-  object is inserted into the database.</p>
+  (not (nil? (find-protocol-method models/IModel methodk model))))</pre></td></tr><tr><td class="docs"><p>Update a single row in the database. Returns <code>true</code> if a row was affected, <code>false</code> otherwise. Accepts either a
+  single map of updates to make or kwargs. <code>entity</code> is automatically resolved, and <code>pre-update</code> is called on <code>kvs</code>
+  before the object is inserted into the database.</p>
 
 <pre><code> (db/update! 'Label 11 :name "ToucanFriendly")
  (db/update! 'Label 11 {:name "ToucanFriendly"})
@@ -3479,391 +3480,165 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   (let [model (resolve-model model)]
     (doseq [object (apply select model conditions)]
       (models/pre-delete object)
-      (simple-delete! model :id (:id object)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.hydrate" name="toucan.hydrate"><h1 class="project-name">toucan.hydrate</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for deserializing and hydrating fields in objects fetched from the DB.</p>
-</td><td class="codes"><pre class="brush: clojure">(ns toucan.hydrate
-  (:require [clojure.java.classpath :as classpath]
-            [clojure.string :as s]
-            [clojure.tools.namespace.find :as ns-find]
-            (toucan [db :as db]
-                    [models :as models])))</pre></td></tr><tr><td class="docs"><h1>                                      Counts Destructuring & Restructuring</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><h4>*DISCLAIMER*</h4>
+      (simple-delete! model :id (:id object)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util.test" name="toucan.util.test"><h1 class="project-name">toucan.util.test</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions for writing tests with Toucan models.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns toucan.util.test
+  (:require [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makes testing easy with <em>Temporary Objects</em>. A temporary object is created and made
+available to some body of code, and then wiped from that database via a <code>finally</code> statement (i.e., whether the body
+completes successfully or not). This makes it easy to write tests that do not change your test database when they
+are ran.</p>
 
-<p>This I wrote this code at 4 AM nearly 2 years ago and don't remember exactly what it is supposed to accomplish,
-or why. It generates a sort of path that records the wacky ways in which objects in a collection are nested,
-and how they fit into sequences; it then returns a flattened sequence of desired objects for easy modification.
-Afterwards the modified objects can be put in place of the originals by passing in the sequence of modified objects
-and the path.</p>
+<p>Here's an example of a unit test using a temporary object created via <code>with-temp</code>:</p>
 
-<p>Nonetheless, it still works (somehow) and is well-tested. But it's definitely overengineered and crying out to be
-replaced with a simpler implementation (<code>clojure.walk</code> would probably work here). PRs welcome!</p>
-
-<h4>Original Overview</h4>
-
-<p>At a high level, these functions let you aggressively flatten a sequence of maps by a key
-so you can apply some function across it, and then unflatten that sequence.</p>
-
-<pre><code>     +-------------------------------------------------------------------------+
-     |                                                                         +--&gt; (map merge) --&gt; new seq
-seq -+--&gt; counts-of ------------------------------------+                      |
-     |                                                  +--&gt; counts-unflatten -+
-     +--&gt; counts-flatten -&gt; (modify the flattened seq) -+
+<pre><code>;; Make sure newly created users aren't admins
+(expect false
+  (with-temp User [user {:first-name "Cam", :last-name "Saul"}]
+    (is-admin? user)))
 </code></pre>
 
-<ol>
-<li>Get a value that can be used to unflatten a sequence later with <code>counts-of</code>.</li>
-<li>Flatten the sequence with <code>counts-flatten</code></li>
-<li>Modify the flattened sequence as needed</li>
-<li>Unflatten the sequence by calling <code>counts-unflatten</code> with the modified sequence and value from step 1</li>
-<li><code>map merge</code> the original sequence and the unflattened sequence.</li>
-</ol>
+<p>In this example, a new instance of <code>User</code> is created (via the normal <code>insert!</code> pathway), and bound to <code>user</code>; the
+body of <code>with-temp</code> (the <code>test-something</code> fncall) is executed. Immediately after, the <code>user</code> is removed from the
+Database, but the entire statement returns the results of the body (hopefully <code>false</code>).</p>
 
-<p>For your convenience <code>counts-apply</code> combines these steps for you.</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Return a sequence of counts / keywords that can be used to unflatten
-   COLL later.</p>
+<p>Often a Model will require that many fields be <code>NOT NULL</code>, and specifying all of them in every test can get
+tedious. In the example above, we don't care about the <code>:first-name</code> or <code>:last-name</code> of the user. We can provide
+default values for temporary objects by implementing the <code>WithTempDefaults</code> protocol:</p>
 
-<pre><code>(counts-of [{:a [{:b 1} {:b 2}], :c 2}
-            {:a {:b 3}, :c 4}] :a)
-  -&gt; [2 :atom]
-</code></pre>
-
-<p>   For each <code>x</code> in COLL, return:</p>
-
-<ul>
-<li><code>(count (k x))</code> if <code>(k x)</code> is sequential</li>
-<li><code>:atom</code>         if <code>(k x)</code> is otherwise non-nil</li>
-<li><code>:nil</code>          if <code>x</code> has key <code>k</code> but the value is nil</li>
-<li><code>nil</code>           if <code>x</code> is nil.</li>
-</ul>
-</td><td class="codes"><pre class="brush: clojure">(defn- counts-of
-  [coll k]
-  (map (fn [x]
-         (cond
-           (sequential? (k x)) (count (k x))
-           (k x)               :atom
-           (contains? x k)     :nil
-           :else               nil))
-       coll))</pre></td></tr><tr><td class="docs"><p>Flatten COLL by K.</p>
-
-<pre><code>(counts-flatten [{:a [{:b 1} {:b 2}], :c 2}
-                 {:a {:b 3}, :c 4}] :a)
-  -&gt; [{:b 1} {:b 2} {:b 3}]
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- counts-flatten
-  [coll k]
-  {:pre [(sequential? coll)
-         (keyword? k)]}
-  (-&gt;&gt; coll
-       (map k)
-       (mapcat (fn [x]
-                 (if (sequential? x)  x
-                     [x])))))</pre></td></tr><tr><td class="docs"><p>Unflatten COLL by K using COUNTS from <code>counts-of</code>.</p>
-
-<pre><code>(counts-unflatten [{:b 2} {:b 4} {:b 6}] :a [2 :atom])
-  -&gt; [{:a [{:b 2} {:b 4}]}
-      {:a {:b 6}}]
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- counts-unflatten
-  ([coll k counts]
-   (counts-unflatten [] coll k counts))
-  ([acc coll k [count &amp; more]]
-   (let [[unflattend coll] (condp = count
-                             nil   [nil (rest coll)]
-                             :atom [(first coll) (rest coll)]
-                             :nil  [:nil (rest coll)]
-                             (split-at count coll))
-         acc (conj acc unflattend)]
-     (if-not (seq more) (map (fn [x]
-                               (when x
-                                 {k (when-not (= x :nil) x)}))
-                             acc)
-             (recur acc coll k more)))))</pre></td></tr><tr><td class="docs"><p>Apply F to values of COLL flattened by K, then return unflattened/updated results.</p>
-
-<pre><code>(counts-apply [{:a [{:b 1} {:b 2}], :c 2}
-               {:a {:b 3}, :c 4}]
-  :a #(update-in % [:b] (partial * 2)))
-
-  -&gt; [{:a [{:b 2} {:b 4}], :c 2}
-      {:a {:b 3}, :c 4}]
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- counts-apply
-  [coll k f]
-  (let [counts (counts-of coll k)
-        new-vals (-&gt; coll
-                     (counts-flatten k)
-                     f
-                     (counts-unflatten k counts))]
-    (map merge coll new-vals)))</pre></td></tr><tr><td class="docs"><h1>                                                    Util Fns</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Is this a valid argument to <code>hydrate</code>?</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- valid-hydration-form?
-  [k]
-  (or (keyword? k)
-      (and (sequential? k)
-           (keyword? (first k))
-           (every? valid-hydration-form? (rest k)))))</pre></td></tr><tr><td class="docs"><p>Append to a keyword.</p>
-
-<pre><code> (kw-append :user "_id") -&gt; :user_id
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- kw-append
-  [k suffix]
-  (keyword (str (name k) suffix)))</pre></td></tr><tr><td class="docs"><p>Return a map of hydration keywords to functions that should be used to hydrate them, e.g.</p>
-
-<pre><code> {:fields #'my-project.models.table/fields
-  :tables #'my-project.models.database/tables
-  ...}
-</code></pre>
-
-<p>   These functions are ones that are marked METADATA-KEY, e.g. <code>^:hydrate</code> or <code>^:batched-hydrate</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- lookup-functions-with-metadata-key
-  [metadata-key]
-  (loop [m {}, [[k f] &amp; more] (for [ns          (all-ns)
-                                    [symb varr] (ns-interns ns)
-                                    :let        [hydration-key (metadata-key (meta varr))]
-                                    :when       hydration-key]
-                                [(if (boolean hydration-key)
-                                   (keyword (name symb))
-                                   hydration-key)
-                                 varr])]
-    (cond
-      (not k) m
-      (m k)   (throw (Exception.
-                      (format &quot;Duplicate `^%s` functions for key '%s': %s and %s.&quot; metadata-key k (m k) f)))
-      :else   (recur (assoc m k f) more))))</pre></td></tr><tr><td class="docs"><h1>                                 Automagic Batched Hydration (via :model-keys)</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Return map of <code>hydration-key</code> -> model
-   e.g. <code>:user -&gt; User</code>.</p>
-
-<p>   This is built pulling the <code>hydration-keys</code> set from all of our entities.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- require-model-namespaces-and-find-hydration-fns
+<pre><code>(defn- random-name
+  "Generate a random name of 10 uppercase characters"
   []
-  (for [ns-symb (ns-find/find-namespaces (classpath/classpath))
-        :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
-    (require ns-symb))
-  (into {} (for [ns       (all-ns)
-                 [_ varr] (ns-publics ns)
-                 :let     [model (var-get varr)]
-                 :when    (models/model? model)
-                 :let     [hydration-keys (models/hydration-keys model)]
-                 k        hydration-keys]
-             {k model})))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def ^:private automagic-batched-hydration-key-&gt;model* (atom nil))</pre></td></tr><tr><td class="docs"><p>Get a map of hydration keys to corresponding models.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- automagic-batched-hydration-key-&gt;model
-  []
-  (or @automagic-batched-hydration-key-&gt;model*
-      (reset! automagic-batched-hydration-key-&gt;model* (require-model-namespaces-and-find-hydration-fns))))</pre></td></tr><tr><td class="docs"><p>Get the set of keys that are elligible for batched hydration.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- automagic-batched-hydration-keys
-  []
-  (set (keys (automagic-batched-hydration-key-&gt;model))))</pre></td></tr><tr><td class="docs"><p>Can we do a batched hydration of RESULTS with key K?</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- can-automagically-batched-hydrate?
-  [results k]
-  (let [k-id-u (kw-append k &quot;_id&quot;)
-        k-id-d (kw-append k &quot;-id&quot;)
-        contains-k-id? (fn [obj]
-                         (or (contains? obj k-id-u)
-                             (contains? obj k-id-d)))]
-    (and (contains? (automagic-batched-hydration-keys) k)
-         (every? contains-k-id? results))))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (<code>DEST-KEY_id</code>),
-   doing a single <code>db/select</code>, and mapping corresponding objects to DEST-KEY.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- automagically-batched-hydrate
-  [results dest-key]
-  {:pre [(keyword? dest-key)]}
-  (let [model       ((automagic-batched-hydration-key-&gt;model) dest-key)
-        source-keys #{(kw-append dest-key &quot;_id&quot;) (kw-append dest-key &quot;-id&quot;)}
-        ids         (set (for [result results
-                               :when  (not (get result dest-key))
-                               :let   [k (some result source-keys)]
-                               :when  k]
-                           k))
-        objs        (if (seq ids)
-                      (into {} (for [item (db/select model, :id [:in ids])]
-                                 {(:id item) item}))
-                      (constantly nil))]
-    (for [result results
-          :let [source-id (some result source-keys)]]
-      (if (get result dest-key)
-        result
-        (assoc result dest-key (objs source-id))))))</pre></td></tr><tr><td class="docs"><h1>                        Function-Based Batched Hydration (fns marked ^:batched-hydrate)</h1>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def ^:private hydration-key-&gt;batched-f*
-  (atom nil))</pre></td></tr><tr><td class="docs"><p>Map of keys to functions marked <code>^:batched-hydrate</code> for them.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- hydration-key-&gt;batched-f
-  []
-  (or @hydration-key-&gt;batched-f*
-      (reset! hydration-key-&gt;batched-f* (lookup-functions-with-metadata-key :batched-hydrate))))</pre></td></tr><tr><td class="docs"><p>Set of keys that are elligible for batched hydration.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- fn-based-batched-hydration-keys
-  []
-  (set (keys (hydration-key-&gt;batched-f))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- can-fn-based-batched-hydrate? [_ k]
-  (contains? (fn-based-batched-hydration-keys) k))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- fn-based-batched-hydrate
-  [results k]
-  {:pre [(keyword? k)]}
-  (((hydration-key-&gt;batched-f) k) results))</pre></td></tr><tr><td class="docs"><h1>                             Function-Based Simple Hydration (fns marked ^:hydrate)</h1>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(def ^:private hydration-key-&gt;f*
-  (atom nil))</pre></td></tr><tr><td class="docs"><p>Fetch a map of keys to functions marked <code>^:hydrate</code> for them.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- hydration-key-&gt;f
-  []
-  (or @hydration-key-&gt;f*
-      (reset! hydration-key-&gt;f* (lookup-functions-with-metadata-key :hydrate))))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword K in results by calling corresponding functions when applicable.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- simple-hydrate
-  [results k]
-  {:pre [(keyword? k)]}
-  (for [result results]
-    ;; don't try to hydrate if they key is already present. If we find a matching fn, hydrate with it
-    (when result
-      (or (when-not (k result)
-            (when-let [f ((hydration-key-&gt;f) k)]
-              (assoc result k (f result))))
-          result))))</pre></td></tr><tr><td class="docs"><h1>                                    Resetting Hydration keys (for REPL usage)</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration functions.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn flush-hydration-key-caches!
-  []
-  (reset! automagic-batched-hydration-key-&gt;model* nil)
-  (reset! hydration-key-&gt;batched-f*               nil)
-  (reset! hydration-key-&gt;f*                       nil))</pre></td></tr><tr><td class="docs"><h1>                                              Primary Hydration Fns</h1>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(declare hydrate)</pre></td></tr><tr><td class="docs"><p>Hydrate a nested hydration form (vector) by recursively calling <code>hydrate</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-vector
-  [results [k &amp; more :as vect]]
-  (assert (&gt; (count vect) 1)
-    (format (str &quot;Replace '%s' with '%s'. Vectors are for nested hydration. &quot;
-                 &quot;There's no need to use one when you only have a single key.&quot;)
-            vect (first vect)))
-  (let [results (hydrate results k)]
-    (if-not (seq more)
-      results
-      (counts-apply results k #(apply hydrate % more)))))</pre></td></tr><tr><td class="docs"><p>Hydrate a single keyword.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-kw
-  [results k]
-  (cond
-    (can-automagically-batched-hydrate? results k) (automagically-batched-hydrate results k)
-    (can-fn-based-batched-hydrate? results k)      (fn-based-batched-hydrate results k)
-    :else                                          (simple-hydrate results k)))</pre></td></tr><tr><td class="docs"><p>Hydrate a single hydration form.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-1
-  [results k]
-  (if (keyword? k)
-    (hydrate-kw results k)
-    (hydrate-vector results k)))</pre></td></tr><tr><td class="docs"><p>Hydrate many hydration forms across a <em>sequence</em> of RESULTS by recursively calling <code>hydrate-1</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-many
-  [results k &amp; more]
-  (let [results (hydrate-1 results k)]
-    (if-not (seq more)
-      results
-      (recur results (first more) (rest more)))))</pre></td></tr><tr><td class="docs"><h1>                                                Public Interface</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><pre><code>                         hydrate &lt;-------------+
-                           |                   |
-                       hydrate-many            |
-                           | (for each form)   |
-                       hydrate-1               | (recursively)
-                           |                   |
-                keyword? --+-- vector?         |
-                   |             |             |
-              hydrate-kw    hydrate-vector ----+
-                   |
-          can-automagically-batched-hydrate?
-                         |
-        true ------------+----------------- false
-         |                                    |
-automagically-batched-hydrate    can-fn-based-batched-hydrate?
-                                             |
-                           true -------------+------------- false
-                            |                                 |
-                 fn-based-batched-hydrate              simple-hydrate
-</code></pre>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Hydrate a single object or sequence of objects.</p>
+  (apply str (map char (repeatedly 10 #(rand-nth (range (int \A) (inc (int \Z))))))))
 
-<h4>Automagic Batched Hydration (via hydration-keys)</h4>
-
-<p>  <code>hydrate</code> attempts to do a <em>batched hydration</em> where possible.
-  If the key being hydrated is defined as one of some model's <code>hydration-keys</code>,
-  <code>hydrate</code> will do a batched <code>db/select</code> if a corresponding key ending with <code>_id</code>
-  is found in the objects being batch hydrated.</p>
-
-<pre><code>(hydrate [{:user_id 100}, {:user_id 101}] :user)
+(extend-protocol WithTempDefaults
+  (class User)
+  (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))
 </code></pre>
 
-<p>  Since <code>:user</code> is a hydration key for <code>User</code>, a single <code>db/select</code> will used to
-  fetch <code>Users</code>:</p>
+<p>Now whenever we use <code>with-temp</code> to create a temporary <code>User</code>, a random <code>:first-name</code> and <code>:last-name</code> will be
+provided.</p>
 
-<pre><code>(db/select User :id [:in #{100 101}])
+<pre><code>(with-temp User [user]
+  user)
+;; -&gt; {:first-name "RIQGVIDTZN", :last-name "GMYROFEZYO", ...}
 </code></pre>
 
-<p>  The corresponding <code>Users</code> are then added under the key <code>:user</code>.</p>
+<p>You can still override any of the defaults, however:</p>
 
-<h4>Function-Based Batched Hydration (via functions marked ^:batched-hydrate)</h4>
+<pre><code>(with-temp User [user {:first-name "Cam"}]
+  user)
+;; -&gt; {:first-name "Cam", :last-name "OVTAAJBVOF"}
+</code></pre>
 
-<p>  If the key can't be hydrated auto-magically with the appropriate <code>:hydration-keys</code>,
-  <code>hydrate</code> will look for a function tagged with <code>:batched-hydrate</code> in its metadata, and
-  use that instead. If a matching function is found, it is called with a collection of objects,
-  e.g.</p>
+<p>Finally, Toucan provides a couple more advanced versions of <code>with-temp</code>. The first, <code>with-temp*</code>, can be used to
+create multiple objects at once:</p>
 
-<pre><code>(defn with-fields
-  "Efficiently add `Fields` to a collection of TABLES."
-  {:batched-hydrate :fields}
-  [tables]
+<pre><code>(with-temp* [User         [user]
+             Conversation [convo {:user_id (:id user)}]]
   ...)
-
-(let [tables (get-some-tables)]
-  (hydrate tables :fields))     ; uses with-fields
 </code></pre>
 
-<p>  By default, the function will be used to hydrate keys that match its name; as in the example above,
-  you can specify a different key to hydrate for in the metadata instead.</p>
+<p>Each successive object can reference the temp object before it; the form is equivalent to writing multiple
+<code>with-temp</code> forms.</p>
 
-<h4>Simple Hydration (via functions marked ^:hydrate)</h4>
+<p>The last helper macro is available if you use the <code>expectations</code> unit test framework:</p>
 
-<p>  If the key is <em>not</em> eligible for batched hydration, <code>hydrate</code> will look for a function or method
-  tagged with <code>:hydrate</code> in its metadata, and use that instead; if a matching function
-  is found, it is called on the object being hydrated and the result is <code>assoc</code>ed:</p>
-
-<pre><code>(defn ^:hydrate dashboard [{:keys [dashboard_id]}]
-  (Dashboard dashboard_id))
-
-(let [dc (DashboardCard ...)]
-  (hydrate dc :dashboard))    ; roughly equivalent to (assoc dc :dashboard (dashboard dc))
+<pre><code>;; Make sure our get-id function works on users
+(expect-with-temp [User [user {:first-name "Cam"}]]
+  (:id user)
+  (get-id user))
 </code></pre>
 
-<p>  As with <code>:batched-hydrate</code> functions, by default, the function will be used to hydrate keys that
-  match its name; you can specify a different key to hydrate instead as the metadata value of <code>:hydrate</code>:</p>
+<p>This macro makes the temporary object available to both the "expected" and "actual" parts of the test. (PRs for
+similar macros for other unit test frameworks are welcome!)</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Protocol defining the <code>with-temp-defaults</code> method, which provides default values for new temporary objects.</p>
+</td><td class="codes"><pre class="brush: clojure">(defprotocol WithTempDefaults
+  (with-temp-defaults ^clojure.lang.IPersistentMap [this]
+    &quot;Return a map of default values that should be used when creating a new temporary object of this model.
+       ;; Use a random first and last name for new temporary Users unless otherwise specified
+       (extend-protocol WithTempDefaults
+         (class User)
+         (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))&quot;))</pre></td></tr><tr><td class="docs"><p>default impl</p>
+</td><td class="codes"><pre class="brush: clojure">(extend Object
+  WithTempDefaults
+  {:with-temp-defaults (constantly {})})</pre></td></tr><tr><td class="docs"><p>Internal implementation of <code>with-temp</code> (don't call this directly).</p>
+</td><td class="codes"><pre class="brush: clojure">(defn do-with-temp
+  [model attributes f]
+  (let [temp-object (db/insert! model (merge (when (satisfies? WithTempDefaults model)
+                                               (with-temp-defaults model))
+                                             attributes))]
+    (try
+      (f temp-object)
+      (finally
+        (db/delete! model :id (:id temp-object))))))</pre></td></tr><tr><td class="docs"><p>Create a temporary instance of ENTITY bound to BINDING-FORM, execute BODY,
+   then deletes it via <code>delete!</code>.</p>
 
-<pre><code>(defn ^{:hydrate :pk_field} pk-field-id [obj] ...) ; hydrate :pk_field with pk-field-id
+<p>   Our unit tests rely a heavily on the test data and make some assumptions about the
+   DB staying in the same <em>clean</em> state. This allows us to write very concise tests.
+   Generally this means tests should "clean up after themselves" and leave things the
+   way they found them.</p>
+
+<p>   <code>with-temp</code> should be preferrable going forward over creating random objects <em>without</em>
+   deleting them afterward.</p>
+
+<pre><code>(with-temp EmailReport [report {:creator_id (user-&gt;id :rasta)
+                                :name       (random-name)}]
+  ...)
 </code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp
+  [model [binding-form &amp; [options-map]] &amp; body]
+  `(do-with-temp ~model ~options-map (fn [~binding-form]
+                                       ~@body)))</pre></td></tr><tr><td class="docs"><p>Like <code>with-temp</code> but establishes multiple temporary objects at the same time.</p>
 
-<p>  Keep in mind that you can only define a single function/method to hydrate each key; move functions into the
-  <code>IModel</code> interface as needed.</p>
-
-<h4>Hydrating Multiple Keys</h4>
-
-<p>  You can hydrate several keys at one time:</p>
-
-<pre><code>(hydrate {...} :a :b)
-  -&gt; {:a 1, :b 2}
+<pre><code> (with-temp* [Database [{database-id :id}]
+              Table    [table {:db_id database-id}]]
+   ...)
 </code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp*
+  [model-bindings &amp; body]
+  (loop [[pair &amp; more] (reverse (partition 2 model-bindings)), body `(do ~@body)]
+    (let [body `(with-temp ~@pair
+                  ~body)]
+      (if (seq more)
+        (recur more body)
+        body))))</pre></td></tr><tr><td class="docs"><h1>                                            EXPECTATIONS HELPER MACROS</h1>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- has-expectations-dependency? []
+  (try (require 'expectations)
+       true
+       (catch Throwable _
+         false)))</pre></td></tr><tr><td class="docs"><p>Combines <code>expect</code> with a <code>with-temp*</code> form. The temporary objects established by <code>with-temp*</code> are available
+     to both EXPECTED and ACTUAL.</p>
 
-<h4>Nested Hydration</h4>
-
-<p>  You can do recursive hydration by listing keys inside a vector:</p>
-
-<pre><code>(hydrate {...} [:a :b])
-  -&gt; {:a {:b 1}}
+<pre><code> (expect-with-temp [Database [{database-id :id}]]
+    database-id
+    (get-most-recent-database-id))
 </code></pre>
+</td><td class="codes"><pre class="brush: clojure">(when (has-expectations-dependency?)
+  (defmacro expect-with-temp
+    {:style/indent 1}
+    [with-temp*-form expected actual]
+    ;; use `gensym` instead of auto gensym here so we can be sure it's a unique symbol every time. Otherwise since
+    ;; expectations hashes its body to generate function names it will treat every usage of `expect-with-temp` as
+    ;; the same test and only a single one will end up being ran
+    (let [with-temp-form (gensym &quot;with-temp-&quot;)]
+      `(let [~with-temp-form (delay (with-temp* ~with-temp*-form
+                                      [~expected ~actual]))]
+         (expectations/expect
+           ;; if dereferencing with-temp-form throws an exception then expect Exception &lt;-&gt; Exception will pass;
+           ;; we don't want that, so make sure the expected is nil
+           (try
+             (first @~with-temp-form)
+             (catch Throwable ~'_))
+           (second @~with-temp-form))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util" name="toucan.util"><h1 class="project-name">toucan.util</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions used by other Toucan modules.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns toucan.util
+  (:require [clojure.string :as s]))</pre></td></tr><tr><td class="docs"><p>Return keyword K as a string, including its namespace, if any (unlike <code>name</code>).</p>
 
-<p>  The first key in a vector will be hydrated normally, and any subsequent keys
-  will be hydrated <em>inside</em> the corresponding values for that key.</p>
-
-<pre><code>(hydrate {...}
-         [:a [:b :c] :e])
-  -&gt; {:a {:b {:c 1} :e 2}}
+<pre><code> (keyword-&gt;qualified-name :type/FK) -&gt; "type/FK"
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn hydrate
-  [results k &amp; ks]
-  {:pre [(valid-hydration-form? k)
-         (every? valid-hydration-form? ks)]}
-  (when results
-    (if (sequential? results)
-      (if (empty? results)
-        results
-        (apply hydrate-many results k ks))
-      (first (apply hydrate-many [results] k ks)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.models" name="toucan.models"><h1 class="project-name">toucan.models</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The <code>defmodel</code> macro, used to define Toucan models, and
+</td><td class="codes"><pre class="brush: clojure">(defn keyword-&gt;qualified-name
+  [k]
+  (when k
+    (s/replace (str k) #&quot;^:&quot; &quot;&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.models" name="toucan.models"><h1 class="project-name">toucan.models</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The <code>defmodel</code> macro, used to define Toucan models, and
    the <code>IModel</code> protocol and default implementations, which implement Toucan model functionality.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.models
   (:require [clojure.walk :refer [postwalk]]
@@ -4303,165 +4078,386 @@ Invoking an instance calls get so you can do things like <code>(db :name)</code>
                                       (format &quot;Entity for '%s' table; instance of %s.&quot; (name table-name) instance)))
          (~map-&gt;instance {:table  ~table-name
                           :name   ~(name model)
-                          ::model true})))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util.test" name="toucan.util.test"><h1 class="project-name">toucan.util.test</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions for writing tests with Toucan models.</p>
-</td><td class="codes"><pre class="brush: clojure">(ns toucan.util.test
-  (:require [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makes testing easy with <em>Temporary Objects</em>. A temporary object is created and made
-available to some body of code, and then wiped from that database via a <code>finally</code> statement (i.e., whether the body
-completes successfully or not). This makes it easy to write tests that do not change your test database when they
-are ran.</p>
+                          ::model true})))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.hydrate" name="toucan.hydrate"><h1 class="project-name">toucan.hydrate</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for deserializing and hydrating fields in objects fetched from the DB.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns toucan.hydrate
+  (:require [clojure.java.classpath :as classpath]
+            [clojure.string :as s]
+            [clojure.tools.namespace.find :as ns-find]
+            (toucan [db :as db]
+                    [models :as models])))</pre></td></tr><tr><td class="docs"><h1>                                      Counts Destructuring & Restructuring</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><h4>*DISCLAIMER*</h4>
 
-<p>Here's an example of a unit test using a temporary object created via <code>with-temp</code>:</p>
+<p>This I wrote this code at 4 AM nearly 2 years ago and don't remember exactly what it is supposed to accomplish,
+or why. It generates a sort of path that records the wacky ways in which objects in a collection are nested,
+and how they fit into sequences; it then returns a flattened sequence of desired objects for easy modification.
+Afterwards the modified objects can be put in place of the originals by passing in the sequence of modified objects
+and the path.</p>
 
-<pre><code>;; Make sure newly created users aren't admins
-(expect false
-  (with-temp User [user {:first-name "Cam", :last-name "Saul"}]
-    (is-admin? user)))
+<p>Nonetheless, it still works (somehow) and is well-tested. But it's definitely overengineered and crying out to be
+replaced with a simpler implementation (<code>clojure.walk</code> would probably work here). PRs welcome!</p>
+
+<h4>Original Overview</h4>
+
+<p>At a high level, these functions let you aggressively flatten a sequence of maps by a key
+so you can apply some function across it, and then unflatten that sequence.</p>
+
+<pre><code>     +-------------------------------------------------------------------------+
+     |                                                                         +--&gt; (map merge) --&gt; new seq
+seq -+--&gt; counts-of ------------------------------------+                      |
+     |                                                  +--&gt; counts-unflatten -+
+     +--&gt; counts-flatten -&gt; (modify the flattened seq) -+
 </code></pre>
 
-<p>In this example, a new instance of <code>User</code> is created (via the normal <code>insert!</code> pathway), and bound to <code>user</code>; the
-body of <code>with-temp</code> (the <code>test-something</code> fncall) is executed. Immediately after, the <code>user</code> is removed from the
-Database, but the entire statement returns the results of the body (hopefully <code>false</code>).</p>
+<ol>
+<li>Get a value that can be used to unflatten a sequence later with <code>counts-of</code>.</li>
+<li>Flatten the sequence with <code>counts-flatten</code></li>
+<li>Modify the flattened sequence as needed</li>
+<li>Unflatten the sequence by calling <code>counts-unflatten</code> with the modified sequence and value from step 1</li>
+<li><code>map merge</code> the original sequence and the unflattened sequence.</li>
+</ol>
 
-<p>Often a Model will require that many fields be <code>NOT NULL</code>, and specifying all of them in every test can get
-tedious. In the example above, we don't care about the <code>:first-name</code> or <code>:last-name</code> of the user. We can provide
-default values for temporary objects by implementing the <code>WithTempDefaults</code> protocol:</p>
+<p>For your convenience <code>counts-apply</code> combines these steps for you.</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Return a sequence of counts / keywords that can be used to unflatten
+   COLL later.</p>
 
-<pre><code>(defn- random-name
-  "Generate a random name of 10 uppercase characters"
-  []
-  (apply str (map char (repeatedly 10 #(rand-nth (range (int \A) (inc (int \Z))))))))
-
-(extend-protocol WithTempDefaults
-  (class User)
-  (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))
+<pre><code>(counts-of [{:a [{:b 1} {:b 2}], :c 2}
+            {:a {:b 3}, :c 4}] :a)
+  -&gt; [2 :atom]
 </code></pre>
 
-<p>Now whenever we use <code>with-temp</code> to create a temporary <code>User</code>, a random <code>:first-name</code> and <code>:last-name</code> will be
-provided.</p>
+<p>   For each <code>x</code> in COLL, return:</p>
 
-<pre><code>(with-temp User [user]
-  user)
-;; -&gt; {:first-name "RIQGVIDTZN", :last-name "GMYROFEZYO", ...}
+<ul>
+<li><code>(count (k x))</code> if <code>(k x)</code> is sequential</li>
+<li><code>:atom</code>         if <code>(k x)</code> is otherwise non-nil</li>
+<li><code>:nil</code>          if <code>x</code> has key <code>k</code> but the value is nil</li>
+<li><code>nil</code>           if <code>x</code> is nil.</li>
+</ul>
+</td><td class="codes"><pre class="brush: clojure">(defn- counts-of
+  [coll k]
+  (map (fn [x]
+         (cond
+           (sequential? (k x)) (count (k x))
+           (k x)               :atom
+           (contains? x k)     :nil
+           :else               nil))
+       coll))</pre></td></tr><tr><td class="docs"><p>Flatten COLL by K.</p>
+
+<pre><code>(counts-flatten [{:a [{:b 1} {:b 2}], :c 2}
+                 {:a {:b 3}, :c 4}] :a)
+  -&gt; [{:b 1} {:b 2} {:b 3}]
 </code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- counts-flatten
+  [coll k]
+  {:pre [(sequential? coll)
+         (keyword? k)]}
+  (-&gt;&gt; coll
+       (map k)
+       (mapcat (fn [x]
+                 (if (sequential? x)  x
+                     [x])))))</pre></td></tr><tr><td class="docs"><p>Unflatten COLL by K using COUNTS from <code>counts-of</code>.</p>
 
-<p>You can still override any of the defaults, however:</p>
-
-<pre><code>(with-temp User [user {:first-name "Cam"}]
-  user)
-;; -&gt; {:first-name "Cam", :last-name "OVTAAJBVOF"}
+<pre><code>(counts-unflatten [{:b 2} {:b 4} {:b 6}] :a [2 :atom])
+  -&gt; [{:a [{:b 2} {:b 4}]}
+      {:a {:b 6}}]
 </code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- counts-unflatten
+  ([coll k counts]
+   (counts-unflatten [] coll k counts))
+  ([acc coll k [count &amp; more]]
+   (let [[unflattend coll] (condp = count
+                             nil   [nil (rest coll)]
+                             :atom [(first coll) (rest coll)]
+                             :nil  [:nil (rest coll)]
+                             (split-at count coll))
+         acc (conj acc unflattend)]
+     (if-not (seq more) (map (fn [x]
+                               (when x
+                                 {k (when-not (= x :nil) x)}))
+                             acc)
+             (recur acc coll k more)))))</pre></td></tr><tr><td class="docs"><p>Apply F to values of COLL flattened by K, then return unflattened/updated results.</p>
 
-<p>Finally, Toucan provides a couple more advanced versions of <code>with-temp</code>. The first, <code>with-temp*</code>, can be used to
-create multiple objects at once:</p>
+<pre><code>(counts-apply [{:a [{:b 1} {:b 2}], :c 2}
+               {:a {:b 3}, :c 4}]
+  :a #(update-in % [:b] (partial * 2)))
 
-<pre><code>(with-temp* [User         [user]
-             Conversation [convo {:user_id (:id user)}]]
-  ...)
+  -&gt; [{:a [{:b 2} {:b 4}], :c 2}
+      {:a {:b 3}, :c 4}]
 </code></pre>
-
-<p>Each successive object can reference the temp object before it; the form is equivalent to writing multiple
-<code>with-temp</code> forms.</p>
-
-<p>The last helper macro is available if you use the <code>expectations</code> unit test framework:</p>
-
-<pre><code>;; Make sure our get-id function works on users
-(expect-with-temp [User [user {:first-name "Cam"}]]
-  (:id user)
-  (get-id user))
-</code></pre>
-
-<p>This macro makes the temporary object available to both the "expected" and "actual" parts of the test. (PRs for
-similar macros for other unit test frameworks are welcome!)</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Protocol defining the <code>with-temp-defaults</code> method, which provides default values for new temporary objects.</p>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol WithTempDefaults
-  (with-temp-defaults ^clojure.lang.IPersistentMap [this]
-    &quot;Return a map of default values that should be used when creating a new temporary object of this model.
-       ;; Use a random first and last name for new temporary Users unless otherwise specified
-       (extend-protocol WithTempDefaults
-         (class User)
-         (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))&quot;))</pre></td></tr><tr><td class="docs"><p>default impl</p>
-</td><td class="codes"><pre class="brush: clojure">(extend Object
-  WithTempDefaults
-  {:with-temp-defaults (constantly {})})</pre></td></tr><tr><td class="docs"><p>Internal implementation of <code>with-temp</code> (don't call this directly).</p>
-</td><td class="codes"><pre class="brush: clojure">(defn do-with-temp
-  [model attributes f]
-  (let [temp-object (db/insert! model (merge (when (satisfies? WithTempDefaults model)
-                                               (with-temp-defaults model))
-                                             attributes))]
-    (try
-      (f temp-object)
-      (finally
-        (db/delete! model :id (:id temp-object))))))</pre></td></tr><tr><td class="docs"><p>Create a temporary instance of ENTITY bound to BINDING-FORM, execute BODY,
-   then deletes it via <code>delete!</code>.</p>
-
-<p>   Our unit tests rely a heavily on the test data and make some assumptions about the
-   DB staying in the same <em>clean</em> state. This allows us to write very concise tests.
-   Generally this means tests should "clean up after themselves" and leave things the
-   way they found them.</p>
-
-<p>   <code>with-temp</code> should be preferrable going forward over creating random objects <em>without</em>
-   deleting them afterward.</p>
-
-<pre><code>(with-temp EmailReport [report {:creator_id (user-&gt;id :rasta)
-                                :name       (random-name)}]
-  ...)
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp
-  [model [binding-form &amp; [options-map]] &amp; body]
-  `(do-with-temp ~model ~options-map (fn [~binding-form]
-                                       ~@body)))</pre></td></tr><tr><td class="docs"><p>Like <code>with-temp</code> but establishes multiple temporary objects at the same time.</p>
-
-<pre><code> (with-temp* [Database [{database-id :id}]
-              Table    [table {:db_id database-id}]]
-   ...)
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp*
-  [model-bindings &amp; body]
-  (loop [[pair &amp; more] (reverse (partition 2 model-bindings)), body `(do ~@body)]
-    (let [body `(with-temp ~@pair
-                  ~body)]
-      (if (seq more)
-        (recur more body)
-        body))))</pre></td></tr><tr><td class="docs"><h1>                                            EXPECTATIONS HELPER MACROS</h1>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- has-expectations-dependency? []
-  (try (require 'expectations)
-       true
-       (catch Throwable _
-         false)))</pre></td></tr><tr><td class="docs"><p>Combines <code>expect</code> with a <code>with-temp*</code> form. The temporary objects established by <code>with-temp*</code> are available
-     to both EXPECTED and ACTUAL.</p>
-
-<pre><code> (expect-with-temp [Database [{database-id :id}]]
-    database-id
-    (get-most-recent-database-id))
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(when (has-expectations-dependency?)
-  (defmacro expect-with-temp
-    {:style/indent 1}
-    [with-temp*-form expected actual]
-    ;; use `gensym` instead of auto gensym here so we can be sure it's a unique symbol every time. Otherwise since
-    ;; expectations hashes its body to generate function names it will treat every usage of `expect-with-temp` as
-    ;; the same test and only a single one will end up being ran
-    (let [with-temp-form (gensym &quot;with-temp-&quot;)]
-      `(let [~with-temp-form (delay (with-temp* ~with-temp*-form
-                                      [~expected ~actual]))]
-         (expectations/expect
-           ;; if dereferencing with-temp-form throws an exception then expect Exception &lt;-&gt; Exception will pass;
-           ;; we don't want that, so make sure the expected is nil
-           (try
-             (first @~with-temp-form)
-             (catch Throwable ~'_))
-           (second @~with-temp-form))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util" name="toucan.util"><h1 class="project-name">toucan.util</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions used by other Toucan modules.</p>
-</td><td class="codes"><pre class="brush: clojure">(ns toucan.util
-  (:require [clojure.string :as s]))</pre></td></tr><tr><td class="docs"><p>Return keyword K as a string, including its namespace, if any (unlike <code>name</code>).</p>
-
-<pre><code> (keyword-&gt;qualified-name :type/FK) -&gt; "type/FK"
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn keyword-&gt;qualified-name
+</td><td class="codes"><pre class="brush: clojure">(defn- counts-apply
+  [coll k f]
+  (let [counts (counts-of coll k)
+        new-vals (-&gt; coll
+                     (counts-flatten k)
+                     f
+                     (counts-unflatten k counts))]
+    (map merge coll new-vals)))</pre></td></tr><tr><td class="docs"><h1>                                                    Util Fns</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Is this a valid argument to <code>hydrate</code>?</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- valid-hydration-form?
   [k]
-  (when k
-    (s/replace (str k) #&quot;^:&quot; &quot;&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_toucan.db">toucan.db</li><li class="floating-toc-li" id="floating-toc_toucan.hydrate">toucan.hydrate</li><li class="floating-toc-li" id="floating-toc_toucan.models">toucan.models</li><li class="floating-toc-li" id="floating-toc_toucan.util.test">toucan.util.test</li><li class="floating-toc-li" id="floating-toc_toucan.util">toucan.util</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+  (or (keyword? k)
+      (and (sequential? k)
+           (keyword? (first k))
+           (every? valid-hydration-form? (rest k)))))</pre></td></tr><tr><td class="docs"><p>Append to a keyword.</p>
+
+<pre><code> (kw-append :user "_id") -&gt; :user_id
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- kw-append
+  [k suffix]
+  (keyword (str (name k) suffix)))</pre></td></tr><tr><td class="docs"><p>Return a map of hydration keywords to functions that should be used to hydrate them, e.g.</p>
+
+<pre><code> {:fields #'my-project.models.table/fields
+  :tables #'my-project.models.database/tables
+  ...}
+</code></pre>
+
+<p>   These functions are ones that are marked METADATA-KEY, e.g. <code>^:hydrate</code> or <code>^:batched-hydrate</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- lookup-functions-with-metadata-key
+  [metadata-key]
+  (loop [m {}, [[k f] &amp; more] (for [ns          (all-ns)
+                                    [symb varr] (ns-interns ns)
+                                    :let        [hydration-key (metadata-key (meta varr))]
+                                    :when       hydration-key]
+                                [(if (true? hydration-key)
+                                   (keyword (name symb))
+                                   hydration-key)
+                                 varr])]
+    (cond
+      (not k) m
+      (m k)   (throw (Exception.
+                      (format &quot;Duplicate `^%s` functions for key '%s': %s and %s.&quot; metadata-key k (m k) f)))
+      :else   (recur (assoc m k f) more))))</pre></td></tr><tr><td class="docs"><h1>                                 Automagic Batched Hydration (via :model-keys)</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Return map of <code>hydration-key</code> -> model
+  e.g. <code>:user -&gt; User</code>.</p>
+
+<p>  This is built pulling the <code>hydration-keys</code> set from all of our entities.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- require-model-namespaces-and-find-hydration-fns
+  []
+  (doseq [ns-symb (ns-find/find-namespaces (classpath/classpath))
+          :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
+    (require ns-symb))
+  (into {} (for [ns       (all-ns)
+                 [_ varr] (ns-publics ns)
+                 :let     [model (var-get varr)]
+                 :when    (models/model? model)
+                 :let     [hydration-keys (models/hydration-keys model)]
+                 k        hydration-keys]
+             {k model})))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def ^:private automagic-batched-hydration-key-&gt;model* (atom nil))</pre></td></tr><tr><td class="docs"><p>Get a map of hydration keys to corresponding models.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- automagic-batched-hydration-key-&gt;model
+  []
+  (or @automagic-batched-hydration-key-&gt;model*
+      (reset! automagic-batched-hydration-key-&gt;model* (require-model-namespaces-and-find-hydration-fns))))</pre></td></tr><tr><td class="docs"><p>Can we do a batched hydration of RESULTS with key K?</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- can-automagically-batched-hydrate?
+  [results k]
+  (let [k-id-u (kw-append k &quot;_id&quot;)
+        k-id-d (kw-append k &quot;-id&quot;)
+        contains-k-id? (fn [obj]
+                         (or (contains? obj k-id-u)
+                             (contains? obj k-id-d)))]
+    (and (contains? (automagic-batched-hydration-key-&gt;model) k)
+         (every? contains-k-id? results))))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (<code>DEST-KEY_id</code>),
+  doing a single <code>db/select</code>, and mapping corresponding objects to DEST-KEY.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- automagically-batched-hydrate
+  [results dest-key]
+  {:pre [(keyword? dest-key)]}
+  (let [model       ((automagic-batched-hydration-key-&gt;model) dest-key)
+        source-keys #{(kw-append dest-key &quot;_id&quot;) (kw-append dest-key &quot;-id&quot;)}
+        ids         (set (for [result results
+                               :when  (not (get result dest-key))
+                               :let   [k (some result source-keys)]
+                               :when  k]
+                           k))
+        objs        (if (seq ids)
+                      (into {} (for [item (db/select model, :id [:in ids])]
+                                 {(:id item) item}))
+                      (constantly nil))]
+    (for [result results
+          :let [source-id (some result source-keys)]]
+      (if (get result dest-key)
+        result
+        (assoc result dest-key (objs source-id))))))</pre></td></tr><tr><td class="docs"><h1>                        Function-Based Batched Hydration (fns marked ^:batched-hydrate)</h1>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def ^:private hydration-key-&gt;batched-f*
+  (atom nil))</pre></td></tr><tr><td class="docs"><p>Map of keys to functions marked <code>^:batched-hydrate</code> for them.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- hydration-key-&gt;batched-f
+  []
+  (or @hydration-key-&gt;batched-f*
+      (reset! hydration-key-&gt;batched-f* (lookup-functions-with-metadata-key :batched-hydrate))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- can-fn-based-batched-hydrate? [_ k]
+  (contains? (hydration-key-&gt;batched-f) k))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- fn-based-batched-hydrate
+  [results k]
+  {:pre [(keyword? k)]}
+  (((hydration-key-&gt;batched-f) k) results))</pre></td></tr><tr><td class="docs"><h1>                             Function-Based Simple Hydration (fns marked ^:hydrate)</h1>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(def ^:private hydration-key-&gt;f*
+  (atom nil))</pre></td></tr><tr><td class="docs"><p>Fetch a map of keys to functions marked <code>^:hydrate</code> for them.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- hydration-key-&gt;f
+  []
+  (or @hydration-key-&gt;f*
+      (reset! hydration-key-&gt;f* (lookup-functions-with-metadata-key :hydrate))))</pre></td></tr><tr><td class="docs"><p>Hydrate keyword K in results by calling corresponding functions when applicable.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- simple-hydrate
+  [results k]
+  {:pre [(keyword? k)]}
+  (for [result results]
+    ;; don't try to hydrate if they key is already present. If we find a matching fn, hydrate with it
+    (when result
+      (or (when-not (k result)
+            (when-let [f ((hydration-key-&gt;f) k)]
+              (assoc result k (f result))))
+          result))))</pre></td></tr><tr><td class="docs"><h1>                                    Resetting Hydration keys (for REPL usage)</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration
+  functions.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn flush-hydration-key-caches!
+  []
+  (reset! automagic-batched-hydration-key-&gt;model* nil)
+  (reset! hydration-key-&gt;batched-f*               nil)
+  (reset! hydration-key-&gt;f*                       nil))</pre></td></tr><tr><td class="docs"><h1>                                              Primary Hydration Fns</h1>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(declare hydrate)</pre></td></tr><tr><td class="docs"><p>Hydrate a nested hydration form (vector) by recursively calling <code>hydrate</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-vector
+  [results [k &amp; more :as vect]]
+  (assert (&gt; (count vect) 1)
+    (format (str &quot;Replace '%s' with '%s'. Vectors are for nested hydration. &quot;
+                 &quot;There's no need to use one when you only have a single key.&quot;)
+            vect (first vect)))
+  (let [results (hydrate results k)]
+    (if-not (seq more)
+      results
+      (counts-apply results k #(apply hydrate % more)))))</pre></td></tr><tr><td class="docs"><p>Hydrate a single keyword.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-kw
+  [results k]
+  (cond
+    (can-automagically-batched-hydrate? results k) (automagically-batched-hydrate results k)
+    (can-fn-based-batched-hydrate? results k)      (fn-based-batched-hydrate results k)
+    :else                                          (simple-hydrate results k)))</pre></td></tr><tr><td class="docs"><p>Hydrate a single hydration form.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-1
+  [results k]
+  (if (keyword? k)
+    (hydrate-kw results k)
+    (hydrate-vector results k)))</pre></td></tr><tr><td class="docs"><p>Hydrate many hydration forms across a <em>sequence</em> of RESULTS by recursively calling <code>hydrate-1</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- hydrate-many
+  [results k &amp; more]
+  (let [results (hydrate-1 results k)]
+    (if-not (seq more)
+      results
+      (recur results (first more) (rest more)))))</pre></td></tr><tr><td class="docs"><h1>                                                Public Interface</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><pre><code>                         hydrate &lt;-------------+
+                           |                   |
+                       hydrate-many            |
+                           | (for each form)   |
+                       hydrate-1               | (recursively)
+                           |                   |
+                keyword? --+-- vector?         |
+                   |             |             |
+              hydrate-kw    hydrate-vector ----+
+                   |
+          can-automagically-batched-hydrate?
+                         |
+        true ------------+----------------- false
+         |                                    |
+automagically-batched-hydrate    can-fn-based-batched-hydrate?
+                                             |
+                           true -------------+------------- false
+                            |                                 |
+                 fn-based-batched-hydrate              simple-hydrate
+</code></pre>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Hydrate a single object or sequence of objects.</p>
+
+<h4>Automagic Batched Hydration (via hydration-keys)</h4>
+
+<p>  <code>hydrate</code> attempts to do a <em>batched hydration</em> where possible.
+  If the key being hydrated is defined as one of some model's <code>hydration-keys</code>,
+  <code>hydrate</code> will do a batched <code>db/select</code> if a corresponding key ending with <code>_id</code>
+  is found in the objects being batch hydrated.</p>
+
+<pre><code>(hydrate [{:user_id 100}, {:user_id 101}] :user)
+</code></pre>
+
+<p>  Since <code>:user</code> is a hydration key for <code>User</code>, a single <code>db/select</code> will used to
+  fetch <code>Users</code>:</p>
+
+<pre><code>(db/select User :id [:in #{100 101}])
+</code></pre>
+
+<p>  The corresponding <code>Users</code> are then added under the key <code>:user</code>.</p>
+
+<h4>Function-Based Batched Hydration (via functions marked ^:batched-hydrate)</h4>
+
+<p>  If the key can't be hydrated auto-magically with the appropriate <code>:hydration-keys</code>,
+  <code>hydrate</code> will look for a function tagged with <code>:batched-hydrate</code> in its metadata, and
+  use that instead. If a matching function is found, it is called with a collection of objects,
+  e.g.</p>
+
+<pre><code>(defn with-fields
+  "Efficiently add `Fields` to a collection of TABLES."
+  {:batched-hydrate :fields}
+  [tables]
+  ...)
+
+(let [tables (get-some-tables)]
+  (hydrate tables :fields))     ; uses with-fields
+</code></pre>
+
+<p>  By default, the function will be used to hydrate keys that match its name; as in the example above,
+  you can specify a different key to hydrate for in the metadata instead.</p>
+
+<h4>Simple Hydration (via functions marked ^:hydrate)</h4>
+
+<p>  If the key is <em>not</em> eligible for batched hydration, <code>hydrate</code> will look for a function or method
+  tagged with <code>:hydrate</code> in its metadata, and use that instead; if a matching function
+  is found, it is called on the object being hydrated and the result is <code>assoc</code>ed:</p>
+
+<pre><code>(defn ^:hydrate dashboard [{:keys [dashboard_id]}]
+  (Dashboard dashboard_id))
+
+(let [dc (DashboardCard ...)]
+  (hydrate dc :dashboard))    ; roughly equivalent to (assoc dc :dashboard (dashboard dc))
+</code></pre>
+
+<p>  As with <code>:batched-hydrate</code> functions, by default, the function will be used to hydrate keys that
+  match its name; you can specify a different key to hydrate instead as the metadata value of <code>:hydrate</code>:</p>
+
+<pre><code>(defn ^{:hydrate :pk_field} pk-field-id [obj] ...) ; hydrate :pk_field with pk-field-id
+</code></pre>
+
+<p>  Keep in mind that you can only define a single function/method to hydrate each key; move functions into the
+  <code>IModel</code> interface as needed.</p>
+
+<h4>Hydrating Multiple Keys</h4>
+
+<p>  You can hydrate several keys at one time:</p>
+
+<pre><code>(hydrate {...} :a :b)
+  -&gt; {:a 1, :b 2}
+</code></pre>
+
+<h4>Nested Hydration</h4>
+
+<p>  You can do recursive hydration by listing keys inside a vector:</p>
+
+<pre><code>(hydrate {...} [:a :b])
+  -&gt; {:a {:b 1}}
+</code></pre>
+
+<p>  The first key in a vector will be hydrated normally, and any subsequent keys
+  will be hydrated <em>inside</em> the corresponding values for that key.</p>
+
+<pre><code>(hydrate {...}
+         [:a [:b :c] :e])
+  -&gt; {:a {:b {:c 1} :e 2}}
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn hydrate
+  [results k &amp; ks]
+  {:pre [(valid-hydration-form? k)
+         (every? valid-hydration-form? ks)]}
+  (when results
+    (if (sequential? results)
+      (if (empty? results)
+        results
+        (apply hydrate-many results k ks))
+      (first (apply hydrate-many [results] k ks)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_toucan.db">toucan.db</li><li class="floating-toc-li" id="floating-toc_toucan.util.test">toucan.util.test</li><li class="floating-toc-li" id="floating-toc_toucan.util">toucan.util</li><li class="floating-toc-li" id="floating-toc_toucan.models">toucan.models</li><li class="floating-toc-li" id="floating-toc_toucan.hydrate">toucan.hydrate</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack

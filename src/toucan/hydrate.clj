@@ -147,7 +147,7 @@
                                     [symb varr] (ns-interns ns)
                                     :let        [hydration-key (metadata-key (meta varr))]
                                     :when       hydration-key]
-                                [(if (boolean hydration-key)
+                                [(if (true? hydration-key)
                                    (keyword (name symb))
                                    hydration-key)
                                  varr])]
@@ -163,12 +163,12 @@
 
 (defn- require-model-namespaces-and-find-hydration-fns
   "Return map of `hydration-key` -> model
-   e.g. `:user -> User`.
+  e.g. `:user -> User`.
 
-   This is built pulling the `hydration-keys` set from all of our entities."
+  This is built pulling the `hydration-keys` set from all of our entities."
   []
-  (for [ns-symb (ns-find/find-namespaces (classpath/classpath))
-        :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
+  (doseq [ns-symb (ns-find/find-namespaces (classpath/classpath))
+          :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
     (require ns-symb))
   (into {} (for [ns       (all-ns)
                  [_ varr] (ns-publics ns)
@@ -187,12 +187,6 @@
       (reset! automagic-batched-hydration-key->model* (require-model-namespaces-and-find-hydration-fns))))
 
 
-(defn- automagic-batched-hydration-keys
-  "Get the set of keys that are elligible for batched hydration."
-  []
-  (set (keys (automagic-batched-hydration-key->model))))
-
-
 (defn- can-automagically-batched-hydrate?
   "Can we do a batched hydration of RESULTS with key K?"
   [results k]
@@ -201,12 +195,12 @@
         contains-k-id? (fn [obj]
                          (or (contains? obj k-id-u)
                              (contains? obj k-id-d)))]
-    (and (contains? (automagic-batched-hydration-keys) k)
+    (and (contains? (automagic-batched-hydration-key->model) k)
          (every? contains-k-id? results))))
 
 (defn- automagically-batched-hydrate
   "Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (`DEST-KEY_id`),
-   doing a single `db/select`, and mapping corresponding objects to DEST-KEY."
+  doing a single `db/select`, and mapping corresponding objects to DEST-KEY."
   [results dest-key]
   {:pre [(keyword? dest-key)]}
   (let [model       ((automagic-batched-hydration-key->model) dest-key)
@@ -239,13 +233,8 @@
   (or @hydration-key->batched-f*
       (reset! hydration-key->batched-f* (lookup-functions-with-metadata-key :batched-hydrate))))
 
-(defn- fn-based-batched-hydration-keys
-  "Set of keys that are elligible for batched hydration."
-  []
-  (set (keys (hydration-key->batched-f))))
-
 (defn- can-fn-based-batched-hydrate? [_ k]
-  (contains? (fn-based-batched-hydration-keys) k))
+  (contains? (hydration-key->batched-f) k))
 
 (defn- fn-based-batched-hydrate
   [results k]

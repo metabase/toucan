@@ -1,6 +1,6 @@
 # Toucan Version History & Release Notes
 
-### [1.1.6](https://github.com/metabase/toucan/compare/1.1.5...1.1.6) (May 16th, 2018)
+### [1.1.6.1](https://github.com/metabase/toucan/compare/1.1.5...1.1.6.1) (May 16th, 2018)
 
 *  Add new [`toucan.hydrate/flush-hydration-key-caches!`](https://github.com/metabase/toucan/blob/master/docs/hydration.md#flushing-the-hydration-key-caches-for-interactive-repl-development)
    function for interactive development. (PRs [#27](https://github.com/metabase/toucan/pull/27) and [#35](https://github.com/metabase/toucan/pull/35), Credit: [@axrs](https://github.com/axrs) with some cleanup by [@camsaul](https://github.com/camsaul))
