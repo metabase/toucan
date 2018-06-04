@@ -513,12 +513,14 @@
   "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
   [insert-result]
   (or
-   ;; Postgres, newer H2, and most others return :id
-   (:id insert-result)
-   ;; :generated_key is returned by MySQL
-   (:generated_key insert-result)
-   ;; scope_identity() returned by older versions of H2
-   ((keyword "scope_identity()") insert-result)))
+    ;; Postgres, newer H2, and most others return :id
+    (:id insert-result)
+    ;; :generated_key is returned by MySQL
+    (:generated_key insert-result)
+    ;; scope_identity() returned by older versions of H2
+    ((keyword "scope_identity()") insert-result)
+    ;; last_insert_rowid() returned by SQLite3
+    ((keyword "last_insert_rowid()") insert-result)))
 
 (defn simple-insert-many!
   "Do a simple JDBC `insert!` of multiple objects into the database.
