@@ -1,5 +1,9 @@
 # Toucan Version History & Release Notes
 
+### [1.1.8](https://github.com/metabase/toucan/compare/1.1.7...1.1.8) (June 13th, 2018)
+
+*  Add support for SQLite. (PR [#37](https://github.com/metabase/toucan/pull/37), credit: [@Thingographist](https://github.com/Thingographist))
+
 ### [1.1.7](https://github.com/metabase/toucan/compare/1.1.5...1.1.7) (May 16th, 2018)
 
 *  Add new [`toucan.hydrate/flush-hydration-key-caches!`](https://github.com/metabase/toucan/blob/master/docs/hydration.md#flushing-the-hydration-key-caches-for-interactive-repl-development)
