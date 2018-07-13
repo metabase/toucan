@@ -167,9 +167,6 @@
 
   This is built pulling the `hydration-keys` set from all of our entities."
   []
-  (doseq [ns-symb (ns-find/find-namespaces (classpath/classpath))
-          :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
-    (require ns-symb))
   (into {} (for [ns       (all-ns)
                  [_ varr] (ns-publics ns)
                  :let     [model (var-get varr)]
