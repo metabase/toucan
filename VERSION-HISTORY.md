@@ -1,5 +1,10 @@
 # Toucan Version History & Release Notes
 
+### [1.1.9](https://github.com/metabase/toucan/compare/1.1.8...1.1.9) (July 13th, 2018)
+
+*  Removed classpath-scanning code that caused slowdowns in larger projects and had stopped working in Java 9. (PR [#38](https://github.com/metabase/toucan/pull/38), credit: [@senior](https://github.com/senior))
+*  Updated dependencies.
+
 ### [1.1.8](https://github.com/metabase/toucan/compare/1.1.7...1.1.8) (June 13th, 2018)
 
 *  Add support for SQLite. (PR [#37](https://github.com/metabase/toucan/pull/37), credit: [@Thingographist](https://github.com/Thingographist))
