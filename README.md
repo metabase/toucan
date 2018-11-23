@@ -1,4 +1,4 @@
-[![Dependencies Status](http://jarkeeper.com/metabase/toucan/status.png)](http://jarkeeper.com/metabase/toucan)
+[![Dependencies Status](https://versions.deps.co/metabase/toucan/status.svg)](https://versions.deps.co/metabase/toucan)
 [![Circle CI](https://circleci.com/gh/metabase/toucan.svg?style=svg)](https://circleci.com/gh/metabase/toucan)
 [![License](https://img.shields.io/badge/license-Eclipse%20Public%20License-blue.svg)](https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt)
 
