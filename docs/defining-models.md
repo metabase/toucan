@@ -146,7 +146,7 @@ There are many cases when it is prudent to default to returning some subset of t
 is a User object with a `:password` field; even though you've salted it encrypted it using a secure algorithm `bcrypt`, you don't
 want to expose it in things like REST API endpoints.
 
-Hence the `default-fields` method of `IModels`. `default-fields` lets you defie a set of fields to return by default when
+Hence the `default-fields` method of `IModels`. `default-fields` lets you define a set of fields to return by default when
 fetching instances of a model. Without `default-fields`, fetching a User might look like this:
 
 ```clojure
@@ -158,7 +158,7 @@ Not ideal! Let's define some `:default-fields` for User:
 ```clojure
 (defmodel User :user_table
   IModel
-  (default_fields [_]
+  (default-fields [_]
     [:id :first-name :last-name]))
 ```
 
@@ -399,7 +399,7 @@ The output of this function is ignored.
 ## Hydration Keys
 
 The `hydration-keys` method can be overrode to specify the keyword field names that should be hydrated as instances of this model.
-For example, `User` might inclide `:creator`, which means `hydrate` will look for `:creator_id` or `:creator-id` in other objects
+For example, `User` might include `:creator`, which means `hydrate` will look for `:creator_id` or `:creator-id` in other objects
 to find the User ID, and fetch the `Users` corresponding to those values.
 
 ```clojure
