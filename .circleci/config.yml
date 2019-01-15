@@ -11,19 +11,19 @@ jobs:
     executor: toucan-executor
     steps:
       - checkout
-      - run: './start-db'
-      - run: 'lein test && lein lint'
+      - run: ./start-db
+      - run: lein test && lein lint
   snapshot:
     executor: toucan-executor
     steps:
       - checkout
-      - run: 'echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION'
-      - run: 'lein deploy clojars'
+      - run: echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION
+      - run: lein deploy clojars
   deploy:
     executor: toucan-executor
     steps:
       - checkout
-      - run: 'lein deploy clojars'
+      - run: lein deploy clojars
 workflows:
   version: 2
   test_snapshot_deploy:
