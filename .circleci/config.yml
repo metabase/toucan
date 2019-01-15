@@ -30,7 +30,6 @@ workflows:
     jobs:
       - test
       - snapshot:
-          context: JESI
           requires:
             - test
           filters:
