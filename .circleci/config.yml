@@ -30,14 +30,14 @@ workflows:
     jobs:
       - test
       - snapshot:
-          context: JESI
+          context: clojars
           requires:
             - test
           filters:
             branches:
               ignore: master
       - deploy:
-          context: JESI
+          context: clojars
           requires:
             - test
           filters:
