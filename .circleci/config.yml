@@ -18,12 +18,12 @@ jobs:
     steps:
       - checkout
       - run: 'echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION'
-      - run: 'lein deploy clojars &>/dev/null'
+      - run: 'lein deploy clojars'
   deploy:
     executor: toucan-executor
     steps:
       - checkout
-      - run: 'lein deploy clojars &>/dev/null'
+      - run: 'lein deploy clojars'
 workflows:
   version: 2
   test_snapshot_deploy:
