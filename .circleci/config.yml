@@ -17,10 +17,8 @@ jobs:
     executor: toucan-executor
     steps:
       - checkout
-      - run:
-          command: |
-            echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION
-            lein deploy clojars &>/dev/null
+      - run: 'echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION'
+      - run: 'lein deploy clojars &>/dev/null'
   deploy:
     executor: toucan-executor
     steps:
@@ -39,7 +37,7 @@ workflows:
               ignore: 'master'
       - deploy:
           requires:
-              -test
+            - test
           filters:
             branches:
               only: 'master'
