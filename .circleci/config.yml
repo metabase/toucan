@@ -8,7 +8,9 @@ executor:
       TOUCAN_TEST_DB_USER: ubuntu
 jobs:
   test:
+    executor: test-executor
     steps:
+      - checkout
       - run: 'lein test && lein lint'
 workflows:
   version: 2
