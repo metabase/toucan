@@ -2,7 +2,7 @@ version: 2
 
 jobs:
   test:
-    executor: machine
+    machine: true
     steps:
       - checkout
       - run: 'lein test && lein lint'
