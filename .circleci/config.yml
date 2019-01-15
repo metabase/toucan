@@ -30,12 +30,14 @@ workflows:
     jobs:
       - test
       - snapshot:
+          context: JESI
           requires:
             - test
           filters:
             branches:
               ignore: master
       - deploy:
+          context: JESI
           requires:
             - test
           filters:
