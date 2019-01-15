@@ -18,7 +18,9 @@ jobs:
       - run: 'lein test && lein lint'
 
   snapshot:
-    - command: echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT"
+    executor: toucan-executor
+    steps:
+      - command: echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT"
     # set version to version-branch-snapshot
 
 #  deploy:
