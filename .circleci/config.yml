@@ -22,7 +22,7 @@ jobs:
     steps:
       - run:
           command: |
-            version = "$(cat ../VERSION)-$CIRCLE_BRANCH-SNAPSHOT"
+            version = "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT"
             echo $version
             ls
     # set version to version-branch-snapshot
