@@ -20,10 +20,10 @@ jobs:
   snapshot:
     executor: toucan-executor
     steps:
+      - checkout
       - run:
           command: |
-#            echo "$(cat project/VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > project/VERSION
-            ls
+            echo "$(cat project/VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > project/VERSION
     # set version to version-branch-snapshot
 
 #  deploy:
@@ -34,8 +34,7 @@ workflows:
   version: 2
   test_snapshot_deploy:
     jobs:
-      - snapshot
-#      - test
-#      - snapshot:
-#          requires:
-#            - test
+      - test
+      - snapshot:
+          requires:
+            - test
