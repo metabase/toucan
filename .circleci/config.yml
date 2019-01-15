@@ -1,15 +1,25 @@
-version: 2
+version: 2.1
 
-jobs:
-  test:
+executors:
+  toucan-executor:
+    #  todo fix machine so boots db and tests run
     machine: true
-    steps:
-      - checkout
-      - run: 'lein test && lein lint'
     environment:
       TZ: America/Los_Angeles
       TOUCAN_TEST_DB_NAME: circle_test
       TOUCAN_TEST_DB_USER: ubuntu
+
+jobs:
+  test:
+    executor: toucan-executor
+    steps:
+      - checkout
+      - run: 'lein test && lein lint'
+  deploy-snapshot:
+
+  deploy:
+
+
 workflows:
   version: 2
   test_deploy:
