@@ -18,7 +18,7 @@ jobs:
     steps:
       - checkout
       - run: 'echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION'
-      - run: 'lein deploy clojars'
+      - run: 'lein deploy clojars  &>/dev/null'
   deploy:
     executor: toucan-executor
     steps:
