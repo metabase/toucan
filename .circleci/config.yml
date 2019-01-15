@@ -34,10 +34,10 @@ workflows:
             - test
           filters:
             branches:
-              ignore: 'master'
+              ignore: master
       - deploy:
           requires:
             - test
           filters:
             branches:
-              only: 'master'
+              only: master
