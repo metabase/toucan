@@ -23,7 +23,6 @@ jobs:
       - run:
           command: |
             ls
-            echo "-$CIRCLE_BRANCH-SNAPSHOT"
     # set version to version-branch-snapshot
 
 #  deploy:
@@ -34,7 +33,7 @@ workflows:
   version: 2
   test_snapshot_deploy:
     jobs:
-      - test
+#      - test
       - snapshot:
-          requires:
-            - test
+#          requires:
+#            - test
