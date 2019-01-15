@@ -14,10 +14,14 @@ jobs:
     executor: toucan-executor
     steps:
       - checkout
+      - run: './start-db'
       - run: 'lein test && lein lint'
-  deploy-snapshot:
 
-  deploy:
+#  snapshot:
+#    # set version to version-branch-snapshot
+#
+#  deploy:
+#    # deploy
 
 
 workflows:
