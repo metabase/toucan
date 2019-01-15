@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 executor:
   test-executor:
     machine: true
