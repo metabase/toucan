@@ -23,7 +23,7 @@ jobs:
       - checkout
       - run:
           command: |
-            echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > project/VERSION
+            echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT"
     # set version to version-branch-snapshot
 
 #  deploy:
