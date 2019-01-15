@@ -22,9 +22,8 @@ jobs:
     steps:
       - run:
           command: |
-            version = "-$CIRCLE_BRANCH-SNAPSHOT"
-            echo $version
             ls
+            echo "-$CIRCLE_BRANCH-SNAPSHOT"
     # set version to version-branch-snapshot
 
 #  deploy:
