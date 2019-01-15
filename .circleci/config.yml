@@ -20,7 +20,7 @@ jobs:
   snapshot:
     executor: toucan-executor
     steps:
-      - command: echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT"
+      - run: 'echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT"'
     # set version to version-branch-snapshot
 
 #  deploy:
