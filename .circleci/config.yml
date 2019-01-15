@@ -30,9 +30,6 @@ jobs:
 workflows:
   version: 2
   test_snapshot_deploy:
-    filters:
-      branches:
-        ignore: 'master'
     jobs:
       - test
       - snapshot:
