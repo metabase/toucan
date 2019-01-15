@@ -5,7 +5,7 @@
 ;;;                                                    TEMP OBJECTS
 ;;; ==================================================================================================================
 
-;; For your convenience Toucan makings testing easy with *Temporary Objects*. A temporary object is created and made
+;; For your convenience Toucan makes testing easy with *Temporary Objects*. A temporary object is created and made
 ;; available to some body of code, and then wiped from that database via a `finally` statement (i.e., whether the body
 ;; completes successfully or not). This makes it easy to write tests that do not change your test database when they
 ;; are ran.

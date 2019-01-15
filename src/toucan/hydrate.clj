@@ -147,10 +147,10 @@
                                     [symb varr] (ns-interns ns)
                                     :let        [hydration-key (metadata-key (meta varr))]
                                     :when       hydration-key]
-                                [(if (or (true? hydration-key)
-                                         (false? hydration-key)) ; boolean?
+                                [(if (true? hydration-key)
                                    (keyword (name symb))
-                                   hydration-key) varr])]
+                                   hydration-key)
+                                 varr])]
     (cond
       (not k) m
       (m k)   (throw (Exception.
@@ -161,25 +161,28 @@
 ;;;                                  Automagic Batched Hydration (via :model-keys)
 ;;; ==================================================================================================================
 
-(def ^:private automagic-batched-hydration-key->model
-  "Delay that returns map of `hydration-key` -> model
-   e.g. `:user -> User`.
+(defn- require-model-namespaces-and-find-hydration-fns
+  "Return map of `hydration-key` -> model
+  e.g. `:user -> User`.
 
-   This is built pulling the `hydration-keys` set from all of our entities."
-  (delay (for [ns-symb (ns-find/find-namespaces (classpath/classpath))
-               :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
-           (require ns-symb))
-         (into {} (for [ns       (all-ns)
-                        [_ varr] (ns-publics ns)
-                        :let     [model (var-get varr)]
-                        :when    (models/model? model)
-                        :let     [hydration-keys (models/hydration-keys model)]
-                        k        hydration-keys]
-                    {k model}))))
+  This is built pulling the `hydration-keys` set from all of our entities."
+  []
+  (into {} (for [ns (all-ns)
+                 [_ varr] (ns-publics ns)
+                 :let [model (var-get varr)]
+                 :when (models/model? model)
+                 :let [hydration-keys (models/hydration-keys model)]
+                 k hydration-keys]
+             {k model})))
 
-(def ^:private automagic-batched-hydration-keys
-  "Delay that returns set of keys that are elligible for batched hydration."
-  (delay (set (keys @automagic-batched-hydration-key->model))))
+(def ^:private automagic-batched-hydration-key->model* (atom nil))
+
+(defn- automagic-batched-hydration-key->model
+  "Get a map of hydration keys to corresponding models."
+  []
+  (or @automagic-batched-hydration-key->model*
+      (reset! automagic-batched-hydration-key->model* (require-model-namespaces-and-find-hydration-fns))))
+
 
 (defn- can-automagically-batched-hydrate?
   "Can we do a batched hydration of RESULTS with key K?"
@@ -189,15 +192,15 @@
         contains-k-id? (fn [obj]
                          (or (contains? obj k-id-u)
                              (contains? obj k-id-d)))]
-    (and (contains? @automagic-batched-hydration-keys k)
+    (and (contains? (automagic-batched-hydration-key->model) k)
          (every? contains-k-id? results))))
 
 (defn- automagically-batched-hydrate
   "Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (`DEST-KEY_id`),
-   doing a single `db/select`, and mapping corresponding objects to DEST-KEY."
+  doing a single `db/select`, and mapping corresponding objects to DEST-KEY."
   [results dest-key]
   {:pre [(keyword? dest-key)]}
-  (let [model       (@automagic-batched-hydration-key->model dest-key)
+  (let [model ((automagic-batched-hydration-key->model) dest-key)
         source-keys #{(kw-append dest-key "_id") (kw-append dest-key "-id")}
         ids         (set (for [result results
                                :when  (not (get result dest-key))
@@ -218,55 +221,59 @@
 ;;;                         Function-Based Batched Hydration (fns marked ^:batched-hydrate)
 ;;; ==================================================================================================================
 
-(def ^:private k->batched-f (atom nil))
-
-(defn- hydration-fn
-  [a typek k]
-  (if-let [fns @a]
-    (fns k)
-    (do
-      (reset! a (lookup-functions-with-metadata-key typek))
-      (hydration-fn a typek k))))
+(def ^:private hydration-key->batched-f*
+  (atom nil))
 
 (defn- hydration-key->batched-f
-  "Get the function marked `^:batched-hydrate` for K."
-  [k]
-  (hydration-fn k->batched-f :batched-hydrate k))
-
-(def ^:private fn-based-batched-hydration-keys
-  "Delay that returns set of keys that are elligible for batched hydration."
-  (delay (set (keys @k->batched-f))))
+  "Map of keys to functions marked `^:batched-hydrate` for them."
+  []
+  (or @hydration-key->batched-f*
+      (reset! hydration-key->batched-f* (lookup-functions-with-metadata-key :batched-hydrate))))
 
 (defn- can-fn-based-batched-hydrate? [_ k]
-  (contains? @fn-based-batched-hydration-keys k))
+  (contains? (hydration-key->batched-f) k))
 
 (defn- fn-based-batched-hydrate
   [results k]
   {:pre [(keyword? k)]}
-  ((hydration-key->batched-f k) results))
+  (((hydration-key->batched-f) k) results))
 
 
 ;;;                              Function-Based Simple Hydration (fns marked ^:hydrate)
 ;;; ==================================================================================================================
 
-(def ^:private k->f (atom nil))
+(def ^:private hydration-key->f*
+  (atom nil))
 
 (defn- hydration-key->f
-  "Get the function marked `^:hydrate` for K."
-  [k]
-  (hydration-fn k->f :hydrate k))
+  "Fetch a map of keys to functions marked `^:hydrate` for them."
+  []
+  (or @hydration-key->f*
+      (reset! hydration-key->f* (lookup-functions-with-metadata-key :hydrate))))
 
 (defn- simple-hydrate
-  "Hydrate keyword K in results by dereferencing corresponding delays when applicable."
+  "Hydrate keyword K in results by calling corresponding functions when applicable."
   [results k]
   {:pre [(keyword? k)]}
   (for [result results]
     ;; don't try to hydrate if they key is already present. If we find a matching fn, hydrate with it
     (when result
       (or (when-not (k result)
-            (when-let [f (hydration-key->f k)]
+            (when-let [f ((hydration-key->f) k)]
               (assoc result k (f result))))
           result))))
+
+
+;;;                                     Resetting Hydration keys (for REPL usage)
+;;; ==================================================================================================================
+
+(defn flush-hydration-key-caches!
+  "Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration
+  functions."
+  []
+  (reset! automagic-batched-hydration-key->model* nil)
+  (reset! hydration-key->batched-f* nil)
+  (reset! hydration-key->f* nil))
 
 
 

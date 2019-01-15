@@ -166,13 +166,12 @@ will be hydrated *inside* the corresponding values for that key.
 ;; -> {:a {:b {:c 1} :e 2}}
 ```
 
-## Refreshing Hydrations
+## Flushing the Hydration Key Caches for Interactive (REPL) Development
 
-Simple and batch hydration functions are lazily resolved within loaded namespaces on first call of `hydrate`. If hydrate
-has been called, which results in resolution of new models which contain hydrations in the same namespace; these new
-hydrations will not be evaluated. Invoking `refresh!` will clear the previously resolved hydration functions (resulting
-in a need to re-scan the namespaces on next hydrate).
+The functions that can be used to hydrate things are resolved and cached the first time you call `hydrate`. In an
+interactive development environment (such as a REPL), you'll sometimes find yourself wanting to add new hydration
+functions. Luckily, one simple call can flush the caches, allowing you to add new hydration functions as you please:
 
 ```clojure
-(refresh!)
+(toucan.hydrate/flush-hydration-key-caches!)
 ```

@@ -1,15 +1,13 @@
 (ns toucan.db-test
   (:require [expectations :refer :all]
-            (toucan [db :as db]
-                    [models :as models])
-            (toucan.test-models [address :refer [Address]]
-                                [category :refer [Category]]
-                                [user :refer [User]]
-                                [venue :refer [Venue]])
-            [toucan.test-setup :as test]
-            [toucan.util.test :as tu]))
-
-;; TODO - Test quoting-style
+            [toucan
+             [db :as db]
+             [test-setup :as test]]
+            [toucan.test-models
+             [address :refer [Address]]
+             [category :refer [Category]]
+             [user :refer [User]]
+             [venue :refer [Venue]]]))
 
 ;; Test overriding quoting-style
 (expect
@@ -28,15 +26,18 @@
    ((db/quote-fn) "toucan")))
 
 ;; Test allowing dashed field names
-(expect (db/allow-dashed-names))
+(expect
+ false
+ (db/automatically-convert-dashes-and-underscores?))
 
 (expect
-  (binding [db/*allow-dashed-names* true]
-    (db/allow-dashed-names)))
+  (binding [db/*automatically-convert-dashes-and-underscores* true]
+    (db/automatically-convert-dashes-and-underscores?)))
 
-(expect false
-  (binding [db/*allow-dashed-names* false]
-    (db/allow-dashed-names)))
+(expect
+ false
+  (binding [db/*automatically-convert-dashes-and-underscores* false]
+    (db/automatically-convert-dashes-and-underscores?)))
 
 (expect
   {:street_name "1 Toucan Drive"}
@@ -44,13 +45,53 @@
 
 (expect
   {:street-name "1 Toucan Drive"}
-  (binding [db/*allow-dashed-names* false]
+  (binding [db/*automatically-convert-dashes-and-underscores* true]
     (db/select-one [Address :street-name])))
 
 (expect
   "1 Toucan Drive"
-  (binding [db/*allow-dashed-names* false]
+  (binding [db/*automatically-convert-dashes-and-underscores* true]
     (db/select-one-field :street-name Address)))
+
+;; Test replace-underscores
+(expect
+ :2-cans
+ (#'db/replace-underscores :2_cans))
+
+;; shouldn't do anything to keywords with no underscores
+(expect
+ :2-cans
+ (#'db/replace-underscores :2-cans))
+
+;; should work with strings as well
+(expect
+ :2-cans
+ (#'db/replace-underscores "2_cans"))
+
+;; make sure it respects namespaced keywords or keywords with slashes in them
+(expect
+ :bird-types/two-cans
+ (#'db/replace-underscores :bird-types/two_cans))
+
+;; don't barf if there's a nil input
+(expect
+ nil
+ (#'db/replace-underscores nil))
+
+;; shouldn't do anything for numbers!
+(expect
+ 2
+ (#'db/replace-underscores 2))
+
+;; Test transform-keys
+(expect
+ {:2-cans true}
+ (#'db/transform-keys #'db/replace-underscores {:2_cans true}))
+
+;; make sure it works recursively and inside arrays
+(expect
+ [{:2-cans {:2-cans true}}]
+ (#'db/transform-keys #'db/replace-underscores [{:2_cans {:2_cans true}}]))
 
 ;; TODO - Test DB connection (how?)
 
@@ -120,6 +161,19 @@
              :order-by [:id]
              :limit    1}))
 
+(defn- transduce-to-set
+  "Process `reducible-query-result` using a transducer that puts the rows from the resultset into a set"
+  [reducible-query-result]
+  (transduce (map identity) conj #{} reducible-query-result))
+
+;; Test query-reducible
+(expect
+  #{{:id 1, :first-name "Cam", :last-name "Saul"}}
+  (transduce-to-set (db/reducible-query {:select   [:*]
+                                         :from     [:users]
+                                         :order-by [:id]
+                                         :limit    1})))
+
 ;; Test qualify
 (expect
   :users.first-name
@@ -143,6 +197,11 @@
 (expect
   [#toucan.test_models.user.UserInstance{:id 3, :first-name "Lucky", :last-name "Bird"}]
   (db/simple-select User {:where [:and [:not= :id 1] [:not= :id 2]]}))
+
+;; Test simple-select-reducible
+(expect
+  #{#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}}
+  (transduce-to-set (db/simple-select-reducible User {:where [:= :id 1]})))
 
 ;; Test simple-select-one
 (expect
@@ -301,6 +360,24 @@
    #toucan.test_models.user.UserInstance{:first-name "Rasta", :last-name "Toucan"}
    #toucan.test_models.user.UserInstance{:first-name "Lucky", :last-name "Bird"}]
   (db/select [User :first-name :last-name] {:order-by [:id]}))
+
+;; Check that `select` works as we'd expect with where clauses with more than two arguments, for example BETWEEN
+(expect
+  [#toucan.test_models.user.UserInstance{:first-name "Cam",   :last-name "Saul"}
+   #toucan.test_models.user.UserInstance{:first-name "Rasta", :last-name "Toucan"}]
+  (db/select [User :first-name :last-name] :id [:between 1 2] {:order-by [:id]}))
+
+;; Test select-reducible
+(expect
+  #{#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam",   :last-name "Saul"}
+    #toucan.test_models.user.UserInstance{:id 2, :first-name "Rasta", :last-name "Toucan"}
+    #toucan.test_models.user.UserInstance{:id 3, :first-name "Lucky", :last-name "Bird"}}
+  (transduce-to-set (db/select-reducible User {:order-by [:id]})))
+
+;; Add up the ids of the users in a transducer
+(expect
+  6
+  (transduce (map :id) + 0 (db/select-reducible User {:order-by [:id]})))
 
 ;; Test select-field
 (expect

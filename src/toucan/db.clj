@@ -1,17 +1,20 @@
 (ns toucan.db
   "Helper functions for querying the DB and inserting or updating records using Toucan models."
   (:refer-clojure :exclude [count])
-  (:require [clojure.java.jdbc :as jdbc]
-            [clojure.pprint :refer [pprint]]
-            [clojure.string :as s]
+  (:require [clojure
+             [pprint :refer [pprint]]
+             [string :as s]
+             [walk :as walk]]
+            [clojure.java.jdbc :as jdbc]
             [clojure.tools.logging :as log]
-            (honeysql [core :as hsql]
-                      [format :as hformat]
-                      [helpers :as h])
-            [toucan.models :as models]
-            [clojure.walk :as walk]
-            [clojure.string :as string])
-  (:import (clojure.lang Keyword)))
+            [honeysql
+             [core :as hsql]
+             [format :as hformat]
+             [helpers :as h]]
+            [toucan
+             [models :as models]
+             [util :as u]])
+  (:import clojure.lang.Keyword))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
@@ -25,54 +28,55 @@
 (defonce ^:private default-quoting-style (atom :ansi))
 
 (def ^:dynamic *quoting-style*
-  "Bind this to override the identifier quoting style.
-   Provided for cases where you want to override the quoting style (such as when connecting to a different DB)
-   without changing the default value."
+  "Bind this to override the identifier quoting style. Provided for cases where you want to override the quoting
+  style (such as when connecting to a different DB) without changing the default value."
   nil)
 
 (defn set-default-quoting-style!
-  "Set the default quoting style that should be used to quote identifiers.
-   Defaults to `:ansi`, but you can instead set it to `:mysql` or `:sqlserver`."
+  "Set the default quoting style that should be used to quote identifiers. Defaults to `:ansi`, but you can instead
+  set it to `:mysql` or `:sqlserver`."
   [new-quoting-style]
   (reset! default-quoting-style new-quoting-style))
 
 (defn quoting-style
-  "Fetch the HoneySQL quoting style that should be used to quote identifiers.
-   One of `:ansi`, `:mysql`, or `:sqlserver`.
+  "Fetch the HoneySQL quoting style that should be used to quote identifiers. One of `:ansi`, `:mysql`, or
+  `:sqlserver`.
 
-   Returns the value of `*quoting-style*` if it is bound, otherwise returns the default quoting style,
-   which is normally `:ansi`; this can be changed by calling `set-default-quoting-style!`."
+  Returns the value of `*quoting-style*` if it is bound, otherwise returns the default quoting style, which is
+  normally `:ansi`; this can be changed by calling `set-default-quoting-style!`."
   ^clojure.lang.Keyword []
   (or *quoting-style*
       @default-quoting-style))
 
-;;; #### Allow Dashed Names
+;;; ### Additional HoneySQL options
 
-;; Allow dashes in field names. Sets the :allow-dashed-names argument in the HoneySQL `format` function.
-;; By default, this is `true`.
+;;; #### Automatically Convert Dashes & Underscores
 
-(defonce ^:private default-allow-dashed-names (atom true))
+;; Convert dashes to underscores in queries going into the DB, and underscores in results back to dashes coming out of
+;; the DB. By default, this is disabled. See the documentation in `setup.md` for more details.
 
-(def ^:dynamic *allow-dashed-names*
-  "Bind this to override allowing dashed field names.
-   Provided for cases where you want to override allowing dashes in field names
-   (such as when connecting to a different DB) without changing the default value."
+(defonce ^:private default-automatically-convert-dashes-and-underscores (atom false))
+
+(def ^:dynamic *automatically-convert-dashes-and-underscores*
+  "Bind this to enable automatic conversion between dashes and underscores for indentifiers. Provided for cases where
+  you want to override the behavior (such as when connecting to a different DB) without changing the default value."
   nil)
 
-(defn set-default-allow-dashed-names!
+(defn set-default-automatically-convert-dashes-and-underscores!
   "Set the default value for allowing dashes in field names. Defaults to `true`."
-  [^Boolean new-allow-dashed-names]
-  (reset! default-allow-dashed-names new-allow-dashed-names))
+  [^Boolean new-automatically-convert-dashes-and-underscores]
+  (reset! default-automatically-convert-dashes-and-underscores new-automatically-convert-dashes-and-underscores))
 
-(defn allow-dashed-names
-  "Fetch the values for allowing dashes in field names.
+(defn automatically-convert-dashes-and-underscores?
+  "Deterimine whether we should automatically convert dashes and underscores in identifiers.
 
-   Returns the value of `*allow-dashed-names*` if it is bound, otherwise returns the default allow-dashed-names,
-   which is normally `true`; this can be changed by calling `set-default-allow-dashed-names!`."
+  Returns the value of `*automatically-convert-dashes-and-underscores*` if it is bound, otherwise returns the
+  `default-automatically-convert-dashes-and-underscores`, which is normally `false`; this can be changed by calling
+  `set-default-automatically-convert-dashes-and-underscores!`."
   ^Boolean []
-  (if (nil? *allow-dashed-names*)
-    @default-allow-dashed-names
-    *allow-dashed-names*))
+  (if (nil? *automatically-convert-dashes-and-underscores*)
+    @default-automatically-convert-dashes-and-underscores
+    *automatically-convert-dashes-and-underscores*))
 
 ;;; #### DB Connection
 
@@ -83,16 +87,15 @@
 (defonce ^:private default-db-connection (atom nil))
 
 (def ^:dynamic *db-connection*
-  "Bind this to override the default DB connection used by `toucan.db` functions.
-   Provided for situations where you'd like to connect to a DB other than the primary application DB,
-   or connect to it with different connection options."
+  "Bind this to override the default DB connection used by `toucan.db` functions. Provided for situations where you'd
+  like to connect to a DB other than the primary application DB, or connect to it with different connection options."
   nil)
 
 (defn set-default-db-connection!
-  "Set the JDBC connecton details map for the default application DB connection.
-   This connection is used by default by the various `toucan.db` functions.
+  "Set the JDBC connecton details map for the default application DB connection. This connection is used by default by
+  the various `toucan.db` functions.
 
-   DB-CONNECTION-MAP is passed directly to `clojure.java.jdbc`; it can be anything that is accepted by it.
+   `db-connection-map` is passed directly to `clojure.java.jdbc`; it can be anything that is accepted by it.
 
      (db/set-default-db-connection!
        {:classname   \"org.postgresql.Driver\"
@@ -112,11 +115,11 @@
   nil)
 
 (defn connection
-  "Fetch the JDBC connection details for passing to `clojure.java.jdbc`.
-   Returns `*db-connection*`, if it is set; otherwise `*transaction-connection*`, if we're inside a `transaction`
-   (this is bound automatically); otherwise the default DB connection, set by `set-default-db-connection!`.
+  "Fetch the JDBC connection details for passing to `clojure.java.jdbc`. Returns `*db-connection*`, if it is set;
+  otherwise `*transaction-connection*`, if we're inside a `transaction` (this is bound automatically); otherwise the
+  default DB connection, set by `set-default-db-connection!`.
 
-   If no DB connection has been set this function will throw an exception."
+  If no DB connection has been set this function will throw an exception."
   []
   (or *db-connection*
       *transaction-connection*
@@ -141,8 +144,8 @@
 ;;; ==================================================================================================================
 
 (def ^:dynamic ^Boolean *disable-db-logging*
-  "Should we disable logging for database queries? Normally `false`, but bind this to `true` to keep logging
-   from getting too noisy during operations that require a lot of DB access, like the sync process."
+  "Should we disable logging for database queries? Normally `false`, but bind this to `true` to keep logging from
+  getting too noisy during operations that require a lot of DB access, like the sync process."
   false)
 
 (defn- model-symb->ns
@@ -179,15 +182,15 @@
     :else                        (throw (Exception. (str "Invalid model: " model)))))
 
 (defn quote-fn
-  "The function that JDBC should use to quote identifiers for our database.
-   This is passed as the `:entities` option to functions like `jdbc/insert!`."
+  "The function that JDBC should use to quote identifiers for our database. This is passed as the `:entities` option
+  to functions like `jdbc/insert!`."
   []
   ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public
 
 
 (def ^:private ^:dynamic *call-count*
-  "Atom used as a counter for DB calls when enabled.
-   This number isn't *perfectly* accurate, only mostly; DB calls made directly to JDBC won't be logged."
+  "Atom used as a counter for DB calls when enabled. This number isn't *perfectly* accurate, only mostly; DB calls
+  made directly to JDBC won't be logged."
   nil)
 
 (defn -do-with-call-counting
@@ -200,18 +203,17 @@
     (f (partial deref *call-count*))))
 
 (defmacro with-call-counting
-  "Execute BODY and track the number of DB calls made inside it. CALL-COUNT-FN-BINDING is bound to a zero-arity
-   function that can be used to fetch the current DB call count.
+  "Execute `body` and track the number of DB calls made inside it. `call-count-fn-binding` is bound to a zero-arity
+  function that can be used to fetch the current DB call count.
 
-     (db/with-call-counting [call-count]
-       ...
+     (db/with-call-counting [call-count] ...
        (call-count))"
   {:style/indent 1}
   [[call-count-fn-binding] & body]
   `(-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
 
 (defmacro debug-count-calls
-  "Print the number of DB calls executed inside BODY to `stdout`. Intended for use during REPL development."
+  "Print the number of DB calls executed inside `body` to `stdout`. Intended for use during REPL development."
   {:style/indent 0}
   [& body]
   `(with-call-counting [call-count#]
@@ -232,14 +234,14 @@
 (def ^:dynamic ^:private *debug-print-queries* false)
 
 (defn -do-with-debug-print-queries
-  "Execute F with debug query logging enabled. Don't use this directly; prefer the `debug-print-queries` macro form
+  "Execute `f` with debug query logging enabled. Don't use this directly; prefer the `debug-print-queries` macro form
   instead."
   [f]
   (binding [*debug-print-queries* true]
     (f)))
 
 (defmacro debug-print-queries
-  "Print the HoneySQL and SQL forms of any queries executed inside BODY to `stdout`. Intended for use during REPL
+  "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
   development."
   {:style/indent 0}
   [& body]
@@ -247,16 +249,16 @@
 
 
 (defn- honeysql->sql
-  "Compile HONEYSQL-FORM to SQL.
+  "Compile `honeysql-form` to SQL.
   This returns a vector with the SQL string as its first item and prepared statement params as the remaining items."
   [honeysql-form]
   {:pre [(map? honeysql-form)]}
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form,
-                                                 :quoting (quoting-style),
-                                                 :allow-dashed-names? (allow-dashed-names)))]
+                                    (hsql/format honeysql-form
+                                      :quoting             (quoting-style)
+                                      :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -267,14 +269,20 @@
     sql+args))
 
 (defn query
-  "Compile HONEYSQL-FROM and call `jdbc/query` against the application database.
-   Options are passed along to `jdbc/query`."
+  "Compile `honeysql-from` and call `jdbc/query` against the application database. Options are passed along to
+  `jdbc/query`."
   [honeysql-form & {:as options}]
   (jdbc/query (connection) (honeysql->sql honeysql-form) options))
 
+(defn reducible-query
+  "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
+  to `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
+  [honeysql-form & {:as options}]
+  (jdbc/reducible-query (connection) (honeysql->sql honeysql-form) options))
+
 
 (defn qualify
-  "Qualify a FIELD-NAME name with the name its ENTITY. This is necessary for disambiguating fields for HoneySQL
+  "Qualify a `field-name` name with the name its `entity`. This is necessary for disambiguating fields for HoneySQL
   queries that contain joins.
 
      (db/qualify 'CardFavorite :id) -> :report_cardfavorite.id"
@@ -284,14 +292,14 @@
     (hsql/qualify (:table (resolve-model model)) field-name)))
 
 (defn qualified?
-  "Is FIELD-NAME qualified by (e.g. with its table name)?"
+  "Is `field-name` qualified (e.g. with its table name)?"
   ^Boolean [field-name]
   (if (vector? field-name)
     (qualified? (first field-name))
     (boolean (re-find #"\." (name field-name)))))
 
 (defn- maybe-qualify
-  "Qualify FIELD-NAME with its table name if it's not already qualified."
+  "Qualify `field-name` with its table name if it's not already qualified."
   ^clojure.lang.Keyword [model field-name]
   (if (qualified? field-name)
     field-name
@@ -299,7 +307,7 @@
 
 
 (defn- model->fields
-  "Get the fields that should be used in a query, destructuring ENTITY if it's wrapped in a vector, otherwise
+  "Get the fields that should be used in a query, destructuring `entity` if it's wrapped in a vector, otherwise
    calling `default-fields`. This will return `nil` if the model isn't wrapped in a vector and uses the default
    implementation of `default-fields`.
 
@@ -313,66 +321,93 @@
         (maybe-qualify model field)))
     (models/default-fields (resolve-model model))))
 
-(defn- replace-underscore [^Keyword k]
-  (let [k-str (name k)]
-    (if (string/index-of k-str \_)
-      (keyword (string/replace k-str \_ \-))
-      k)))
+(defn- replace-underscores
+  "Replace underscores in `k` with dashes. In other words, converts a keyword from `:snake_case` to `:lisp-case`.
 
-(defn- transform-keys [f m]
+     (replace-underscores :2_cans) ; -> :2-cans"
+  ^clojure.lang.Keyword [k]
+  ;; if k is not a string or keyword don't transform it
+  (if-not ((some-fn string? keyword?) k)
+    k
+    (let [k-str (u/keyword->qualified-name k)]
+      (if (s/index-of k-str \_)
+        (keyword (s/replace k-str \_ \-))
+        k))))
+
+(defn- transform-keys
+  "Replace the keys in any maps in `x` with the result of `(f key)`. Recursively walks `x` using `clojure.walk`."
+  [f x]
   (walk/postwalk
-    (fn [x]
-      (if (map? x)
-        (into {} (map
-                   (fn [[k v]]
-                     [(f k) v])
-                   x))
-        x))
-    m))
+   (fn [y]
+     (if-not (map? y)
+       y
+       (into {} (for [[k v] y]
+                  [(f k) v]))))
+   x))
 
 (defn do-post-select
-  "Perform post-processing for objects fetched from the DB.
-   Convert results OBJECTS to ENTITY record types and call the model's `post-select` method on them."
+  "Perform post-processing for objects fetched from the DB. Convert results `objects` to `entity` record types and
+  call the model's `post-select` method on them."
   {:style/indent 1}
   [model objects]
-  (let [model (resolve-model model)
-        post-select (if (allow-dashed-names) identity (partial transform-keys replace-underscore))]
+  (let [model            (resolve-model model)
+        key-transform-fn (if-not (automatically-convert-dashes-and-underscores?)
+                           identity
+                           (partial transform-keys replace-underscores))]
     (vec (for [object objects]
-           (models/do-post-select model (post-select object))))))
+           (models/do-post-select model (key-transform-fn object))))))
+
+(defn- merge-select-and-from
+  "Includes projected fields and a from clause for `honeysql-form`. Will not override if already present."
+  [resolved-model honeysql-form]
+  (merge {:select (or (models/default-fields resolved-model)
+                      [:*])
+          :from   [resolved-model]}
+         honeysql-form))
 
 (defn simple-select
   "Select objects from the database.
 
-   Like `select`, but doesn't offer as many conveniences, so prefer that instead; like `select`,
-   `simple-select` callts `post-select` on the results, but unlike `select`, only accepts a single
-   raw HoneySQL form as an argument.
+  Like `select`, but doesn't offer as many conveniences, so prefer that instead; like `select`,
+  `simple-select` callts `post-select` on the results, but unlike `select`, only accepts a single
+  raw HoneySQL form as an argument.
 
-     (db/simple-select 'User {:where [:= :id 1]})"
+    (db/simple-select 'User {:where [:= :id 1]})"
   {:style/indent 1}
   [model honeysql-form]
   (let [model (resolve-model model)]
-    (do-post-select model (query (merge {:select (or (models/default-fields model)
-                                                     [:*])
-                                          :from   [model]}
-                                        honeysql-form)))))
+    (do-post-select model (query (merge-select-and-from model honeysql-form)))))
+
+(defn simple-select-reducible
+  "Select objects from the database.
+
+  Same as `simple-select`, but returns something reducible instead of a result set. Like `simple-select`, will call
+  `post-select` on the results, but will do so lazily.
+
+    (transduce (filter can-read?) conj [] (simple-select-reducible 'User {:where [:= :id 1]}))"
+  {:style/indent 1}
+  [model honeysql-form]
+  (let [model (resolve-model model)]
+    (eduction (map #(models/do-post-select model %))
+              (reducible-query (merge-select-and-from model honeysql-form)))))
 
 (defn simple-select-one
   "Select a single object from the database.
 
-   Like `select-one`, but doesn't offer as many conveniences, so prefer that instead; like `select-one`,
-   `simple-select-one` callts `post-select` on the results, but unlike `select-one`, only accepts a single
-   raw HoneySQL form as an argument.
+  Like `select-one`, but doesn't offer as many conveniences, so prefer that instead; like `select-one`,
+  `simple-select-one` callts `post-select` on the results, but unlike `select-one`, only accepts a single raw HoneySQL
+  form as an argument.
 
-     (db/simple-select-one 'User (h/where [:= :first-name \"Cam\"]))"
+    (db/simple-select-one 'User (h/where [:= :first-name \"Cam\"]))"
   ([model]
    (simple-select-one model {}))
   ([model honeysql-form]
    (first (simple-select model (h/limit honeysql-form 1)))))
 
 (defn execute!
-  "Compile HONEYSQL-FORM and call `jdbc/execute!` against the application DB.
-   OPTIONS are passed directly to `jdbc/execute!` and can be things like `:multi?` (default `false`)
-   or `:transaction?` (default `true`)."
+  "Compile `honeysql-form` and call `jdbc/execute!` against the application DB.
+  `options` are passed directly to `jdbc/execute!` and can be things like `:multi?` (default `false`) or
+  `:transaction?` (default `true`)."
   [honeysql-form & {:as options}]
   (jdbc/execute! (connection) (honeysql->sql honeysql-form) options))
 
@@ -388,14 +423,13 @@
    honeysql-form) ; no-op
 
   ([honeysql-form m]
-
    (apply where honeysql-form (apply concat m)))
 
   ([honeysql-form k v]
    (h/merge-where honeysql-form (if (vector? v)
-                                  (let [[f v] v] ; e.g. :id [:!= 1] -> [:!= :id 1]
+                                  (let [[f & args] v] ; e.g. :id [:!= 1] -> [:!= :id 1]
                                     (assert (keyword? f))
-                                    [f k v])
+                                    (vec (cons f (cons k args))))
                                   [:= k v])))
 
   ([honeysql-form k v & more]
@@ -403,16 +437,16 @@
 
 (defn- where+
   "Generate a HoneySQL form, converting pairs of arguments with keywords into a `where` clause, and merging other
-   HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So called because it handles
-   `where` *plus* other clauses).
+  HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So-called because it handles `where`
+  *plus* other clauses).
 
      (where+ {} [:id 1 {:limit 10}]) -> {:where [:= :id 1], :limit 10}"
-  [honeysql-form options]
-  (loop [honeysql-form honeysql-form, [first-option & [second-option & more, :as butfirst]] options]
+  [honeysql-form args]
+  (loop [honeysql-form honeysql-form, [first-arg & [second-arg & more, :as butfirst]] args]
     (cond
-      (keyword? first-option) (recur (where honeysql-form first-option second-option) more)
-      first-option            (recur (merge honeysql-form first-option)               butfirst)
-      :else                   honeysql-form)))
+      (keyword? first-arg) (recur (where honeysql-form first-arg second-arg) more)
+      first-arg            (recur (merge honeysql-form first-arg)            butfirst)
+      :else                honeysql-form)))
 
 
 ;;; ### UPDATE!
@@ -421,9 +455,9 @@
   (not (nil? (find-protocol-method models/IModel methodk model))))
 
 (defn update!
-  "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise.
-   Accepts either a single map of updates to make or kwargs. ENTITY is automatically resolved,
-   and `pre-update` is called on KVS before the object is inserted into the database.
+  "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise. Accepts either a
+  single map of updates to make or kwargs. `entity` is automatically resolved, and `pre-update` is called on `kvs`
+  before the object is inserted into the database.
 
      (db/update! 'Label 11 :name \"ToucanFriendly\")
      (db/update! 'Label 11 {:name \"ToucanFriendly\"})"
@@ -450,8 +484,8 @@
    (update! model id (apply array-map k v more))))
 
 (defn update-where!
-  "Convenience for updating several objects matching CONDITIONS-MAP. Returns `true` if any objects were affected.
-   For updating a single object, prefer using `update!`, which calls ENTITY's `pre-update` method first.
+  "Convenience for updating several objects matching `conditions-map`. Returns `true` if any objects were affected.
+  For updating a single object, prefer using `update!`, which calls `entity`'s `pre-update` method first.
 
      (db/update-where! Table {:name  table-name
                               :db_id (:id database)}
@@ -475,20 +509,24 @@
 
 ;;; ### INSERT!
 
-(defn- insert-id-key
-  "The keyword name of the ID column of a newly inserted row returned by `jdbc/insert!`."
-  ^clojure.lang.Keyword []
-  (case (quoting-style)
-    :ansi      :id
-    :sqlserver :id                            ; not sure this is correct :/
-    :mysql     :generated_key
-    :h2        (keyword "scope_identity()")))
+(defn get-inserted-id
+  "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
+  [insert-result]
+  (or
+    ;; Postgres, newer H2, and most others return :id
+    (:id insert-result)
+    ;; :generated_key is returned by MySQL
+    (:generated_key insert-result)
+    ;; scope_identity() returned by older versions of H2
+    ((keyword "scope_identity()") insert-result)
+    ;; last_insert_rowid() returned by SQLite3
+    ((keyword "last_insert_rowid()") insert-result)))
 
 (defn simple-insert-many!
   "Do a simple JDBC `insert!` of multiple objects into the database.
-   Normally you should use `insert-many!` instead, which calls the model's `pre-insert` method on the ROW-MAPS;
-   `simple-insert-many!` is offered for cases where you'd like to specifically avoid this behavior.
-   Returns a sequences of IDs of newly inserted objects.
+  Normally you should use `insert-many!` instead, which calls the model's `pre-insert` method on the `row-maps`;
+  `simple-insert-many!` is offered for cases where you'd like to specifically avoid this behavior. Returns a sequences
+  of IDs of newly inserted objects.
 
      (db/simple-insert-many! 'Label [{:name \"Toucan Friendly\"}
                                      {:name \"Bird Approved\"}]) ;;=> (38 39)"
@@ -496,18 +534,20 @@
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model    (resolve-model model)
-          to-sql   (fn [row] (honeysql->sql {:insert-into model :values [row]}))
-          do-query (fn [qry] (jdbc/db-do-prepared-return-keys (connection) false qry {}))]
-      (doall (map (comp (insert-id-key) do-query to-sql) row-maps)))))
+    (let [model (resolve-model model)]
+      (doall
+       (for [row-map row-maps
+             :let    [sql (honeysql->sql {:insert-into model, :values [row-map]})]]
+         (-> (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
+             get-inserted-id))))))
 
 (defn insert-many!
-  "Insert several new rows into the Database. Resolves ENTITY, and calls `pre-insert` on each of the ROW-MAPS.
-   Returns a sequence of the IDs of the newly created objects.
+  "Insert several new rows into the Database. Resolves `entity`, and calls `pre-insert` on each of the `row-maps`.
+  Returns a sequence of the IDs of the newly created objects.
 
-   Note: this *does not* call `post-insert` on newly created objects. If you need `post-insert` behavior, use
-   `insert!` instead. (This might change in the future: there is an [open issue to consider
-   this](https://github.com/metabase/toucan/issues/4)).
+  Note: this *does not* call `post-insert` on newly created objects. If you need `post-insert` behavior, use
+  `insert!` instead. (This might change in the future: there is an [open issue to consider
+  this](https://github.com/metabase/toucan/issues/4)).
 
      (db/insert-many! 'Label [{:name \"Toucan Friendly\"}
                               {:name \"Bird Approved\"}]) -> [38 39]"
@@ -519,12 +559,12 @@
 
 (defn simple-insert!
   "Do a simple JDBC `insert` of a single object.
-   This is similar to `insert!` but returns the ID of the newly created object rather than the object itself,
-   and does not call `pre-insert` or `post-insert`.
+  This is similar to `insert!` but returns the ID of the newly created object rather than the object itself,
+  and does not call `pre-insert` or `post-insert`.
 
      (db/simple-insert! 'Label :name \"Toucan Friendly\") -> 1
 
-   Like `insert!`, `simple-insert!` can be called with either a single ROW-MAP or kv-style arguments."
+  Like `insert!`, `simple-insert!` can be called with either a single `row-map` or kv-style arguments."
   {:style/indent 1}
   ([model row-map]
    {:pre [(map? row-map) (every? keyword? (keys row-map))]}
@@ -533,11 +573,11 @@
    (simple-insert! model (apply array-map k v more))))
 
 (defn insert!
-  "Insert a new object into the Database. Resolves ENTITY, calls its `pre-insert` method on ROW-MAP to prepare
-   it before insertion; after insert, it fetches and the newly created object, passes it to `post-insert`, and
-   returns the results.
+  "Insert a new object into the Database. Resolves `entity`, calls its `pre-insert` method on `row-map` to prepare
+  it before insertion; after insert, it fetches and the newly created object, passes it to `post-insert`, and
+  returns the results.
 
-   For flexibility, `insert!` can handle either a single map or individual kwargs:
+  For flexibility, `insert!` can handle either a single map or individual kwargs:
 
      (db/insert! Label {:name \"Toucan Unfriendly\"})
      (db/insert! 'Label :name \"Toucan Friendly\")"
@@ -566,7 +606,7 @@
     (simple-select-one model (where+ {:select (or fields [:*])} options))))
 
 (defn select-one-field
-  "Select a single FIELD of a single object from the database.
+  "Select a single `field` of a single object from the database.
 
      (select-one-field :name 'Database :id 1) -> \"Sample Dataset\""
   {:style/indent 2}
@@ -602,6 +642,17 @@
                                             [:*])}
                                options)))
 
+(defn select-reducible
+  "Select objects from the database, returns a reducible.
+
+     (transduce (map :name) conj [] (select 'Database :name [:not= nil] {:limit 2}))
+        -> [\"name1\", \"name2\"]"
+  {:style/indent 1}
+  [model & options]
+  (simple-select-reducible model (where+ {:select (or (model->fields model)
+                                                      [:*])}
+                                         options)))
+
 (defn select-field
   "Select values of a single field for multiple objects. These are returned as a set if any matching fields
    were returned, otherwise `nil`.
@@ -622,7 +673,7 @@
   (apply select-field :id model options))
 
 (defn select-field->field
-  "Select fields K and V from objects in the database, and return them as a map from K to V.
+  "Select fields `k` and `v` from objects in the database, and return them as a map from `k` to `v`.
 
      (select-field->field :id :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
   {:style/indent 3}
@@ -632,7 +683,7 @@
              {(k result) (v result)})))
 
 (defn select-field->id
-  "Select FIELD and `:id` from objects in the database, and return them as a map from FIELD to `:id`.
+  "Select FIELD and `:id` from objects in the database, and return them as a map from `field` to `:id`.
 
      (select-field->id :name 'Database) -> {\"Sample Dataset\" 1, \"test-data\" 2}"
   {:style/indent 2}
@@ -640,7 +691,7 @@
   (apply select-field->field field :id model options))
 
 (defn select-id->field
-  "Select FIELD and `:id` from objects in the database, and return them as a map from `:id` to FIELD.
+  "Select `field` and `:id` from objects in the database, and return them as a map from `:id` to `field`.
 
      (select-id->field :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
   {:style/indent 2}
@@ -652,8 +703,10 @@
 
 (defn exists?
   "Easy way to see if something exists in the DB.
+
     (db/exists? User :id 100)
-   NOTE: This only works for objects that have an `:id` field."
+
+  NOTE: This only works for objects that have an `:id` field."
   {:style/indent 1}
   ^Boolean [model & kvs]
   (boolean (select-one model (apply where (h/select {} :id) kvs))))
@@ -663,13 +716,13 @@
 
 (defn simple-delete!
   "Delete an object or objects from the application DB matching certain constraints.
-   Returns `true` if something was deleted, `false` otherwise.
+  Returns `true` if something was deleted, `false` otherwise.
 
      (db/simple-delete! 'Label)                ; delete all Labels
      (db/simple-delete! Label :name \"Cam\")   ; delete labels where :name == \"Cam\"
      (db/simple-delete! Label {:name \"Cam\"}) ; for flexibility either a single map or kwargs are accepted
 
-   Unlike `delete!`, this does not call `pre-delete` on the object about to be deleted."
+  Unlike `delete!`, this does not call `pre-delete` on the object about to be deleted."
   {:style/indent 1}
   ([model]
    (simple-delete! model {}))
@@ -683,15 +736,16 @@
 
 (defn delete!
   "Delete of object(s). For each matching object, the `pre-delete` multimethod is called, which should do
-   any cleanup needed before deleting the object, (such as deleting objects related to the object about to
-   be deleted), or otherwise enforce preconditions before deleting (such as refusing to delete the object if
-   something else depends on it).
+  any cleanup needed before deleting the object, (such as deleting objects related to the object about to
+  be deleted), or otherwise enforce preconditions before deleting (such as refusing to delete the object if
+  something else depends on it).
 
      (delete! Database :id 1)
 
-   NOTE: This function assumes objects have an `:id` column. There's an [open
-   issue](https://github.com/metabase/toucan/issues/3) to support objects that don't have one; until that is resolved,
-   you'll have to use `simple-delete!` instead when deleting objects with no `:id`." {:style/indent 1}
+  NOTE: This function assumes objects have an `:id` column. There's an [open
+  issue](https://github.com/metabase/toucan/issues/3) to support objects that don't have one; until that is resolved,
+  you'll have to use `simple-delete!` instead when deleting objects with no `:id`."
+  {:style/indent 1}
   [model & conditions]
   (let [model (resolve-model model)]
     (doseq [object (apply select model conditions)]

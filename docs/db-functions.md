@@ -22,8 +22,8 @@ The `select` family of functions is used to retrieve objects from the database.
 (db/select User) -> [...] ; return a sequence of Users
 ```
 
-`select` returns a sequence of model instances. You can restrict the set of values returned by passing key-value pairs of columns
-and values:
+`select` returns a eagerly fetched sequence of model instances. You can restrict the set of values returned by passing key-value
+pairs of columns and values:
 
 ##### Using key-value args to restrict results returned
 
@@ -228,6 +228,27 @@ syntax similar to the `select` family of functions, but returns a Boolean value:
 (db/exists? User :first-name "Cam") ; -> true
 (db/exists? User :first-name "Spam") ; -> false
 ```
+
+### select-reducible
+
+Using `select` will realize the full set of results in memory. For smaller sets of results this is fine but queries that
+could potentially return many rows, this could cause memory issues. `select-reducible` is an similar function to `select`,
+but will return a reducible sequence instead of a vector. Using this, it's possible to consume the query results as they
+are streamed from the database. Using this, you can avoid fully realizing the set of results in memory.
+
+```clj
+;; Send every active user a push notification!
+(run! send-push-notification!
+      (db/select-reducible User :active true))
+
+;; Select every active user, filter some out with complex-filter-logic-fn,
+;; and serialize the rest to a streaming HTTP response
+(transduce (filter complex-filter-logic-fn)
+           serialize-to-http-response
+           (db/select-reducible User :active true))
+```
+
+With `select-reducible`, rows are processed as they are streamed from the database.
 
 ### Inserting objects
 
@@ -471,7 +492,13 @@ There's more benefits to having record-typed objects. You can also call any `IMo
 Toucan makes it easy to run queries inside transactions with the `transaction` macro.
 
 ```clojure
+(require '[honeysql.core :as hsql])
+
+;; send some money from User 1 to User 2.
 (db/transaction
+  (db/update! User 1 :account_balance (hsql/call :- :account_balance 100)  ; SET account_balance = account_balance - 100
+  (db/update! User 2 :account_balance (hsql/call :+ :account_balance 100)) ; SET account_balance = account_balance + 100
+```
 
 ### Raw HoneySQL Queries with query and execute!
 

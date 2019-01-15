@@ -57,25 +57,44 @@ FROM `users`
 LIMIT 1
 ```
 
-The quoting style is passed directly to HoneySQL and can be anything it supports. At the time of this writing, it supports `:ansi`
-(Toucan's default), `:mysql`, or [legacy] `:sqlserver` (i.e., square brackets around identifiers).
+The quoting style is passed directly to HoneySQL and can be anything it supports. At the time of this writing, it supports `:ansi` (Toucan's default), `:mysql`, or [legacy] `:sqlserver` (i.e., square brackets around identifiers).
 
-### Configuring Allowed Dashed Names
+Note that you can also temporarily change the value by binding `db/*quoting-style*`.
 
-Toucan by default tells HoneySQL to allow dashes in field names using the `:allow-dashed-names` argument 
-(see [HoneySQL Readme](https://github.com/jkk/honeysql/blob/master/README.md#usage)). 
-If disabled, field names are converted to contain underscore:
+### Automatically Converting Dashes and Underscores
+
+Toucan by default does not do any special transformations to identifiers for either queries going in to the database or for results coming out of the database. For example, suppose we have a model
+named `Address` with a column `street_name`. Normal usage with this model will look something like:
 
 ```clojure
-;database column is address.street_name
-(db/select-one [Address :street_name]) 
-;; -> {:street_name "1 Toucan Drive"}
-
-(db/set-default-allow-dashed-names! false)
-
-(db/select-one [Address :street-name])
-;; -> {:street-name "1 Toucan Drive"}
+;; with default behavior (automatically-convert-dashes-and-underscores = false)
+(db/select-one [Address :street_name]) ; Query looks like 'SELECT "street_name" FROM address'
+;; -> {:street_name "1 Toucan Drive"}  ; no transformation is done to result row keys
 ```
+
+Note that you cannot use dashed keywords in this case:
+
+```clojure
+;; Query looks like 'SELECT "street-name" FROM address'; this fails because column name is wrong
+(db/select-one [Address :street-name])
+```
+
+Since `snake_case` names aren't particularly Lispy, you can have Toucan automatically replace dashes with underscores in queries going in to the DB, *and* replace underscores in query result row keys
+with dashes coming out of the database:
+
+```clojure
+(db/select-one [Address :street-name]) ; Query still looks like 'SELECT "street_name" FROM address'
+;; -> {:street-name "1 Toucan Drive"}  ; keys in result rows are transformed from snake_case to lisp-case
+```
+
+This behavior can be enabled either by binding `db/*automatically-convert-dashes-and-underscores*` or by calling `(db/set-default-automatically-convert-dashes-and-underscores! true)`.
+
+Note that enabling this behavior will render you unable to access any columns in your database that have dashed names, since HoneySQL will assume dashes in identifiers represent underscores and convert
+them accordingly.
+
+For the curious: under the hood, this is done by a combination of setting HoneySQL's [`:allow-dashed-names?` option](https://github.com/jkk/honeysql/blob/master/README.md#usage) to `false`, and by
+walking the results of queries to transform keys in a map.
+
 
 ## Configuring the Root Model Namespace
 

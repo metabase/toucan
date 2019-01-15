@@ -7,8 +7,9 @@
    *  `post-insert`                 -- which adds IDs of newly created Categories to a \"moderation queue\";
    *  `pre-delete`                  -- which deletes child Categories when deleting a Category;"
   (:require [clojure.string :as s]
-            (toucan [db :as db]
-                    [models :as models])))
+            [toucan
+             [db :as db]
+             [models :as models]]))
 
 (defn- maybe-lowercase-string [s]
   (when s
