@@ -32,4 +32,7 @@
                               :exclude-namespaces [:test-paths]}}}
   :docstring-checker {:include [#"^toucan"]
                       :exclude [#"test"]}
-  :deploy-repositories [["clojars" {:sign-releases false}]])
+  :deploy-repositories [["clojars" {:url           "https://clojars.org/repo"
+                                    :username      :env/clojars_username
+                                    :password      :env/clojars_password
+                                    :sign-releases false}]])
