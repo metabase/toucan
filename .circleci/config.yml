@@ -17,15 +17,22 @@ jobs:
       - run: './start-db'
       - run: 'lein test && lein lint'
 
-#  snapshot:
-#    # set version to version-branch-snapshot
-#
+  snapshot:
+    - run: 'echo "$(cat VERSION)-{{ .Branch }}-SNAPSHOT"'
+    # set version to version-branch-snapshot
+
 #  deploy:
 #    # deploy
 
 
 workflows:
   version: 2
-  test_deploy:
+  test_snapshot_deploy:
+    filters:
+      branches:
+        ignore: 'master'
     jobs:
       - test
+      - snapshot:
+          requires:
+            - test
