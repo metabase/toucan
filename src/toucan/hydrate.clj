@@ -1,10 +1,8 @@
 (ns toucan.hydrate
   "Functions for deserializing and hydrating fields in objects fetched from the DB."
-  (:require [clojure.java.classpath :as classpath]
-            [clojure.string :as s]
-            [clojure.tools.namespace.find :as ns-find]
-            (toucan [db :as db]
-                    [models :as models])))
+  (:require [toucan
+             [db :as db]
+             [models :as models]]))
 
 ;;;                                       Counts Destructuring & Restructuring
 ;;; ==================================================================================================================
