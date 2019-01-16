@@ -75,7 +75,7 @@ jobs:
           command: lein eastwood
           no_output_timeout: 5m
 
-  lint-docstring-checker:
+  lint-docstrings:
     working_directory: /home/circleci/metabase/toucan
     docker:
       - image: circleci/clojure:lein-2.8.1
@@ -85,6 +85,18 @@ jobs:
       - run:
           name: Run Docstring Checker linter
           command: lein docstring-checker
+          no_output_timeout: 5m
+
+  lint-namespace-decls:
+    working_directory: /home/circleci/metabase/toucan
+    docker:
+      - image: circleci/clojure:lein-2.8.1
+    steps:
+      - attach_workspace:
+          at: /home/circleci
+      - run:
+          name: Run ns declaration checker
+          command: lein check-namespace-decls
           no_output_timeout: 5m
 
   deploy:
@@ -112,7 +124,10 @@ workflows:
       - lint-eastwood:
           requires:
             - checkout
-      - lint-docstring-checker:
+      - lint-docstrings:
+          requires:
+            - checkout
+      - lint-namespace-decls:
           requires:
             - checkout
       - deploy:
@@ -121,7 +136,8 @@ workflows:
             - test
             - lint-bikeshed
             - lint-eastwood
-            - lint-docstring-checker
+            - lint-docstrings
+            - lint-namespace-decls
           filters:
             branches:
               only: master
