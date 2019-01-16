@@ -1,9 +1,0 @@
-machine:
-  timezone:
-    America/Los_Angeles
-  environment:
-    TOUCAN_TEST_DB_NAME: circle_test
-    TOUCAN_TEST_DB_USER: ubuntu
-test:
-  override:
-    - lein test && lein lint

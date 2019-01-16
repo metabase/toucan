@@ -1,4 +1,6 @@
-(defproject toucan "1.1.9"
+(def VERSION (.trim (slurp "VERSION")))
+
+(defproject toucan VERSION
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
   :license {:name "Eclipse Public License"
@@ -30,4 +32,7 @@
                               :exclude-namespaces [:test-paths]}}}
   :docstring-checker {:include [#"^toucan"]
                       :exclude [#"test"]}
-  :deploy-repositories [["clojars" {:sign-releases false}]])
+  :deploy-repositories [["clojars" {:url           "https://clojars.org/repo"
+                                    :username      :env/clojars_username
+                                    :password      :env/clojars_password
+                                    :sign-releases false}]])

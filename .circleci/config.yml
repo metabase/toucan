@@ -1,0 +1,45 @@
+version: 2.1
+executors:
+  toucan-executor:
+    machine: true
+    environment:
+      TZ: America/Los_Angeles
+      TOUCAN_TEST_DB_NAME: circle_test
+      TOUCAN_TEST_DB_USER: ubuntu
+jobs:
+  test:
+    executor: toucan-executor
+    steps:
+      - checkout
+      - run: ./start-db
+      - run: lein test && lein lint
+  snapshot:
+    executor: toucan-executor
+    steps:
+      - checkout
+      - run: echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION
+      - run: lein deploy clojars
+  deploy:
+    executor: toucan-executor
+    steps:
+      - checkout
+      - run: lein deploy clojars
+workflows:
+  version: 2
+  test_snapshot_deploy:
+    jobs:
+      - test
+      - snapshot:
+          context: clojars
+          requires:
+            - test
+          filters:
+            branches:
+              ignore: master
+      - deploy:
+          context: clojars
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
