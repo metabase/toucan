@@ -116,7 +116,6 @@ workflows:
           requires:
             - checkout
       - deploy:
-          context: clojars
           requires:
             - test
             - lint-bikeshed
