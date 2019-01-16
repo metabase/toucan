@@ -1,45 +1,95 @@
 version: 2.1
-executors:
-  toucan-executor:
-    machine: true
-    environment:
-      TZ: America/Los_Angeles
-      TOUCAN_TEST_DB_NAME: circle_test
-      TOUCAN_TEST_DB_USER: ubuntu
 jobs:
+  checkout:
+    working_directory: /home/circleci/metabase/toucan
+    docker:
+      - image: circleci/clojure:lein-2.8.1
+    steps:
+      # Checkout source
+      - restore_cache:
+          keys:
+            - source-{{ .Branch }}-{{ .Revision }}
+            - source-{{ .Branch }}
+            - source-
+      - checkout
+      - save_cache:
+          key: source-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - .git
+      # Fetch deps
+      - restore_cache:
+          keys:
+            - be-deps-{{ checksum "project.clj" }}
+            - be-deps-
+      - run: lein deps
+      - save_cache:
+          key: be-deps-{{ checksum "project.clj" }}
+          paths:
+            - /home/circleci/.m2
+      # persist so other steps can use it
+      - persist_to_workspace:
+          root: /home/circleci/
+          paths:
+            - .m2
+            - metabase/toucan
+
   test:
-    executor: toucan-executor
+    working_directory: /home/circleci/metabase/toucan
+    docker:
+      - image: circleci/clojure:lein-2.8.1
+      - image: circleci/postgres:9.6-alpine
+        environment:
+          POSTGRES_USER: toucan_test
+          POSTGRES_DB: toucan_test
     steps:
-      - checkout
-      - run: ./start-db
-      - run: lein test && lein lint
-  snapshot:
-    executor: toucan-executor
+      - attach_workspace:
+          at: /home/circleci
+      - run:
+          name: Run tests
+          environment:
+            TOUCAN_TEST_DB_USER: toucan_test
+          command: lein test
+          no_output_timeout: 5m
+
+  lint:
+    working_directory: /home/circleci/metabase/toucan
+    docker:
+      - image: circleci/clojure:lein-2.8.1
     steps:
-      - checkout
-      - run: echo "$(cat VERSION)-$CIRCLE_BRANCH-SNAPSHOT" > VERSION
-      - run: lein deploy clojars
+      - attach_workspace:
+          at: /home/circleci
+      - run:
+          name: Run linters
+          command: lein lint
+          no_output_timeout: 5m
+
   deploy:
-    executor: toucan-executor
+    working_directory: /home/circleci/metabase/toucan
+    docker:
+      - image: circleci/clojure:lein-2.8.1
     steps:
-      - checkout
-      - run: lein deploy clojars
+      - attach_workspace:
+          at: /home/circleci
+      - run:
+          name: Deploy to clojars
+          command: lein deploy clojars
+
 workflows:
   version: 2
-  test_snapshot_deploy:
+  build:
     jobs:
-      - test
-      - snapshot:
-          context: clojars
+      - checkout
+      - test:
           requires:
-            - test
-          filters:
-            branches:
-              ignore: master
+            - checkout
+      - lint:
+          requires:
+            - checkout
       - deploy:
           context: clojars
           requires:
             - test
+            - lint
           filters:
             branches:
               only: master

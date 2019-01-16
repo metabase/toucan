@@ -1,6 +1,4 @@
-(def VERSION (.trim (slurp "VERSION")))
-
-(defproject toucan VERSION
+(defproject toucan "1.10.0-SNAPSHOT"
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
   :license {:name "Eclipse Public License"
