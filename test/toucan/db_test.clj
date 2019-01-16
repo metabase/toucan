@@ -301,6 +301,11 @@
  (test/with-clean-db
    (db/insert! User {:first-name "Grass" :last-name #sql/call [:upper "Hopper"]})))
 
+;; get-inserted-id shouldn't fail if nothing is returned for some reason
+(expect
+ nil
+ (db/get-inserted-id nil))
+
 ;; Test select-one
 (expect
   #toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}

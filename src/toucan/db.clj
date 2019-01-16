@@ -525,7 +525,8 @@
 (defn get-inserted-id
   "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
   [insert-result]
-  (some insert-result inserted-id-keys))
+  (when insert-result
+    (some insert-result inserted-id-keys)))
 
 (defn simple-insert-many!
   "Do a simple JDBC `insert!` of multiple objects into the database.
