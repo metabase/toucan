@@ -13,8 +13,7 @@
              [helpers :as h]]
             [toucan
              [models :as models]
-             [util :as u]])
-  (:import clojure.lang.Keyword))
+             [util :as u]]))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
@@ -247,18 +246,18 @@
   [& body]
   `(-do-with-debug-print-queries (fn [] ~@body)))
 
-
-(defn- honeysql->sql
+(defn honeysql->sql
   "Compile `honeysql-form` to SQL.
   This returns a vector with the SQL string as its first item and prepared statement params as the remaining items."
   [honeysql-form]
   {:pre [(map? honeysql-form)]}
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
-  (let [[sql & args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form
-                                      :quoting             (quoting-style)
-                                      :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
+  (let [[sql & args :as sql+args]
+        (binding [hformat/*subquery?* false]
+          (hsql/format honeysql-form
+                       :quoting             (quoting-style)
+                       :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format "\n%s\n%s" (format-sql sql) args)))
@@ -402,7 +401,7 @@
   ([model]
    (simple-select-one model {}))
   ([model honeysql-form]
-   (first (simple-select model (h/limit honeysql-form 1)))))
+   (first (simple-select model (h/limit honeysql-form (hsql/inline 1))))))
 
 (defn execute!
   "Compile `honeysql-form` and call `jdbc/execute!` against the application DB.
@@ -448,7 +447,6 @@
       first-arg            (recur (merge honeysql-form first-arg)            butfirst)
       :else                honeysql-form)))
 
-
 ;;; ### UPDATE!
 
 (defn- method-implemented? [^clojure.lang.Keyword methodk model]
@@ -470,11 +468,12 @@
 
   (^Boolean [model id kvs]
    {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
-   (let [model (resolve-model model)
-         kvs    (-> (models/do-pre-update model (assoc kvs :id id))
-                    (dissoc :id))
-         updated? (update! model (-> (h/sset {} kvs)
-                                     (where :id id)))]
+   (let [model       (resolve-model model)
+         primary-key (models/primary-key model)
+         kvs         (-> (models/do-pre-update model (assoc kvs primary-key id))
+                         (dissoc primary-key))
+         updated?    (update! model (-> (h/sset {} kvs)
+                                        (where primary-key id)))]
         (when (and updated?
                    (method-implemented? :post-update model))
           (models/post-update (model id)))
@@ -511,7 +510,7 @@
 
 (def ^:private inserted-id-keys
   "Different possible keys that might come back for the ID of a newly inserted row. Differs by DB."
-  [ ;; Postgres, newer H2, and most others return :id
+  [;; Postgres, newer H2, and most others return :id
    :id
    ;; :generated_key is returned by MySQL
    :generated_key
@@ -524,9 +523,9 @@
 
 (defn get-inserted-id
   "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
-  [insert-result]
+  [primary-key insert-result]
   (when insert-result
-    (some insert-result inserted-id-keys)))
+    (some insert-result (cons primary-key inserted-id-keys))))
 
 (defn simple-insert-many!
   "Do a simple JDBC `insert!` of multiple objects into the database.
@@ -540,12 +539,13 @@
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model (resolve-model model)]
+    (let [model       (resolve-model model)
+          primary-key (models/primary-key model)]
       (doall
        (for [row-map row-maps
              :let    [sql (honeysql->sql {:insert-into model, :values [row-map]})]]
-         (-> (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
-             get-inserted-id))))))
+         (->> (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
+              (get-inserted-id primary-key)))))))
 
 (defn insert-many!
   "Insert several new rows into the Database. Resolves `entity`, and calls `pre-insert` on each of the `row-maps`.
@@ -596,7 +596,6 @@
   ([model k v & more]
    (insert! model (apply array-map k v more))))
 
-
 ;;; ### SELECT
 
 ;; All of the following functions are based off of the old `sel` macro and can do things like select
@@ -627,7 +626,7 @@
   {:style/indent 1}
   [model & options]
   (let [model (resolve-model model)]
-    (apply select-one-field :id model options)))
+    (apply select-one-field (models/primary-key model) model options)))
 
 (defn count
   "Select the count of objects matching some condition.
@@ -676,7 +675,8 @@
      (select-ids 'Table :db_id 1) -> #{1 2 3 4}"
   {:style/indent 1}
   [model & options]
-  (apply select-field :id model options))
+  (let [model (resolve-model model)]
+    (apply select-field (models/primary-key model) model options)))
 
 (defn select-field->field
   "Select fields `k` and `v` from objects in the database, and return them as a map from `k` to `v`.
@@ -694,7 +694,8 @@
      (select-field->id :name 'Database) -> {\"Sample Dataset\" 1, \"test-data\" 2}"
   {:style/indent 2}
   [field model & options]
-  (apply select-field->field field :id model options))
+  (let [model (resolve-model model)]
+    (apply select-field->field field (models/primary-key model) model options)))
 
 (defn select-id->field
   "Select `field` and `:id` from objects in the database, and return them as a map from `:id` to `field`.
@@ -702,21 +703,19 @@
      (select-id->field :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
   {:style/indent 2}
   [field model & options]
-  (apply select-field->field :id field model options))
-
+  (let [model (resolve-model model)]
+    (apply select-field->field (models/primary-key model) field model options)))
 
 ;;; ### EXISTS?
 
 (defn exists?
   "Easy way to see if something exists in the DB.
 
-    (db/exists? User :id 100)
-
-  NOTE: This only works for objects that have an `:id` field."
+    (db/exists? User :id 100)"
   {:style/indent 1}
   ^Boolean [model & kvs]
-  (boolean (select-one model (apply where (h/select {} :id) kvs))))
-
+  (let [model (resolve-model model)]
+    (boolean (select-one-id model (apply where (h/select {} (models/primary-key model)) kvs)))))
 
 ;;; ### DELETE!
 
@@ -746,14 +745,11 @@
   be deleted), or otherwise enforce preconditions before deleting (such as refusing to delete the object if
   something else depends on it).
 
-     (delete! Database :id 1)
-
-  NOTE: This function assumes objects have an `:id` column. There's an [open
-  issue](https://github.com/metabase/toucan/issues/3) to support objects that don't have one; until that is resolved,
-  you'll have to use `simple-delete!` instead when deleting objects with no `:id`."
+     (delete! Database :id 1)"
   {:style/indent 1}
   [model & conditions]
-  (let [model (resolve-model model)]
+  (let [model       (resolve-model model)
+        primary-key (models/primary-key model)]
     (doseq [object (apply select model conditions)]
       (models/pre-delete object)
-      (simple-delete! model :id (:id object)))))
+      (simple-delete! model primary-key (primary-key object)))))

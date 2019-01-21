@@ -6,6 +6,7 @@
             [toucan.test-models
              [address :refer [Address]]
              [category :refer [Category]]
+             [phone-number :refer [PhoneNumber]]
              [user :refer [User]]
              [venue :refer [Venue]]]))
 
@@ -217,6 +218,14 @@
    (db/update! User 1 :last-name "Era")
    (db/select-one User :id 1)))
 
+(expect
+  #toucan.test_models.phone_number.PhoneNumberInstance{:number "012345678", :country_code "AU"}
+  (test/with-clean-db
+    (let [id "012345678"]
+      (db/simple-insert! PhoneNumber {:number id, :country_code "US"})
+      (db/update! PhoneNumber id :country_code "AU")
+      (db/select-one PhoneNumber :number id))))
+
 ;; Test update-where!
 (expect
  [#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}
@@ -295,6 +304,11 @@
  (test/with-clean-db
    (db/insert! User {:first-name "Trash", :last-name "Bird"})))
 
+(expect
+  #toucan.test_models.phone_number.PhoneNumberInstance{:number "012345678", :country_code "AU"}
+  (test/with-clean-db
+    (db/insert! PhoneNumber {:number "012345678", :country_code "AU"})))
+
 ;; The returned data must match what's been inserted in the table
 (expect
  #toucan.test_models.user.UserInstance{:id 4, :first-name "Grass", :last-name "HOPPER"}
@@ -304,7 +318,7 @@
 ;; get-inserted-id shouldn't fail if nothing is returned for some reason
 (expect
  nil
- (db/get-inserted-id nil))
+ (db/get-inserted-id :id nil))
 
 ;; Test select-one
 (expect

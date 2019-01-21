@@ -205,9 +205,10 @@
                                :let   [k (some result source-keys)]
                                :when  k]
                            k))
+        primary-key (models/primary-key model)
         objs        (if (seq ids)
-                      (into {} (for [item (db/select model, :id [:in ids])]
-                                 {(:id item) item}))
+                      (into {} (for [item (db/select model, primary-key [:in ids])]
+                                 {(primary-key item) item}))
                       (constantly nil))]
     (for [result results
           :let [source-id (some result source-keys)]]

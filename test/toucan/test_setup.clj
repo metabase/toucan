@@ -64,7 +64,13 @@
        id SERIAL PRIMARY KEY,
        street_name text NOT NULL
      );"
-     "TRUNCATE TABLE address RESTART IDENTITY CASCADE;"))
+    "TRUNCATE TABLE address RESTART IDENTITY CASCADE;"
+    ;; Phone Number
+    "CREATE TABLE IF NOT EXISTS phone_numbers (
+      number TEXT PRIMARY KEY,
+      country_code VARCHAR(3) NOT NULL
+    );"
+    "TRUNCATE TABLE phone_numbers;"))
 
 
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))
