@@ -99,32 +99,6 @@ jobs:
           command: lein check-namespace-decls
           no_output_timeout: 5m
 
-  snapshot:
-    working_directory: /home/circleci/metabase/toucan
-    docker:
-      - image: circleci/clojure:lein-2.8.1
-    steps:
-      - attach_workspace:
-          at: /home/circleci
-      - run:
-          name: Change project group
-          command: |-
-            if [ -n "$CLOJARS_GROUP" ];then
-              lein change group-id set "\"$CLOJARS_GROUP\""
-            fi
-      - run:
-          name: Append branch name and -SNAPSHOT to version
-          command: |-
-            if [ "$CLOJARS_SNAPSHOT" = 'true' ];then
-              lein change version str "\"-${CIRCLE_BRANCH}-SNAPSHOT\""
-            fi
-      - run:
-          name: Deploy to clojars
-          command: |-
-            if [ "$CLOJARS_SNAPSHOT" = 'true' ];then
-              lein deploy clojars
-            fi
-
   deploy:
     working_directory: /home/circleci/metabase/toucan
     docker:
@@ -156,16 +130,6 @@ workflows:
       - lint-namespace-decls:
           requires:
             - checkout
-      - snapshot:
-          requires:
-            - test
-            - lint-bikeshed
-            - lint-eastwood
-            - lint-docstrings
-            - lint-namespace-decls
-          filters:
-            branches:
-              ignore: master
       - deploy:
           requires:
             - test
