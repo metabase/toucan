@@ -11,7 +11,7 @@
                  [honeysql "0.9.4"]]
   :javac-options ["-target" "1.7", "-source" "1.7"]
   :aliases {"bikeshed" ["bikeshed" "--max-line-length" "118" "--var-redefs" "false"]
-            "lint" ["do" ["eastwood"] "bikeshed" "docstring-checker" "check-namespace-decls"]
+            "lint" ["do" ["eastwood"] ["bikeshed"] ["docstring-checker"] ["check-namespace-decls"]]
             "test" ["expectations"]
             "start-db" ["shell" "./start-db"] ; `lein start-db` and stop-db are conveniences for running a test database via Docker
             "stop-db" ["shell" "docker" "stop" "toucan_test"]}
@@ -23,7 +23,8 @@
                               :exclusions [org.clojure/clojure]]
                              [lein-bikeshed "0.5.1"]
                              [lein-check-namespace-decls "1.0.1"]
-                             [lein-expectations "0.0.8"]]
+                             [lein-expectations "0.0.8"]
+                             [lein-shell "0.5.0"]]
                    :jvm-opts ["-Xverify:none"]
                    :eastwood {:add-linters [:unused-locals
                                             :unused-private-vars]

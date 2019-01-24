@@ -559,3 +559,5 @@
   (hydrate [{:type :toucan}
             {:type :pigeon}]
            :is-bird?))
+
+;TODO add test for selecting hydration for where (not= pk :id)

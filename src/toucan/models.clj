@@ -4,8 +4,7 @@
   (:require [clojure.walk :refer [postwalk]]
             [honeysql.format :as hformat]
             [toucan.util :as u])
-  (:import clojure.lang.IFn
-           honeysql.format.ToSql))
+  (:import honeysql.format.ToSql))
 
 ;;;                                                   Configuration
 ;;; ==================================================================================================================
@@ -188,6 +187,7 @@
      (extend (class MyModel)
        IModel
        (merge IModelDefaults {...}))"
+
   (pre-insert [this]
     "Gets called by `insert!` immediately before inserting a new object.
      This provides an opportunity to do things like encode JSON or provide default values for certain fields.
@@ -195,6 +195,14 @@
          (pre-insert [query]
            (let [defaults {:version 1}]
              (merge defaults query))) ; set some default values")
+
+  ;TODO add support for composite keys
+  (primary-key ^clojure.lang.Keyword [this]
+    "Defines the primary key. Defaults to :id
+
+        (primary-key [_] :id)
+
+    NOTE: composite keys are currently not supported")
 
   (post-insert [this]
     "Gets called by `insert!` with an object that was newly inserted into the database.
@@ -345,6 +353,7 @@
 (def IModelDefaults
   "Default implementations for `IModel` methods."
   {:default-fields (constantly nil)
+   :primary-key    (constantly :id)
    :types          (constantly nil)
    :properties     (constantly nil)
    :pre-insert     identity
@@ -365,7 +374,7 @@
    ((resolve 'toucan.db/select) model))
   ([model id]
    (when id
-     (invoke-model model :id id)))
+     (invoke-model model (primary-key model) id)))
   ([model k v & more]
    (apply (resolve 'toucan.db/select-one) model k v more)))
 
@@ -484,7 +493,7 @@
 
                                clojure.lang.IFn
                                ~@(ifn-invoke-forms)
-                               (~'applyTo [~'this ^ISeq ~'args]
+                               (~'applyTo [~'this ^clojure.lang.ISeq ~'args]
                                 (apply invoke-model-or-instance ~'this ~'args)))
 
         ;; Replace the implementation of `empty`. It's either this, or using the
