@@ -2865,8 +2865,8 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.1.7</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.6</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.1</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.2</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
+</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.12.0-SNAPSHOT</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.8</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.1</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.4</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.db
   (:refer-clojure :exclude [count])
   (:require [clojure
@@ -2881,8 +2881,7 @@ net.brehaut.ClojureTools = (function (SH) {
              [helpers :as h]]
             [toucan
              [models :as models]
-             [util :as u]])
-  (:import clojure.lang.Keyword))</pre></td></tr><tr><td class="docs"><h1>                                                  CONFIGURATION</h1>
+             [util :as u]]))</pre></td></tr><tr><td class="docs"><h1>                                                  CONFIGURATION</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><h4>Quoting Style</h4>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>The quoting style is the HoneySQL quoting style that should be used to quote identifiers. By default, this is
 <code>:ansi</code>, which wraps identifers in double-quotes. Alternatively, you can specify <code>:mysql</code> (backticks), or
@@ -3052,15 +3051,16 @@ a C3PO connection pool.</p>
   [&amp; body]
   `(-do-with-debug-print-queries (fn [] ~@body)))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-form</code> to SQL.
   This returns a vector with the SQL string as its first item and prepared statement params as the remaining items.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- honeysql-&gt;sql
+</td><td class="codes"><pre class="brush: clojure">(defn honeysql-&gt;sql
   [honeysql-form]
   {:pre [(map? honeysql-form)]}
   ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
   ;; generate SQL for a subquery and wrap the query in parens like &quot;(UPDATE ...)&quot; which is invalid
-  (let [[sql &amp; args :as sql+args] (binding [hformat/*subquery?* false]
-                                    (hsql/format honeysql-form
-                                      :quoting             (quoting-style)
-                                      :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
+  (let [[sql &amp; args :as sql+args]
+        (binding [hformat/*subquery?* false]
+          (hsql/format honeysql-form
+                       :quoting             (quoting-style)
+                       :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
     (when *debug-print-queries*
       (println (pprint honeysql-form)
                (format &quot;\n%s\n%s&quot; (format-sql sql) args)))
@@ -3182,7 +3182,7 @@ a C3PO connection pool.</p>
   ([model]
    (simple-select-one model {}))
   ([model honeysql-form]
-   (first (simple-select model (h/limit honeysql-form 1)))))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-form</code> and call <code>jdbc/execute!</code> against the application DB.
+   (first (simple-select model (h/limit honeysql-form (hsql/inline 1))))))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-form</code> and call <code>jdbc/execute!</code> against the application DB.
   <code>options</code> are passed directly to <code>jdbc/execute!</code> and can be things like <code>:multi?</code> (default <code>false</code>) or
   <code>:transaction?</code> (default <code>true</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(defn execute!
@@ -3236,11 +3236,12 @@ a C3PO connection pool.</p>
                                 honeysql-form)))))
   (^Boolean [model id kvs]
    {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
-   (let [model (resolve-model model)
-         kvs    (-&gt; (models/do-pre-update model (assoc kvs :id id))
-                    (dissoc :id))
-         updated? (update! model (-&gt; (h/sset {} kvs)
-                                     (where :id id)))]
+   (let [model       (resolve-model model)
+         primary-key (models/primary-key model)
+         kvs         (-&gt; (models/do-pre-update model (assoc kvs primary-key id))
+                         (dissoc primary-key))
+         updated?    (update! model (-&gt; (h/sset {} kvs)
+                                        (where primary-key id)))]
         (when (and updated?
                    (method-implemented? :post-update model))
           (models/post-update (model id)))
@@ -3266,16 +3267,22 @@ a C3PO connection pool.</p>
                                  [k v]))))
   ([model id k v &amp; more]
    (update-non-nil-keys! model id (apply array-map k v more))))</pre></td></tr><tr><td class="docs"><h3>INSERT!</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Get the ID of a row inserted by <code>jdbc/db-do-prepared-return-keys</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn get-inserted-id
-  [insert-result]
-  (or
-   ;; Postgres, newer H2, and most others return :id
-   (:id insert-result)
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Different possible keys that might come back for the ID of a newly inserted row. Differs by DB.</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:private inserted-id-keys
+  [;; Postgres, newer H2, and most others return :id
+   :id
    ;; :generated_key is returned by MySQL
-   (:generated_key insert-result)
+   :generated_key
+   ;; MariaDB returns :insert_id
+   :insert_id
    ;; scope_identity() returned by older versions of H2
-   ((keyword &quot;scope_identity()&quot;) insert-result)))</pre></td></tr><tr><td class="docs"><p>Do a simple JDBC <code>insert!</code> of multiple objects into the database.
+   (keyword &quot;scope_identity()&quot;)
+   ;; last_insert_rowid() returned by SQLite3
+   (keyword &quot;last_insert_rowid()&quot;)])</pre></td></tr><tr><td class="docs"><p>Get the ID of a row inserted by <code>jdbc/db-do-prepared-return-keys</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn get-inserted-id
+  [primary-key insert-result]
+  (when insert-result
+    (some insert-result (cons primary-key inserted-id-keys))))</pre></td></tr><tr><td class="docs"><p>Do a simple JDBC <code>insert!</code> of multiple objects into the database.
   Normally you should use <code>insert-many!</code> instead, which calls the model's <code>pre-insert</code> method on the <code>row-maps</code>;
   <code>simple-insert-many!</code> is offered for cases where you'd like to specifically avoid this behavior. Returns a sequences
   of IDs of newly inserted objects.</p>
@@ -3288,12 +3295,13 @@ a C3PO connection pool.</p>
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model (resolve-model model)]
+    (let [model       (resolve-model model)
+          primary-key (models/primary-key model)]
       (doall
        (for [row-map row-maps
              :let    [sql (honeysql-&gt;sql {:insert-into model, :values [row-map]})]]
-         (-&gt; (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
-             get-inserted-id))))))</pre></td></tr><tr><td class="docs"><p>Insert several new rows into the Database. Resolves <code>entity</code>, and calls <code>pre-insert</code> on each of the <code>row-maps</code>.
+         (-&gt;&gt; (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
+              (get-inserted-id primary-key)))))))</pre></td></tr><tr><td class="docs"><p>Insert several new rows into the Database. Resolves <code>entity</code>, and calls <code>pre-insert</code> on each of the <code>row-maps</code>.
   Returns a sequence of the IDs of the newly created objects.</p>
 
 <p>  Note: this <em>does not</em> call <code>post-insert</code> on newly created objects. If you need <code>post-insert</code> behavior, use
@@ -3366,7 +3374,7 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
   {:style/indent 1}
   [model &amp; options]
   (let [model (resolve-model model)]
-    (apply select-one-field :id model options)))</pre></td></tr><tr><td class="docs"><p>Select the count of objects matching some condition.</p>
+    (apply select-one-field (models/primary-key model) model options)))</pre></td></tr><tr><td class="docs"><p>Select the count of objects matching some condition.</p>
 
 <pre><code> ;; Get all Users whose email is non-nil
  (count 'User :email [:not= nil]) -&gt; 12
@@ -3410,7 +3418,8 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
 </td><td class="codes"><pre class="brush: clojure">(defn select-ids
   {:style/indent 1}
   [model &amp; options]
-  (apply select-field :id model options))</pre></td></tr><tr><td class="docs"><p>Select fields <code>k</code> and <code>v</code> from objects in the database, and return them as a map from <code>k</code> to <code>v</code>.</p>
+  (let [model (resolve-model model)]
+    (apply select-field (models/primary-key model) model options)))</pre></td></tr><tr><td class="docs"><p>Select fields <code>k</code> and <code>v</code> from objects in the database, and return them as a map from <code>k</code> to <code>v</code>.</p>
 
 <pre><code> (select-field-&gt;field :id :name 'Database) -&gt; {1 "Sample Dataset", 2 "test-data"}
 </code></pre>
@@ -3426,24 +3435,25 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
 </td><td class="codes"><pre class="brush: clojure">(defn select-field-&gt;id
   {:style/indent 2}
   [field model &amp; options]
-  (apply select-field-&gt;field field :id model options))</pre></td></tr><tr><td class="docs"><p>Select <code>field</code> and <code>:id</code> from objects in the database, and return them as a map from <code>:id</code> to <code>field</code>.</p>
+  (let [model (resolve-model model)]
+    (apply select-field-&gt;field field (models/primary-key model) model options)))</pre></td></tr><tr><td class="docs"><p>Select <code>field</code> and <code>:id</code> from objects in the database, and return them as a map from <code>:id</code> to <code>field</code>.</p>
 
 <pre><code> (select-id-&gt;field :name 'Database) -&gt; {1 "Sample Dataset", 2 "test-data"}
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn select-id-&gt;field
   {:style/indent 2}
   [field model &amp; options]
-  (apply select-field-&gt;field :id field model options))</pre></td></tr><tr><td class="docs"><h3>EXISTS?</h3>
+  (let [model (resolve-model model)]
+    (apply select-field-&gt;field (models/primary-key model) field model options)))</pre></td></tr><tr><td class="docs"><h3>EXISTS?</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Easy way to see if something exists in the DB.</p>
 
 <pre><code>(db/exists? User :id 100)
 </code></pre>
-
-<p>  NOTE: This only works for objects that have an <code>:id</code> field.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn exists?
   {:style/indent 1}
   ^Boolean [model &amp; kvs]
-  (boolean (select-one model (apply where (h/select {} :id) kvs))))</pre></td></tr><tr><td class="docs"><h3>DELETE!</h3>
+  (let [model (resolve-model model)]
+    (boolean (select-one-id model (apply where (h/select {} (models/primary-key model)) kvs)))))</pre></td></tr><tr><td class="docs"><h3>DELETE!</h3>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Delete an object or objects from the application DB matching certain constraints.
   Returns <code>true</code> if something was deleted, <code>false</code> otherwise.</p>
 
@@ -3470,621 +3480,18 @@ certain fields by wrapping ENTITY in a vector and automatically convert kv-args 
 
 <pre><code> (delete! Database :id 1)
 </code></pre>
-
-<p>  NOTE: This function assumes objects have an <code>:id</code> column. There's an <a href="https://github.com/metabase/toucan/issues/3">open
-  issue</a> to support objects that don't have one; until that is resolved,
-  you'll have to use <code>simple-delete!</code> instead when deleting objects with no <code>:id</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn delete!
   {:style/indent 1}
   [model &amp; conditions]
-  (let [model (resolve-model model)]
+  (let [model       (resolve-model model)
+        primary-key (models/primary-key model)]
     (doseq [object (apply select model conditions)]
       (models/pre-delete object)
-      (simple-delete! model :id (:id object)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util.test" name="toucan.util.test"><h1 class="project-name">toucan.util.test</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions for writing tests with Toucan models.</p>
-</td><td class="codes"><pre class="brush: clojure">(ns toucan.util.test
-  (:require [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makes testing easy with <em>Temporary Objects</em>. A temporary object is created and made
-available to some body of code, and then wiped from that database via a <code>finally</code> statement (i.e., whether the body
-completes successfully or not). This makes it easy to write tests that do not change your test database when they
-are ran.</p>
-
-<p>Here's an example of a unit test using a temporary object created via <code>with-temp</code>:</p>
-
-<pre><code>;; Make sure newly created users aren't admins
-(expect false
-  (with-temp User [user {:first-name "Cam", :last-name "Saul"}]
-    (is-admin? user)))
-</code></pre>
-
-<p>In this example, a new instance of <code>User</code> is created (via the normal <code>insert!</code> pathway), and bound to <code>user</code>; the
-body of <code>with-temp</code> (the <code>test-something</code> fncall) is executed. Immediately after, the <code>user</code> is removed from the
-Database, but the entire statement returns the results of the body (hopefully <code>false</code>).</p>
-
-<p>Often a Model will require that many fields be <code>NOT NULL</code>, and specifying all of them in every test can get
-tedious. In the example above, we don't care about the <code>:first-name</code> or <code>:last-name</code> of the user. We can provide
-default values for temporary objects by implementing the <code>WithTempDefaults</code> protocol:</p>
-
-<pre><code>(defn- random-name
-  "Generate a random name of 10 uppercase characters"
-  []
-  (apply str (map char (repeatedly 10 #(rand-nth (range (int \A) (inc (int \Z))))))))
-
-(extend-protocol WithTempDefaults
-  (class User)
-  (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))
-</code></pre>
-
-<p>Now whenever we use <code>with-temp</code> to create a temporary <code>User</code>, a random <code>:first-name</code> and <code>:last-name</code> will be
-provided.</p>
-
-<pre><code>(with-temp User [user]
-  user)
-;; -&gt; {:first-name "RIQGVIDTZN", :last-name "GMYROFEZYO", ...}
-</code></pre>
-
-<p>You can still override any of the defaults, however:</p>
-
-<pre><code>(with-temp User [user {:first-name "Cam"}]
-  user)
-;; -&gt; {:first-name "Cam", :last-name "OVTAAJBVOF"}
-</code></pre>
-
-<p>Finally, Toucan provides a couple more advanced versions of <code>with-temp</code>. The first, <code>with-temp*</code>, can be used to
-create multiple objects at once:</p>
-
-<pre><code>(with-temp* [User         [user]
-             Conversation [convo {:user_id (:id user)}]]
-  ...)
-</code></pre>
-
-<p>Each successive object can reference the temp object before it; the form is equivalent to writing multiple
-<code>with-temp</code> forms.</p>
-
-<p>The last helper macro is available if you use the <code>expectations</code> unit test framework:</p>
-
-<pre><code>;; Make sure our get-id function works on users
-(expect-with-temp [User [user {:first-name "Cam"}]]
-  (:id user)
-  (get-id user))
-</code></pre>
-
-<p>This macro makes the temporary object available to both the "expected" and "actual" parts of the test. (PRs for
-similar macros for other unit test frameworks are welcome!)</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Protocol defining the <code>with-temp-defaults</code> method, which provides default values for new temporary objects.</p>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol WithTempDefaults
-  (with-temp-defaults ^clojure.lang.IPersistentMap [this]
-    &quot;Return a map of default values that should be used when creating a new temporary object of this model.
-       ;; Use a random first and last name for new temporary Users unless otherwise specified
-       (extend-protocol WithTempDefaults
-         (class User)
-         (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))&quot;))</pre></td></tr><tr><td class="docs"><p>default impl</p>
-</td><td class="codes"><pre class="brush: clojure">(extend Object
-  WithTempDefaults
-  {:with-temp-defaults (constantly {})})</pre></td></tr><tr><td class="docs"><p>Internal implementation of <code>with-temp</code> (don't call this directly).</p>
-</td><td class="codes"><pre class="brush: clojure">(defn do-with-temp
-  [model attributes f]
-  (let [temp-object (db/insert! model (merge (when (satisfies? WithTempDefaults model)
-                                               (with-temp-defaults model))
-                                             attributes))]
-    (try
-      (f temp-object)
-      (finally
-        (db/delete! model :id (:id temp-object))))))</pre></td></tr><tr><td class="docs"><p>Create a temporary instance of ENTITY bound to BINDING-FORM, execute BODY,
-   then deletes it via <code>delete!</code>.</p>
-
-<p>   Our unit tests rely a heavily on the test data and make some assumptions about the
-   DB staying in the same <em>clean</em> state. This allows us to write very concise tests.
-   Generally this means tests should "clean up after themselves" and leave things the
-   way they found them.</p>
-
-<p>   <code>with-temp</code> should be preferrable going forward over creating random objects <em>without</em>
-   deleting them afterward.</p>
-
-<pre><code>(with-temp EmailReport [report {:creator_id (user-&gt;id :rasta)
-                                :name       (random-name)}]
-  ...)
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp
-  [model [binding-form &amp; [options-map]] &amp; body]
-  `(do-with-temp ~model ~options-map (fn [~binding-form]
-                                       ~@body)))</pre></td></tr><tr><td class="docs"><p>Like <code>with-temp</code> but establishes multiple temporary objects at the same time.</p>
-
-<pre><code> (with-temp* [Database [{database-id :id}]
-              Table    [table {:db_id database-id}]]
-   ...)
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp*
-  [model-bindings &amp; body]
-  (loop [[pair &amp; more] (reverse (partition 2 model-bindings)), body `(do ~@body)]
-    (let [body `(with-temp ~@pair
-                  ~body)]
-      (if (seq more)
-        (recur more body)
-        body))))</pre></td></tr><tr><td class="docs"><h1>                                            EXPECTATIONS HELPER MACROS</h1>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- has-expectations-dependency? []
-  (try (require 'expectations)
-       true
-       (catch Throwable _
-         false)))</pre></td></tr><tr><td class="docs"><p>Combines <code>expect</code> with a <code>with-temp*</code> form. The temporary objects established by <code>with-temp*</code> are available
-     to both EXPECTED and ACTUAL.</p>
-
-<pre><code> (expect-with-temp [Database [{database-id :id}]]
-    database-id
-    (get-most-recent-database-id))
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(when (has-expectations-dependency?)
-  (defmacro expect-with-temp
-    {:style/indent 1}
-    [with-temp*-form expected actual]
-    ;; use `gensym` instead of auto gensym here so we can be sure it's a unique symbol every time. Otherwise since
-    ;; expectations hashes its body to generate function names it will treat every usage of `expect-with-temp` as
-    ;; the same test and only a single one will end up being ran
-    (let [with-temp-form (gensym &quot;with-temp-&quot;)]
-      `(let [~with-temp-form (delay (with-temp* ~with-temp*-form
-                                      [~expected ~actual]))]
-         (expectations/expect
-           ;; if dereferencing with-temp-form throws an exception then expect Exception &lt;-&gt; Exception will pass;
-           ;; we don't want that, so make sure the expected is nil
-           (try
-             (first @~with-temp-form)
-             (catch Throwable ~'_))
-           (second @~with-temp-form))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util" name="toucan.util"><h1 class="project-name">toucan.util</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions used by other Toucan modules.</p>
-</td><td class="codes"><pre class="brush: clojure">(ns toucan.util
-  (:require [clojure.string :as s]))</pre></td></tr><tr><td class="docs"><p>Return keyword K as a string, including its namespace, if any (unlike <code>name</code>).</p>
-
-<pre><code> (keyword-&gt;qualified-name :type/FK) -&gt; "type/FK"
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn keyword-&gt;qualified-name
-  [k]
-  (when k
-    (s/replace (str k) #&quot;^:&quot; &quot;&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.models" name="toucan.models"><h1 class="project-name">toucan.models</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The <code>defmodel</code> macro, used to define Toucan models, and
-   the <code>IModel</code> protocol and default implementations, which implement Toucan model functionality.</p>
-</td><td class="codes"><pre class="brush: clojure">(ns toucan.models
-  (:require [clojure.walk :refer [postwalk]]
-            [honeysql.format :as hformat]
-            [toucan.util :as u])
-  (:import clojure.lang.IFn
-           honeysql.format.ToSql))</pre></td></tr><tr><td class="docs"><h1>                                                  Configuration</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><h3>Root Model Namespace</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>The root model namespace is the parent namespace of all Toucan models. Toucan knows how to automatically load
-namespaces where models live, which is handy for avoiding circular references; to facilitate this, Toucan models
-need to live in places that match an expected pattern.</p>
-
-<p>For example, a model named <code>UserFollow</code> must live in the namespace <code>&lt;root-model-namespace&gt;.user-follow</code>.</p>
-
-<p>The root model namespace defaults to <code>models</code>; in the example above, <code>UserFollow</code> would live in
-<code>models.user-follow</code>.</p>
-
-<p>This is almost certainly not what you want; set your own value by calling <code>set-root-namespace!</code>:</p>
-
-<pre><code>(models/set-root-namespace! 'my-project.models)
-</code></pre>
-
-<p>After setting the default model root namespace as in the example above, Toucan will look for <code>UserFollow</code>
-in <code>my-project.models.user-follow</code>.</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defonce ^:private -root-namespace (atom 'models))</pre></td></tr><tr><td class="docs"><p>Set the root namespace where all models are expected to live.</p>
-
-<pre><code> (set-root-namespace! 'my-project.models)
-</code></pre>
-
-<p>  In this example, Toucan would look for a model named <code>UserFollow</code> in the namespace <code>my-project.models.user-follow</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn set-root-namespace!
-  [new-root-namespace]
-  {:pre [(symbol? new-root-namespace)]}
-  (reset! -root-namespace new-root-namespace))</pre></td></tr><tr><td class="docs"><p>Fetch the parent namespace for all Toucan models.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn root-namespace
-  []
-  @-root-namespace)</pre></td></tr><tr><td class="docs"><h3>Types</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Model types are a easy way to define functions that should be used to transform values of a certain column
-when they come out from or go into the database.</p>
-
-<p>For example, suppose you had a <code>Venue</code> model, and wanted the value of its <code>:category</code> column to automatically
-be converted to a Keyword when it comes out of the DB, and back into a string when put in. You could let Toucan
-know to take care of this by defining the model as follows:</p>
-
-<pre><code>(defmodel Venue :my_venue_table)
-
-(extend (class Venue)
-  models/IModel
-  (merge models/IModelDefaults
-         {:types (constantly {:category :keyword})}))
-</code></pre>
-
-<p>Whenever you fetch a Venue, Toucan will automatically apply the appropriate <code>:out</code> function for values of
-<code>:category</code>:</p>
-
-<pre><code>(db/select-one Venue) ; -&gt; {:id 1, :category :bar, ...}
-</code></pre>
-
-<p>In the other direction, <code>insert!</code> and <code>update!</code> will automatically do the reverse, and call the appropriate <code>:in</code>
-function.</p>
-
-<p><code>:keyword</code> is the only Toucan type defined by default, but adding more is simple.</p>
-
-<p>You can add a new type by calling <code>add-type!</code>:</p>
-
-<pre><code>;; add a :json type (using Cheshire) will serialize objects as JSON
-;; going into the DB, and deserialize JSON coming out from the DB
-(add-type! :json
-  :in  json/generate-string
-  :out #(json/parse-string % keyword))
-</code></pre>
-
-<p>In the example above, values of any columns marked as <code>:json</code> would be serialized as JSON before going into the DB,
-and deserialized <em>from</em> JSON when coming out of the DB.</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defonce ^:private type-fns
-  (atom {:keyword {:in  u/keyword-&gt;qualified-name
-                   :out keyword}}))</pre></td></tr><tr><td class="docs"><p>Add a new type mapping for type named by key K. Supply mappings for the functions that should prepare value
-   when it goes <code>:in</code> to the database, and for when it comes <code>:out</code>.</p>
-
-<pre><code> ;; add a :json type (using Cheshire) will serialize objects as JSON
- ;; going into the DB, and deserialize JSON coming out from the DB
- (add-type! :json
-   :in  json/generate-string
-   :out #(json/parse-string % keyword))
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn add-type!
-  {:style/indent 1}
-  [k &amp; {:keys [in out]}]
-  {:pre [(fn? in) (fn? out)]}
-  (swap! type-fns assoc k {:in in, :out out}))</pre></td></tr><tr><td class="docs"><h3>Properties</h3>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Model properties are a powerful way to extend the functionality of Toucan models.</p>
-
-<p>With properties, you can define custom functions that can modify the values (or even add new ones) of an object
-before it is saved (via the <code>insert!</code> and <code>update!</code> family of functions) or when it comes out of the DB (via the
-<code>select</code> family of functions).</p>
-
-<p>Properties are global, which lets you define a single set of functions that can be applied to multiple models
-that have the same property, without having to define repetitive code in model methods such as <code>pre-insert!</code>.</p>
-
-<p>For example, suppose you have several models with <code>:created-at</code> and <code>:updated-at</code> columns. Whenever a new instance
-of these models is inserted, you want to set <code>:created-at</code> and <code>:updated-at</code> to be the current time; whenever an
-instance is updated, you want to update <code>:updated-at</code>.</p>
-
-<p>You <em>could</em> handle this behavior by defining custom implementations for <code>pre-insert</code> and <code>pre-update</code> for each of
-these models, but that gets repetitive quickly. Instead, you can simplfy this behavior by defining a new <em>property</em>
-that can be shared by multiple models:</p>
-
-<pre><code>(add-property! :timestamped?
-  :insert (fn [obj _]
-            (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
-              (assoc obj :created-at now, :updated-at now)))
-  :update (fn [obj _]
-            (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
-
-(defmodel Venue :my_venue_table)
-
-(extend (class Venue)
-  models/IModel
-  (merge models/IModelDefaults
-         {:properties (constantly {:timestamped? true})}))
-</code></pre>
-
-<p>In this example, before a Venue is inserted, a new value for <code>:created-at</code> and <code>:updated-at</code> will be added; before
-one is updated, a new value for <code>:updated-at</code> will be added.</p>
-
-<p>Property functions can be defined for any combination of <code>:insert</code>, <code>:update</code>, and <code>:select</code>.
-If these functions are defined, they will be called as such:</p>
-
-<pre><code>(fn [object property-value])
-</code></pre>
-
-<p>where <code>property-value</code> is the value for the key in question returned by the model's implementation of <code>properties</code>.</p>
-
-<p>In the example above, <code>:timestamped?</code> is set to <code>true</code> for <code>Venue</code>; since we're not interested in the value in the
-example above we simply ignore it (by binding it to <code>_</code>).</p>
-
-<p>You can set the value to any truthy value you'd like, which can be used to customize behavior for different models,
-making properties even more flexible.</p>
-</td><td class="codes"></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defonce ^:private property-fns (atom nil))</pre></td></tr><tr><td class="docs"><p>Define a new model property and set the functions used to implement its functionality.
-   See documentation for more details.</p>
-
-<pre><code> (add-property! :timestamped?
-   :insert (fn [obj _]
-             (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
-               (assoc obj :created-at now, :updated-at now)))
-   :update (fn [obj _]
-             (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn add-property!
-  {:style/indent 1}
-  [k &amp; {:keys [insert update select]}]
-  {:pre [(or (not insert) (fn? insert))
-         (or (not update) (fn? update))
-         (or (not select) (fn? select))]}
-  (swap! property-fns assoc k {:insert insert, :update update, :select select}))</pre></td></tr><tr><td class="docs"><h1>                                                IModel Interface</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>The <code>IModel</code> protocol defines the various methods that are used to provide custom behavior for various models.</p>
-
-<p>   This protocol contains the various methods model classes can optionally implement. All methods have a default
-   implementation provided by <code>IModelDefaults</code>; new models created with the <code>defmodel</code> macro automatically implement
-   this protocol using those default implementations. To override one or more implementations, use <code>extend</code> and
-   <code>merge</code> your custom implementations with <code>IModelDefaults</code>:</p>
-
-<pre><code> (defmodel MyModel)
-
- (extend (class MyModel)
-   IModel
-   (merge IModelDefaults {...}))
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol IModel
-  (pre-insert [this]
-    &quot;Gets called by `insert!` immediately before inserting a new object.
-     This provides an opportunity to do things like encode JSON or provide default values for certain fields.
-         (pre-insert [query]
-           (let [defaults {:version 1}]
-             (merge defaults query))) ; set some default values&quot;)
-  (post-insert [this]
-    &quot;Gets called by `insert!` with an object that was newly inserted into the database.
-     This provides an opportunity to trigger specific logic that should occur when an object is inserted or modify the
-     object that is returned. The value returned by this method is returned to the caller of `insert!`. The default
-     implementation is `identity`.
-       (post-insert [user]
-         (assoc user :newly-created true))
-       (post-insert [user]
-         (add-user-to-magic-perm-groups! user)
-         user)&quot;)
-  (pre-update [this]
-    &quot;Called by `update!` before DB operations happen. A good place to set updated values for fields like `updated-at`,
-     or to check preconditions.&quot;)
-  (post-update [this]
-    &quot;Gets called by `update!` with an object that was successfully updated in the database.
-     This provides an opportunity to trigger specific logic that should occur when an object is updated.
-     The value returned by this method is not returned to the caller of `update!`. The default
-     implementation is `nil` (not invoked).
-     Note: This method is *not* invoked when calling `update!` with a `honeysql-form` form.
-       (post-update [user]
-         (audit-user-updated! user)&quot;)
-  (post-select [this]
-    &quot;Called on the results from a call to `select` and similar functions. Default implementation doesn't do anything,
-     but you can provide custom implementations to do things like remove sensitive fields or add dynamic new ones.
-  For example, let's say we want to add a `:name` field to Users that combines their `:first-name` and `:last-name`:
-      (defn- post-select [user]
-        (assoc user :name (str (:first-name user) \&quot; \&quot; (:last-name user))))
-  Then, when we select a User:
-      (User 1) ; -&gt; {:id 1, :first-name \&quot;Cam\&quot;, :last-name \&quot;Saul\&quot;, :name \&quot;Cam Saul\&quot;}&quot;)
-  (pre-delete [this]
-    &quot;Called by `delete!` for each matching object that is about to be deleted.
-     Implementations can delete any objects related to this object by recursively calling `delete!`, or do
-     any other cleanup needed, or check some preconditions that must be fulfilled before deleting an object.
-  The output of this function is ignored.
-        (pre-delete [{database-id :id :as database}]
-          (delete! Card :database_id database-id)
-          ...)&quot;)
-  (default-fields ^clojure.lang.Sequential [this]
-    &quot;Return a sequence of keyword field names that should be fetched by default when calling
-     `select` or invoking the model (e.g., `(Database 1)`).&quot;)
-  (hydration-keys ^clojure.lang.Sequential [this]
-    &quot;The `hydration-keys` method can be overrode to specify the keyword field names that should be hydrated
-     as instances of this model. For example, `User` might include `:creator`, which means `hydrate` will
-     look for `:creator_id` or `:creator-id` in other objects to find the User ID, and fetch the `Users`
-     corresponding to those values.&quot;)
-  (types ^clojure.lang.IPersistentMap [this]
-    &quot;Return a map of keyword field names to their types for fields that should be serialized/deserialized in a special
-     way. Values belonging to a type are sent through an input function before being inserted into the DB, and sent
-     through an output function on their way out. `:keyword` is the only type enabled by default; you can add more by
-     calling `add-type!`:
-       (add-type! :json, :in json/generate-string, :out json/parse-string)
-   Set the types for a model like so:
-       ;; convert `:category` to a keyword when it comes out of the DB; convert back to a string before going in
-       (types [_] {:category :keyword})&quot;)
-  (properties ^clojure.lang.IPersistentMap [this]
-    &quot;Return a map of properties of this model. Properties can be used to implement advanced behavior across many
-     different models; see the documentation for more details. Declare a model's properties as such:
-       (properties [_] {:timestamped? true})
-  Define functions to handle objects with those properties using `add-property!`:
-      (add-property! :timestamped?
-        :insert (fn [obj] (assoc obj :created-at (new-timestamp), :updated-at (new-timestamp)))
-        :update (fn [obj] (assoc obj :updated-at (new-timestamp))))&quot;))</pre></td></tr><tr><td class="docs"><h1>                                                  INTERNAL IMPL</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Apply the appropriate <code>type-fns</code> for OBJ.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn- apply-type-fns
-  [obj direction]
-  (into obj (for [[col type] (types obj)]
-              (when-let [v (get obj col)]
-                {col ((get-in @type-fns [type direction]) v)}))))</pre></td></tr><tr><td class="docs">
-</td><td class="codes"><pre class="brush: clojure">(defn- apply-property-fns
-  [context obj]
-  (loop [obj obj, [[k v] &amp; more] (seq (properties obj))]
-    (let [f (get-in @property-fns [k context])]
-      (cond
-        (not k) obj
-        f       (recur (f obj v) more)
-        :else   (recur obj       more)))))</pre></td></tr><tr><td class="docs"><p>Used by internal functions like <code>do-post-select</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol ICreateFromMap
-  (^:private map-&gt; [klass, ^clojure.lang.IPersistentMap m]
-   &quot;Convert map M to instance of record type KLASS.&quot;))</pre></td></tr><tr><td class="docs"><p>these functions call (map-> model ...) twice to make sure functions like pre-insert/post-select
-didn't do something that accidentally removed the typing</p>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Don't call this directly! Apply functions like <code>pre-insert</code> before inserting an object into the DB.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn do-pre-insert
-  [model obj]
-  (as-&gt; obj &lt;&gt;
-    (map-&gt; model &lt;&gt;)
-    (pre-insert &lt;&gt;)
-    (map-&gt; model &lt;&gt;)
-    (apply-type-fns &lt;&gt; :in)
-    (apply-property-fns :insert &lt;&gt;)))</pre></td></tr><tr><td class="docs"><p>Don't call this directly! Apply internal functions like <code>pre-update</code> before updating an object in the DB.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn do-pre-update
-  [model obj]
-  (as-&gt; obj &lt;&gt;
-    (map-&gt; model &lt;&gt;)
-    (pre-update &lt;&gt;)
-    (map-&gt; model &lt;&gt;)
-    (apply-type-fns &lt;&gt; :in)
-    (apply-property-fns :update &lt;&gt;)))</pre></td></tr><tr><td class="docs"><p>Don't call this directly! Apply internal functions like <code>post-select</code> when an object is retrieved from the DB.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn do-post-select
-  [model obj]
-  (as-&gt; obj &lt;&gt;
-    (map-&gt; model &lt;&gt;)
-    (apply-type-fns &lt;&gt; :out)
-    (post-select &lt;&gt;)
-    (map-&gt; model &lt;&gt;)
-    (apply-property-fns :select &lt;&gt;)))</pre></td></tr><tr><td class="docs"><p>Default implementations for <code>IModel</code> methods.</p>
-</td><td class="codes"><pre class="brush: clojure">(def IModelDefaults
-  {:default-fields (constantly nil)
-   :types          (constantly nil)
-   :properties     (constantly nil)
-   :pre-insert     identity
-   :post-insert    identity
-   :pre-update     identity
-   :post-update    nil
-   :post-select    identity
-   :pre-delete     (constantly nil)
-   :hydration-keys (constantly nil)})</pre></td></tr><tr><td class="docs"><p>Fetch an object with a specific ID or all objects of type ENTITY from the DB.</p>
-
-<pre><code> (invoke-model Database)           -&gt; seq of all databases
- (invoke-model Database 1)         -&gt; Database w/ ID 1
- (invoke-model Database :id 1 ...) -&gt; A single Database matching some key-value args
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- invoke-model
-  ([model]
-   ((resolve 'toucan.db/select) model))
-  ([model id]
-   (when id
-     (invoke-model model :id id)))
-  ([model k v &amp; more]
-   (apply (resolve 'toucan.db/select-one) model k v more)))</pre></td></tr><tr><td class="docs"><p>Is model a valid toucan model?</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^:const ^{:arglists '([model])} ^Boolean model?
-  ::model)</pre></td></tr><tr><td class="docs"><p>Check whether OBJ is an model (e.g. <code>Database</code>) or an object from the DB; if an model,
-   call <code>invoked-model</code>; otherwise call <code>get</code>.</p>
-
-<p>We use the same record type (e.g., <code>DatabaseInstance</code>) for both the "model" (e.g., <code>Database</code>) and objects fetched
-from the DB ("instances"). Model definitions have the key <code>::model</code> assoced so we can differentiate.
-Invoking an instance calls get so you can do things like <code>(db :name)</code> as if it were a regular map.</p>
-</td><td class="codes"><pre class="brush: clojure">(defn invoke-model-or-instance
-  [obj &amp; args]
-  (apply (if (model? obj)
-           invoke-model
-           get)
-         obj args))</pre></td></tr><tr><td class="docs"><h1>                                                  DEFMODEL MACRO</h1>
-</td><td class="codes"></td></tr><tr><td class="docs"><p>Macro helper, generates</p>
-
-<pre><code>   (~'invoke [this#]
-    (invoke-model-or-instance this#))
-   (~'invoke [this# id#]
-    (invoke-model-or-instance this# id#))
-   (~'invoke [this# arg1# arg2#]
-    (invoke-model-or-instance this# arg1# arg2#))
-   ,,,
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- ifn-invoke-forms
-  []
-  (let [args (map #(symbol (str &quot;arg&quot; %)) (range 1 19))
-        arg-lists (reductions conj ['this] args)]
-    (for [l arg-lists]
-      (list 'invoke l (concat `(invoke-model-or-instance) l)))))</pre></td></tr><tr><td class="docs"><p>Make a symbol fully qualified by resolving it as a var in the current namespace.</p>
-
-<pre><code> conj        ;;=&gt; clojure.core/conj
- str/join    ;;=&gt; clojure.string/join
- foo.bar/baz ;;=&gt; foo.bar/baz
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- fully-qualified-symbol
-  [s]
-  (let [{:keys [ns name]} (meta (resolve s))]
-    (symbol (str ns &quot;/&quot; name))))</pre></td></tr><tr><td class="docs"><p>Take in forms as passed to defrecord or extend-type (protocol or interface
-  name followed by method definitions), and return a map suitable for use with
-  extend.</p>
-
-<pre><code>(IFn (invoke [this] this)) ;;=&gt; {IFn {:invoke (fn [this] this)}}
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defn- method-forms-map
-  [forms]
-  (second
-   (reduce (fn [[type acc] form]
-             (if (symbol? form)
-               [(fully-qualified-symbol form) acc]
-               [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))</pre></td></tr><tr><td class="docs"><p>Define a new "model". Models encapsulate information and behaviors related to a specific table in the application
-  DB, and have their own unique record type.</p>
-
-<p>  <code>defmodel</code> defines a backing record type following the format <code>&lt;model&gt;Instance</code>. For example, the class associated
-  with <code>User</code> is <code>&lt;root-namespace&gt;.user/UserInstance</code>. (The root namespace defaults to <code>models</code> but can be configured
-  via <code>set-root-namespace!</code>)</p>
-
-<p>  This class is used for both the titular model (e.g. <code>User</code>) and for objects that are fetched from the DB. This means
-  they can share the <code>IModel</code> protocol and simplifies the interface somewhat; functions like <code>types</code> work on either
-  the model or instances fetched from the DB.</p>
-
-<pre><code> (defmodel User :user_table)  ; creates class `UserInstance` and DB model `User`
-
- (db/select User, ...)  ; use with `toucan.db` functions. All results are instances of `UserInstance`
-</code></pre>
-
-<p>  The record type automatically extends <code>IModel</code> with <code>IModelDefaults</code>, but you can override specific methods, or
-  implement other protocols, by passing them to <code>defmodel</code>, the same way you would with <code>defrecord</code>.</p>
-
-<pre><code> (defmodel User :user_table
-   IModel
-   (hydration-keys [_]
-     [:user])
-   (properties [_]
-     {:timestamped true})
-   (pre-insert [user]
-     user))
-</code></pre>
-
-<p>   This is equivalent to:</p>
-
-<pre><code> (extend (class User)             ; it's somewhat more readable to write `(class User)` instead of `UserInstance`
-   IModel (merge IModelDefaults
-                  {...}))
-</code></pre>
-
-<p>   Finally, the model itself is invokable. Calling with no args returns <em>all</em> values of that object; calling with a
-  single arg can be used to fetch a specific instance by its integer ID.</p>
-
-<pre><code> (Database)                       ; return a seq of *all* Databases (as instances of `DatabaseInstance`)
- (Database 1)                     ; return Database 1
-</code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defmacro defmodel
-  {:arglists     '([model table-name] [model docstr? table-name])
-   :style/indent [2 :form :form [1]]}
-  [model &amp; args]
-  (let [[docstr table-name] (if (string? (first args))
-                              args
-                              (list nil (first args)))
-        extend-forms        (if (string? (first args))
-                              (drop 2 args)
-                              (drop 1 args))
-        instance            (symbol (str model &quot;Instance&quot;))
-        map-&gt;instance       (symbol (str &quot;map-&gt;&quot; instance))
-        defrecord-form      `(defrecord ~instance []
-                               clojure.lang.Named
-                               (~'getName [~'_] ~(name model))
-                               clojure.lang.IFn
-                               ~@(ifn-invoke-forms)
-                               (~'applyTo [~'this ^ISeq ~'args]
-                                (apply invoke-model-or-instance ~'this ~'args)))
-        ;; Replace the implementation of `empty`. It's either this, or using the
-        ;; lower level `deftype`, and re-implementing all of `defrecord`
-        defrecord-form (postwalk (fn [f]
-                                   (if (and (seq? f) (= (first f) 'clojure.core/empty))
-                                     `(empty [_#] (~map-&gt;instance {}))
-                                     f))
-                                 (macroexpand defrecord-form))]
-    `(do
-       ~defrecord-form
-       (extend ~instance
-         ~@(mapcat identity (merge-with (fn [this that] `(merge ~this ~that))
-                              `{toucan.models/IModel         toucan.models/IModelDefaults
-                                toucan.models/ICreateFromMap {:map-&gt; (fn [~'_ &amp; args#] (apply ~map-&gt;instance args#))}
-                                honeysql.format/ToSql        {:to-sql (comp hformat/to-sql keyword :table)}}
-                              (method-forms-map extend-forms))))
-       (def ~(vary-meta model assoc
-                        :tag      (symbol (str (namespace-munge *ns*) \. instance))
-                        :arglists ''([] [id] [&amp; kvs])
-                        :doc      (or docstr
-                                      (format &quot;Entity for '%s' table; instance of %s.&quot; (name table-name) instance)))
-         (~map-&gt;instance {:table  ~table-name
-                          :name   ~(name model)
-                          ::model true})))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.hydrate" name="toucan.hydrate"><h1 class="project-name">toucan.hydrate</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for deserializing and hydrating fields in objects fetched from the DB.</p>
+      (simple-delete! model primary-key (primary-key object)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.hydrate" name="toucan.hydrate"><h1 class="project-name">toucan.hydrate</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Functions for deserializing and hydrating fields in objects fetched from the DB.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.hydrate
-  (:require [clojure.java.classpath :as classpath]
-            [clojure.string :as s]
-            [clojure.tools.namespace.find :as ns-find]
-            (toucan [db :as db]
-                    [models :as models])))</pre></td></tr><tr><td class="docs"><h1>                                      Counts Destructuring & Restructuring</h1>
+  (:require [toucan
+             [db :as db]
+             [models :as models]]))</pre></td></tr><tr><td class="docs"><h1>                                      Counts Destructuring & Restructuring</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><h4>*DISCLAIMER*</h4>
 
 <p>This I wrote this code at 4 AM nearly 2 years ago and don't remember exactly what it is supposed to accomplish,
@@ -4233,9 +3640,6 @@ seq -+--&gt; counts-of ------------------------------------+                    
 <p>  This is built pulling the <code>hydration-keys</code> set from all of our entities.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- require-model-namespaces-and-find-hydration-fns
   []
-  (doseq [ns-symb (ns-find/find-namespaces (classpath/classpath))
-          :when   (s/starts-with? (name ns-symb) (str (models/root-namespace) \.))]
-    (require ns-symb))
   (into {} (for [ns       (all-ns)
                  [_ varr] (ns-publics ns)
                  :let     [model (var-get varr)]
@@ -4268,9 +3672,10 @@ seq -+--&gt; counts-of ------------------------------------+                    
                                :let   [k (some result source-keys)]
                                :when  k]
                            k))
+        primary-key (models/primary-key model)
         objs        (if (seq ids)
-                      (into {} (for [item (db/select model, :id [:in ids])]
-                                 {(:id item) item}))
+                      (into {} (for [item (db/select model, primary-key [:in ids])]
+                                 {(primary-key item) item}))
                       (constantly nil))]
     (for [result results
           :let [source-id (some result source-keys)]]
@@ -4457,7 +3862,610 @@ automagically-batched-hydrate    can-fn-based-batched-hydrate?
       (if (empty? results)
         results
         (apply hydrate-many results k ks))
-      (first (apply hydrate-many [results] k ks)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_toucan.db">toucan.db</li><li class="floating-toc-li" id="floating-toc_toucan.util.test">toucan.util.test</li><li class="floating-toc-li" id="floating-toc_toucan.util">toucan.util</li><li class="floating-toc-li" id="floating-toc_toucan.models">toucan.models</li><li class="floating-toc-li" id="floating-toc_toucan.hydrate">toucan.hydrate</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+      (first (apply hydrate-many [results] k ks)))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.models" name="toucan.models"><h1 class="project-name">toucan.models</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>The <code>defmodel</code> macro, used to define Toucan models, and
+   the <code>IModel</code> protocol and default implementations, which implement Toucan model functionality.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns toucan.models
+  (:require [clojure.walk :refer [postwalk]]
+            [honeysql.format :as hformat]
+            [toucan.util :as u])
+  (:import honeysql.format.ToSql))</pre></td></tr><tr><td class="docs"><h1>                                                  Configuration</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><h3>Root Model Namespace</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>The root model namespace is the parent namespace of all Toucan models. Toucan knows how to automatically load
+namespaces where models live, which is handy for avoiding circular references; to facilitate this, Toucan models
+need to live in places that match an expected pattern.</p>
+
+<p>For example, a model named <code>UserFollow</code> must live in the namespace <code>&lt;root-model-namespace&gt;.user-follow</code>.</p>
+
+<p>The root model namespace defaults to <code>models</code>; in the example above, <code>UserFollow</code> would live in
+<code>models.user-follow</code>.</p>
+
+<p>This is almost certainly not what you want; set your own value by calling <code>set-root-namespace!</code>:</p>
+
+<pre><code>(models/set-root-namespace! 'my-project.models)
+</code></pre>
+
+<p>After setting the default model root namespace as in the example above, Toucan will look for <code>UserFollow</code>
+in <code>my-project.models.user-follow</code>.</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private -root-namespace (atom 'models))</pre></td></tr><tr><td class="docs"><p>Set the root namespace where all models are expected to live.</p>
+
+<pre><code> (set-root-namespace! 'my-project.models)
+</code></pre>
+
+<p>  In this example, Toucan would look for a model named <code>UserFollow</code> in the namespace <code>my-project.models.user-follow</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn set-root-namespace!
+  [new-root-namespace]
+  {:pre [(symbol? new-root-namespace)]}
+  (reset! -root-namespace new-root-namespace))</pre></td></tr><tr><td class="docs"><p>Fetch the parent namespace for all Toucan models.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn root-namespace
+  []
+  @-root-namespace)</pre></td></tr><tr><td class="docs"><h3>Types</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Model types are a easy way to define functions that should be used to transform values of a certain column
+when they come out from or go into the database.</p>
+
+<p>For example, suppose you had a <code>Venue</code> model, and wanted the value of its <code>:category</code> column to automatically
+be converted to a Keyword when it comes out of the DB, and back into a string when put in. You could let Toucan
+know to take care of this by defining the model as follows:</p>
+
+<pre><code>(defmodel Venue :my_venue_table)
+
+(extend (class Venue)
+  models/IModel
+  (merge models/IModelDefaults
+         {:types (constantly {:category :keyword})}))
+</code></pre>
+
+<p>Whenever you fetch a Venue, Toucan will automatically apply the appropriate <code>:out</code> function for values of
+<code>:category</code>:</p>
+
+<pre><code>(db/select-one Venue) ; -&gt; {:id 1, :category :bar, ...}
+</code></pre>
+
+<p>In the other direction, <code>insert!</code> and <code>update!</code> will automatically do the reverse, and call the appropriate <code>:in</code>
+function.</p>
+
+<p><code>:keyword</code> is the only Toucan type defined by default, but adding more is simple.</p>
+
+<p>You can add a new type by calling <code>add-type!</code>:</p>
+
+<pre><code>;; add a :json type (using Cheshire) will serialize objects as JSON
+;; going into the DB, and deserialize JSON coming out from the DB
+(add-type! :json
+  :in  json/generate-string
+  :out #(json/parse-string % keyword))
+</code></pre>
+
+<p>In the example above, values of any columns marked as <code>:json</code> would be serialized as JSON before going into the DB,
+and deserialized <em>from</em> JSON when coming out of the DB.</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private type-fns
+  (atom {:keyword {:in  u/keyword-&gt;qualified-name
+                   :out keyword}}))</pre></td></tr><tr><td class="docs"><p>Add a new type mapping for type named by key K. Supply mappings for the functions that should prepare value
+   when it goes <code>:in</code> to the database, and for when it comes <code>:out</code>.</p>
+
+<pre><code> ;; add a :json type (using Cheshire) will serialize objects as JSON
+ ;; going into the DB, and deserialize JSON coming out from the DB
+ (add-type! :json
+   :in  json/generate-string
+   :out #(json/parse-string % keyword))
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn add-type!
+  {:style/indent 1}
+  [k &amp; {:keys [in out]}]
+  {:pre [(fn? in) (fn? out)]}
+  (swap! type-fns assoc k {:in in, :out out}))</pre></td></tr><tr><td class="docs"><h3>Properties</h3>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Model properties are a powerful way to extend the functionality of Toucan models.</p>
+
+<p>With properties, you can define custom functions that can modify the values (or even add new ones) of an object
+before it is saved (via the <code>insert!</code> and <code>update!</code> family of functions) or when it comes out of the DB (via the
+<code>select</code> family of functions).</p>
+
+<p>Properties are global, which lets you define a single set of functions that can be applied to multiple models
+that have the same property, without having to define repetitive code in model methods such as <code>pre-insert!</code>.</p>
+
+<p>For example, suppose you have several models with <code>:created-at</code> and <code>:updated-at</code> columns. Whenever a new instance
+of these models is inserted, you want to set <code>:created-at</code> and <code>:updated-at</code> to be the current time; whenever an
+instance is updated, you want to update <code>:updated-at</code>.</p>
+
+<p>You <em>could</em> handle this behavior by defining custom implementations for <code>pre-insert</code> and <code>pre-update</code> for each of
+these models, but that gets repetitive quickly. Instead, you can simplfy this behavior by defining a new <em>property</em>
+that can be shared by multiple models:</p>
+
+<pre><code>(add-property! :timestamped?
+  :insert (fn [obj _]
+            (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
+              (assoc obj :created-at now, :updated-at now)))
+  :update (fn [obj _]
+            (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
+
+(defmodel Venue :my_venue_table)
+
+(extend (class Venue)
+  models/IModel
+  (merge models/IModelDefaults
+         {:properties (constantly {:timestamped? true})}))
+</code></pre>
+
+<p>In this example, before a Venue is inserted, a new value for <code>:created-at</code> and <code>:updated-at</code> will be added; before
+one is updated, a new value for <code>:updated-at</code> will be added.</p>
+
+<p>Property functions can be defined for any combination of <code>:insert</code>, <code>:update</code>, and <code>:select</code>.
+If these functions are defined, they will be called as such:</p>
+
+<pre><code>(fn [object property-value])
+</code></pre>
+
+<p>where <code>property-value</code> is the value for the key in question returned by the model's implementation of <code>properties</code>.</p>
+
+<p>In the example above, <code>:timestamped?</code> is set to <code>true</code> for <code>Venue</code>; since we're not interested in the value in the
+example above we simply ignore it (by binding it to <code>_</code>).</p>
+
+<p>You can set the value to any truthy value you'd like, which can be used to customize behavior for different models,
+making properties even more flexible.</p>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private property-fns (atom nil))</pre></td></tr><tr><td class="docs"><p>Define a new model property and set the functions used to implement its functionality.
+   See documentation for more details.</p>
+
+<pre><code> (add-property! :timestamped?
+   :insert (fn [obj _]
+             (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
+               (assoc obj :created-at now, :updated-at now)))
+   :update (fn [obj _]
+             (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn add-property!
+  {:style/indent 1}
+  [k &amp; {:keys [insert update select]}]
+  {:pre [(or (not insert) (fn? insert))
+         (or (not update) (fn? update))
+         (or (not select) (fn? select))]}
+  (swap! property-fns assoc k {:insert insert, :update update, :select select}))</pre></td></tr><tr><td class="docs"><h1>                                                IModel Interface</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>The <code>IModel</code> protocol defines the various methods that are used to provide custom behavior for various models.</p>
+
+<p>   This protocol contains the various methods model classes can optionally implement. All methods have a default
+   implementation provided by <code>IModelDefaults</code>; new models created with the <code>defmodel</code> macro automatically implement
+   this protocol using those default implementations. To override one or more implementations, use <code>extend</code> and
+   <code>merge</code> your custom implementations with <code>IModelDefaults</code>:</p>
+
+<pre><code> (defmodel MyModel)
+
+ (extend (class MyModel)
+   IModel
+   (merge IModelDefaults {...}))
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defprotocol IModel
+  (pre-insert [this]
+    &quot;Gets called by `insert!` immediately before inserting a new object.
+     This provides an opportunity to do things like encode JSON or provide default values for certain fields.
+         (pre-insert [query]
+           (let [defaults {:version 1}]
+             (merge defaults query))) ; set some default values&quot;)
+  ;TODO add support for composite keys
+  (primary-key ^clojure.lang.Keyword [this]
+    &quot;Defines the primary key. Defaults to :id
+        (primary-key [_] :id)
+    NOTE: composite keys are currently not supported&quot;)
+  (post-insert [this]
+    &quot;Gets called by `insert!` with an object that was newly inserted into the database.
+     This provides an opportunity to trigger specific logic that should occur when an object is inserted or modify the
+     object that is returned. The value returned by this method is returned to the caller of `insert!`. The default
+     implementation is `identity`.
+       (post-insert [user]
+         (assoc user :newly-created true))
+       (post-insert [user]
+         (add-user-to-magic-perm-groups! user)
+         user)&quot;)
+  (pre-update [this]
+    &quot;Called by `update!` before DB operations happen. A good place to set updated values for fields like `updated-at`,
+     or to check preconditions.&quot;)
+  (post-update [this]
+    &quot;Gets called by `update!` with an object that was successfully updated in the database.
+     This provides an opportunity to trigger specific logic that should occur when an object is updated.
+     The value returned by this method is not returned to the caller of `update!`. The default
+     implementation is `nil` (not invoked).
+     Note: This method is *not* invoked when calling `update!` with a `honeysql-form` form.
+       (post-update [user]
+         (audit-user-updated! user)&quot;)
+  (post-select [this]
+    &quot;Called on the results from a call to `select` and similar functions. Default implementation doesn't do anything,
+     but you can provide custom implementations to do things like remove sensitive fields or add dynamic new ones.
+  For example, let's say we want to add a `:name` field to Users that combines their `:first-name` and `:last-name`:
+      (defn- post-select [user]
+        (assoc user :name (str (:first-name user) \&quot; \&quot; (:last-name user))))
+  Then, when we select a User:
+      (User 1) ; -&gt; {:id 1, :first-name \&quot;Cam\&quot;, :last-name \&quot;Saul\&quot;, :name \&quot;Cam Saul\&quot;}&quot;)
+  (pre-delete [this]
+    &quot;Called by `delete!` for each matching object that is about to be deleted.
+     Implementations can delete any objects related to this object by recursively calling `delete!`, or do
+     any other cleanup needed, or check some preconditions that must be fulfilled before deleting an object.
+  The output of this function is ignored.
+        (pre-delete [{database-id :id :as database}]
+          (delete! Card :database_id database-id)
+          ...)&quot;)
+  (default-fields ^clojure.lang.Sequential [this]
+    &quot;Return a sequence of keyword field names that should be fetched by default when calling
+     `select` or invoking the model (e.g., `(Database 1)`).&quot;)
+  (hydration-keys ^clojure.lang.Sequential [this]
+    &quot;The `hydration-keys` method can be overrode to specify the keyword field names that should be hydrated
+     as instances of this model. For example, `User` might include `:creator`, which means `hydrate` will
+     look for `:creator_id` or `:creator-id` in other objects to find the User ID, and fetch the `Users`
+     corresponding to those values.&quot;)
+  (types ^clojure.lang.IPersistentMap [this]
+    &quot;Return a map of keyword field names to their types for fields that should be serialized/deserialized in a special
+     way. Values belonging to a type are sent through an input function before being inserted into the DB, and sent
+     through an output function on their way out. `:keyword` is the only type enabled by default; you can add more by
+     calling `add-type!`:
+       (add-type! :json, :in json/generate-string, :out json/parse-string)
+   Set the types for a model like so:
+       ;; convert `:category` to a keyword when it comes out of the DB; convert back to a string before going in
+       (types [_] {:category :keyword})&quot;)
+  (properties ^clojure.lang.IPersistentMap [this]
+    &quot;Return a map of properties of this model. Properties can be used to implement advanced behavior across many
+     different models; see the documentation for more details. Declare a model's properties as such:
+       (properties [_] {:timestamped? true})
+  Define functions to handle objects with those properties using `add-property!`:
+      (add-property! :timestamped?
+        :insert (fn [obj] (assoc obj :created-at (new-timestamp), :updated-at (new-timestamp)))
+        :update (fn [obj] (assoc obj :updated-at (new-timestamp))))&quot;))</pre></td></tr><tr><td class="docs"><h1>                                                  INTERNAL IMPL</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Apply the appropriate <code>type-fns</code> for OBJ.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn- apply-type-fns
+  [obj direction]
+  (into obj (for [[col type] (types obj)]
+              (when-let [v (get obj col)]
+                {col ((get-in @type-fns [type direction]) v)}))))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- apply-property-fns
+  [context obj]
+  (loop [obj obj, [[k v] &amp; more] (seq (properties obj))]
+    (let [f (get-in @property-fns [k context])]
+      (cond
+        (not k) obj
+        f       (recur (f obj v) more)
+        :else   (recur obj       more)))))</pre></td></tr><tr><td class="docs"><p>Used by internal functions like <code>do-post-select</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defprotocol ICreateFromMap
+  (^:private map-&gt; [klass, ^clojure.lang.IPersistentMap m]
+   &quot;Convert map M to instance of record type KLASS.&quot;))</pre></td></tr><tr><td class="docs"><p>these functions call (map-> model ...) twice to make sure functions like pre-insert/post-select
+didn't do something that accidentally removed the typing</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Don't call this directly! Apply functions like <code>pre-insert</code> before inserting an object into the DB.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn do-pre-insert
+  [model obj]
+  (as-&gt; obj &lt;&gt;
+    (map-&gt; model &lt;&gt;)
+    (pre-insert &lt;&gt;)
+    (map-&gt; model &lt;&gt;)
+    (apply-type-fns &lt;&gt; :in)
+    (apply-property-fns :insert &lt;&gt;)))</pre></td></tr><tr><td class="docs"><p>Don't call this directly! Apply internal functions like <code>pre-update</code> before updating an object in the DB.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn do-pre-update
+  [model obj]
+  (as-&gt; obj &lt;&gt;
+    (map-&gt; model &lt;&gt;)
+    (pre-update &lt;&gt;)
+    (map-&gt; model &lt;&gt;)
+    (apply-type-fns &lt;&gt; :in)
+    (apply-property-fns :update &lt;&gt;)))</pre></td></tr><tr><td class="docs"><p>Don't call this directly! Apply internal functions like <code>post-select</code> when an object is retrieved from the DB.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn do-post-select
+  [model obj]
+  (as-&gt; obj &lt;&gt;
+    (map-&gt; model &lt;&gt;)
+    (apply-type-fns &lt;&gt; :out)
+    (post-select &lt;&gt;)
+    (map-&gt; model &lt;&gt;)
+    (apply-property-fns :select &lt;&gt;)))</pre></td></tr><tr><td class="docs"><p>Default implementations for <code>IModel</code> methods.</p>
+</td><td class="codes"><pre class="brush: clojure">(def IModelDefaults
+  {:default-fields (constantly nil)
+   :primary-key    (constantly :id)
+   :types          (constantly nil)
+   :properties     (constantly nil)
+   :pre-insert     identity
+   :post-insert    identity
+   :pre-update     identity
+   :post-update    nil
+   :post-select    identity
+   :pre-delete     (constantly nil)
+   :hydration-keys (constantly nil)})</pre></td></tr><tr><td class="docs"><p>Fetch an object with a specific ID or all objects of type ENTITY from the DB.</p>
+
+<pre><code> (invoke-model Database)           -&gt; seq of all databases
+ (invoke-model Database 1)         -&gt; Database w/ ID 1
+ (invoke-model Database :id 1 ...) -&gt; A single Database matching some key-value args
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- invoke-model
+  ([model]
+   ((resolve 'toucan.db/select) model))
+  ([model id]
+   (when id
+     (invoke-model model (primary-key model) id)))
+  ([model k v &amp; more]
+   (apply (resolve 'toucan.db/select-one) model k v more)))</pre></td></tr><tr><td class="docs"><p>Is model a valid toucan model?</p>
+</td><td class="codes"><pre class="brush: clojure">(def ^:const ^{:arglists '([model])} ^Boolean model?
+  ::model)</pre></td></tr><tr><td class="docs"><p>Check whether OBJ is an model (e.g. <code>Database</code>) or an object from the DB; if an model,
+   call <code>invoked-model</code>; otherwise call <code>get</code>.</p>
+
+<p>We use the same record type (e.g., <code>DatabaseInstance</code>) for both the "model" (e.g., <code>Database</code>) and objects fetched
+from the DB ("instances"). Model definitions have the key <code>::model</code> assoced so we can differentiate.
+Invoking an instance calls get so you can do things like <code>(db :name)</code> as if it were a regular map.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn invoke-model-or-instance
+  [obj &amp; args]
+  (apply (if (model? obj)
+           invoke-model
+           get)
+         obj args))</pre></td></tr><tr><td class="docs"><h1>                                                  DEFMODEL MACRO</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Macro helper, generates</p>
+
+<pre><code>   (~'invoke [this#]
+    (invoke-model-or-instance this#))
+   (~'invoke [this# id#]
+    (invoke-model-or-instance this# id#))
+   (~'invoke [this# arg1# arg2#]
+    (invoke-model-or-instance this# arg1# arg2#))
+   ,,,
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- ifn-invoke-forms
+  []
+  (let [args (map #(symbol (str &quot;arg&quot; %)) (range 1 19))
+        arg-lists (reductions conj ['this] args)]
+    (for [l arg-lists]
+      (list 'invoke l (concat `(invoke-model-or-instance) l)))))</pre></td></tr><tr><td class="docs"><p>Make a symbol fully qualified by resolving it as a var in the current namespace.</p>
+
+<pre><code> conj        ;;=&gt; clojure.core/conj
+ str/join    ;;=&gt; clojure.string/join
+ foo.bar/baz ;;=&gt; foo.bar/baz
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- fully-qualified-symbol
+  [s]
+  (let [{:keys [ns name]} (meta (resolve s))]
+    (symbol (str ns &quot;/&quot; name))))</pre></td></tr><tr><td class="docs"><p>Take in forms as passed to defrecord or extend-type (protocol or interface
+  name followed by method definitions), and return a map suitable for use with
+  extend.</p>
+
+<pre><code>(IFn (invoke [this] this)) ;;=&gt; {IFn {:invoke (fn [this] this)}}
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn- method-forms-map
+  [forms]
+  (second
+   (reduce (fn [[type acc] form]
+             (if (symbol? form)
+               [(fully-qualified-symbol form) acc]
+               [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))</pre></td></tr><tr><td class="docs"><p>Define a new "model". Models encapsulate information and behaviors related to a specific table in the application
+  DB, and have their own unique record type.</p>
+
+<p>  <code>defmodel</code> defines a backing record type following the format <code>&lt;model&gt;Instance</code>. For example, the class associated
+  with <code>User</code> is <code>&lt;root-namespace&gt;.user/UserInstance</code>. (The root namespace defaults to <code>models</code> but can be configured
+  via <code>set-root-namespace!</code>)</p>
+
+<p>  This class is used for both the titular model (e.g. <code>User</code>) and for objects that are fetched from the DB. This means
+  they can share the <code>IModel</code> protocol and simplifies the interface somewhat; functions like <code>types</code> work on either
+  the model or instances fetched from the DB.</p>
+
+<pre><code> (defmodel User :user_table)  ; creates class `UserInstance` and DB model `User`
+
+ (db/select User, ...)  ; use with `toucan.db` functions. All results are instances of `UserInstance`
+</code></pre>
+
+<p>  The record type automatically extends <code>IModel</code> with <code>IModelDefaults</code>, but you can override specific methods, or
+  implement other protocols, by passing them to <code>defmodel</code>, the same way you would with <code>defrecord</code>.</p>
+
+<pre><code> (defmodel User :user_table
+   IModel
+   (hydration-keys [_]
+     [:user])
+   (properties [_]
+     {:timestamped true})
+   (pre-insert [user]
+     user))
+</code></pre>
+
+<p>   This is equivalent to:</p>
+
+<pre><code> (extend (class User)             ; it's somewhat more readable to write `(class User)` instead of `UserInstance`
+   IModel (merge IModelDefaults
+                  {...}))
+</code></pre>
+
+<p>   Finally, the model itself is invokable. Calling with no args returns <em>all</em> values of that object; calling with a
+  single arg can be used to fetch a specific instance by its integer ID.</p>
+
+<pre><code> (Database)                       ; return a seq of *all* Databases (as instances of `DatabaseInstance`)
+ (Database 1)                     ; return Database 1
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defmacro defmodel
+  {:arglists     '([model table-name] [model docstr? table-name])
+   :style/indent [2 :form :form [1]]}
+  [model &amp; args]
+  (let [[docstr table-name] (if (string? (first args))
+                              args
+                              (list nil (first args)))
+        extend-forms        (if (string? (first args))
+                              (drop 2 args)
+                              (drop 1 args))
+        instance            (symbol (str model &quot;Instance&quot;))
+        map-&gt;instance       (symbol (str &quot;map-&gt;&quot; instance))
+        defrecord-form      `(defrecord ~instance []
+                               clojure.lang.Named
+                               (~'getName [~'_] ~(name model))
+                               clojure.lang.IFn
+                               ~@(ifn-invoke-forms)
+                               (~'applyTo [~'this ^clojure.lang.ISeq ~'args]
+                                (apply invoke-model-or-instance ~'this ~'args)))
+        ;; Replace the implementation of `empty`. It's either this, or using the
+        ;; lower level `deftype`, and re-implementing all of `defrecord`
+        defrecord-form (postwalk (fn [f]
+                                   (if (and (seq? f) (= (first f) 'clojure.core/empty))
+                                     `(empty [_#] (~map-&gt;instance {}))
+                                     f))
+                                 (macroexpand defrecord-form))]
+    `(do
+       ~defrecord-form
+       (extend ~instance
+         ~@(mapcat identity (merge-with (fn [this that] `(merge ~this ~that))
+                              `{toucan.models/IModel         toucan.models/IModelDefaults
+                                toucan.models/ICreateFromMap {:map-&gt; (fn [~'_ &amp; args#] (apply ~map-&gt;instance args#))}
+                                honeysql.format/ToSql        {:to-sql (comp hformat/to-sql keyword :table)}}
+                              (method-forms-map extend-forms))))
+       (def ~(vary-meta model assoc
+                        :tag      (symbol (str (namespace-munge *ns*) \. instance))
+                        :arglists ''([] [id] [&amp; kvs])
+                        :doc      (or docstr
+                                      (format &quot;Entity for '%s' table; instance of %s.&quot; (name table-name) instance)))
+         (~map-&gt;instance {:table  ~table-name
+                          :name   ~(name model)
+                          ::model true})))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util.test" name="toucan.util.test"><h1 class="project-name">toucan.util.test</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions for writing tests with Toucan models.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns toucan.util.test
+  (:require [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makes testing easy with <em>Temporary Objects</em>. A temporary object is created and made
+available to some body of code, and then wiped from that database via a <code>finally</code> statement (i.e., whether the body
+completes successfully or not). This makes it easy to write tests that do not change your test database when they
+are ran.</p>
+
+<p>Here's an example of a unit test using a temporary object created via <code>with-temp</code>:</p>
+
+<pre><code>;; Make sure newly created users aren't admins
+(expect false
+  (with-temp User [user {:first-name "Cam", :last-name "Saul"}]
+    (is-admin? user)))
+</code></pre>
+
+<p>In this example, a new instance of <code>User</code> is created (via the normal <code>insert!</code> pathway), and bound to <code>user</code>; the
+body of <code>with-temp</code> (the <code>test-something</code> fncall) is executed. Immediately after, the <code>user</code> is removed from the
+Database, but the entire statement returns the results of the body (hopefully <code>false</code>).</p>
+
+<p>Often a Model will require that many fields be <code>NOT NULL</code>, and specifying all of them in every test can get
+tedious. In the example above, we don't care about the <code>:first-name</code> or <code>:last-name</code> of the user. We can provide
+default values for temporary objects by implementing the <code>WithTempDefaults</code> protocol:</p>
+
+<pre><code>(defn- random-name
+  "Generate a random name of 10 uppercase characters"
+  []
+  (apply str (map char (repeatedly 10 #(rand-nth (range (int \A) (inc (int \Z))))))))
+
+(extend-protocol WithTempDefaults
+  (class User)
+  (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))
+</code></pre>
+
+<p>Now whenever we use <code>with-temp</code> to create a temporary <code>User</code>, a random <code>:first-name</code> and <code>:last-name</code> will be
+provided.</p>
+
+<pre><code>(with-temp User [user]
+  user)
+;; -&gt; {:first-name "RIQGVIDTZN", :last-name "GMYROFEZYO", ...}
+</code></pre>
+
+<p>You can still override any of the defaults, however:</p>
+
+<pre><code>(with-temp User [user {:first-name "Cam"}]
+  user)
+;; -&gt; {:first-name "Cam", :last-name "OVTAAJBVOF"}
+</code></pre>
+
+<p>Finally, Toucan provides a couple more advanced versions of <code>with-temp</code>. The first, <code>with-temp*</code>, can be used to
+create multiple objects at once:</p>
+
+<pre><code>(with-temp* [User         [user]
+             Conversation [convo {:user_id (:id user)}]]
+  ...)
+</code></pre>
+
+<p>Each successive object can reference the temp object before it; the form is equivalent to writing multiple
+<code>with-temp</code> forms.</p>
+
+<p>The last helper macro is available if you use the <code>expectations</code> unit test framework:</p>
+
+<pre><code>;; Make sure our get-id function works on users
+(expect-with-temp [User [user {:first-name "Cam"}]]
+  (:id user)
+  (get-id user))
+</code></pre>
+
+<p>This macro makes the temporary object available to both the "expected" and "actual" parts of the test. (PRs for
+similar macros for other unit test frameworks are welcome!)</p>
+</td><td class="codes"></td></tr><tr><td class="docs"><p>Protocol defining the <code>with-temp-defaults</code> method, which provides default values for new temporary objects.</p>
+</td><td class="codes"><pre class="brush: clojure">(defprotocol WithTempDefaults
+  (with-temp-defaults ^clojure.lang.IPersistentMap [this]
+    &quot;Return a map of default values that should be used when creating a new temporary object of this model.
+       ;; Use a random first and last name for new temporary Users unless otherwise specified
+       (extend-protocol WithTempDefaults
+         (class User)
+         (with-temp-defaults [_] {:first-name (random-name), :last-name (random-name)}))&quot;))</pre></td></tr><tr><td class="docs"><p>default impl</p>
+</td><td class="codes"><pre class="brush: clojure">(extend Object
+  WithTempDefaults
+  {:with-temp-defaults (constantly {})})</pre></td></tr><tr><td class="docs"><p>Internal implementation of <code>with-temp</code> (don't call this directly).</p>
+</td><td class="codes"><pre class="brush: clojure">(defn do-with-temp
+  [model attributes f]
+  (let [temp-object (db/insert! model (merge (when (satisfies? WithTempDefaults model)
+                                               (with-temp-defaults model))
+                                             attributes))]
+    (try
+      (f temp-object)
+      (finally
+        (db/delete! model :id (:id temp-object))))))</pre></td></tr><tr><td class="docs"><p>Create a temporary instance of ENTITY bound to BINDING-FORM, execute BODY,
+   then deletes it via <code>delete!</code>.</p>
+
+<p>   Our unit tests rely a heavily on the test data and make some assumptions about the
+   DB staying in the same <em>clean</em> state. This allows us to write very concise tests.
+   Generally this means tests should "clean up after themselves" and leave things the
+   way they found them.</p>
+
+<p>   <code>with-temp</code> should be preferrable going forward over creating random objects <em>without</em>
+   deleting them afterward.</p>
+
+<pre><code>(with-temp EmailReport [report {:creator_id (user-&gt;id :rasta)
+                                :name       (random-name)}]
+  ...)
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp
+  [model [binding-form &amp; [options-map]] &amp; body]
+  `(do-with-temp ~model ~options-map (fn [~binding-form]
+                                       ~@body)))</pre></td></tr><tr><td class="docs"><p>Like <code>with-temp</code> but establishes multiple temporary objects at the same time.</p>
+
+<pre><code> (with-temp* [Database [{database-id :id}]
+              Table    [table {:db_id database-id}]]
+   ...)
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defmacro with-temp*
+  [model-bindings &amp; body]
+  (loop [[pair &amp; more] (reverse (partition 2 model-bindings)), body `(do ~@body)]
+    (let [body `(with-temp ~@pair
+                  ~body)]
+      (if (seq more)
+        (recur more body)
+        body))))</pre></td></tr><tr><td class="docs"><h1>                                            EXPECTATIONS HELPER MACROS</h1>
+</td><td class="codes"></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defn- has-expectations-dependency? []
+  (try (require 'expectations)
+       true
+       (catch Throwable _
+         false)))</pre></td></tr><tr><td class="docs"><p>Combines <code>expect</code> with a <code>with-temp*</code> form. The temporary objects established by <code>with-temp*</code> are available
+     to both EXPECTED and ACTUAL.</p>
+
+<pre><code> (expect-with-temp [Database [{database-id :id}]]
+    database-id
+    (get-most-recent-database-id))
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(when (has-expectations-dependency?)
+  (defmacro expect-with-temp
+    {:style/indent 1}
+    [with-temp*-form expected actual]
+    ;; use `gensym` instead of auto gensym here so we can be sure it's a unique symbol every time. Otherwise since
+    ;; expectations hashes its body to generate function names it will treat every usage of `expect-with-temp` as
+    ;; the same test and only a single one will end up being ran
+    (let [with-temp-form (gensym &quot;with-temp-&quot;)]
+      `(let [~with-temp-form (delay (with-temp* ~with-temp*-form
+                                      [~expected ~actual]))]
+         (expectations/expect
+           ;; if dereferencing with-temp-form throws an exception then expect Exception &lt;-&gt; Exception will pass;
+           ;; we don't want that, so make sure the expected is nil
+           (try
+             (first @~with-temp-form)
+             (catch Throwable ~'_))
+           (second @~with-temp-form))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util" name="toucan.util"><h1 class="project-name">toucan.util</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions used by other Toucan modules.</p>
+</td><td class="codes"><pre class="brush: clojure">(ns toucan.util
+  (:require [clojure.string :as s]))</pre></td></tr><tr><td class="docs"><p>Return keyword K as a string, including its namespace, if any (unlike <code>name</code>).</p>
+
+<pre><code> (keyword-&gt;qualified-name :type/FK) -&gt; "type/FK"
+</code></pre>
+</td><td class="codes"><pre class="brush: clojure">(defn keyword-&gt;qualified-name
+  [k]
+  (when k
+    (s/replace (str k) #&quot;^:&quot; &quot;&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_toucan.db">toucan.db</li><li class="floating-toc-li" id="floating-toc_toucan.hydrate">toucan.hydrate</li><li class="floating-toc-li" id="floating-toc_toucan.models">toucan.models</li><li class="floating-toc-li" id="floating-toc_toucan.util.test">toucan.util.test</li><li class="floating-toc-li" id="floating-toc_toucan.util">toucan.util</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack
