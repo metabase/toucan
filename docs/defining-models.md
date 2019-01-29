@@ -435,6 +435,11 @@ table name of the model):
 
 ### Functions that assume the PK is called :id
 
-In several places, Toucan assumes models have a primary key, and that it is called `:id`. While Toucan can be used with models where this
-is not the case, several functions won't work. For the time being, it is strongly recommended you follow this pattern
-(usually a good idea anyway); we have an open issue to remedy this situation [here](https://github.com/metabase/toucan/issues/3).
+By default Toucan assumes models have a primary key called `:id`. If your model uses a primary key with a different name, implement
+the `primary-key` method to tell Toucan what it should use instead:
+
+```clojure
+(defmodel PhoneNumber :phone_numbers
+  IModel
+  (primary-key [_] :number))
+```
