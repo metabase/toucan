@@ -9,7 +9,6 @@
                  [org.clojure/tools.logging "0.4.1"]
                  [org.clojure/tools.namespace "0.2.10"]
                  [honeysql "0.9.4"]]
-  :javac-options ["-target" "1.7", "-source" "1.7"]
   :aliases {"bikeshed" ["bikeshed" "--max-line-length" "118" "--var-redefs" "false"]
             "lint" ["do" ["eastwood"] ["bikeshed"] ["docstring-checker"] ["check-namespace-decls"]]
             "test" ["expectations"]
