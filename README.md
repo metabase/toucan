@@ -222,6 +222,17 @@ words in the Markdown documentation to different lines in a way that wouldn't ch
 page itself would appear. These sorts of changes make a PR bigger than it needs to be, and, thus, harder
 to review.) And please include a detailed explanation of what changes you're making and why you've made them. This will help us understand what's going on while we review it. Thanks! :heart_eyes_cat:
 
+### YourKit
+
+![YourKit](https://www.yourkit.com/images/yklogo.png)
+
+YourKit has kindly given us an open source license for their profiler, helping us profile and improve Toucan performance.
+
+YourKit supports open source projects with innovative and intelligent tools 
+for monitoring and profiling Java and .NET applications.
+YourKit is the creator of [YourKit Java Profiler](https://www.yourkit.com/java/profiler/),
+[YourKit .NET Profiler](https://www.yourkit.com/.net/profiler/),
+and [YourKit YouMonitor](https://www.yourkit.com/youmonitor/).
 
 ### License
 
