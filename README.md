@@ -229,7 +229,7 @@ to review.) And please include a detailed explanation of what changes you're mak
 
 YourKit has kindly given us an open source license for their profiler, helping us profile and improve Toucan performance.
 
-YourKit supports open source projects with innovative and intelligent tools 
+YourKit supports open source projects with innovative and intelligent tools
 for monitoring and profiling Java and .NET applications.
 YourKit is the creator of [YourKit Java Profiler](https://www.yourkit.com/java/profiler/),
 [YourKit .NET Profiler](https://www.yourkit.com/.net/profiler/),
@@ -237,6 +237,6 @@ and [YourKit YouMonitor](https://www.yourkit.com/youmonitor/).
 
 ### License
 
-Code and documentation copyright © 2018 Metabase, Inc. Artwork copyright © 2018 Cam Saul.
+Code and documentation copyright © 2018-2019 Metabase, Inc. Artwork copyright © 2018-2019 Cam Saul.
 
 Distributed under the [Eclipse Public License](https://raw.githubusercontent.com/metabase/toucan/master/LICENSE.txt), same as Clojure.
