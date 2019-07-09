@@ -1,117 +1,34 @@
 (ns toucan.hydrate
   "Functions for deserializing and hydrating fields in objects fetched from the DB."
-  (:require [toucan
-             [db :as db]
-             [models :as models]]))
+  (:require [toucan.dispatch :as dispatch]))
 
-;;;                                       Counts Destructuring & Restructuring
-;;; ==================================================================================================================
+;; NOCOMMIT
+(doseq [[symb] (ns-interns *ns*)]
+  (ns-unmap *ns* symb))
+#_(doseq [[symb] (ns-aliases *ns*)]
+  (ns-unalias *ns* symb))
 
-;; #### *DISCLAIMER*
-;;
-;; This I wrote this code at 4 AM nearly 2 years ago and don't remember exactly what it is supposed to accomplish,
-;; or why. It generates a sort of path that records the wacky ways in which objects in a collection are nested,
-;; and how they fit into sequences; it then returns a flattened sequence of desired objects for easy modification.
-;; Afterwards the modified objects can be put in place of the originals by passing in the sequence of modified objects
-;; and the path.
-;;
-;; Nonetheless, it still works (somehow) and is well-tested. But it's definitely overengineered and crying out to be
-;; replaced with a simpler implementation (`clojure.walk` would probably work here). PRs welcome!
-;;
-;; #### Original Overview
-;;
-;; At a high level, these functions let you aggressively flatten a sequence of maps by a key
-;; so you can apply some function across it, and then unflatten that sequence.
-;;
-;;          +-------------------------------------------------------------------------+
-;;          |                                                                         +--> (map merge) --> new seq
-;;     seq -+--> counts-of ------------------------------------+                      |
-;;          |                                                  +--> counts-unflatten -+
-;;          +--> counts-flatten -> (modify the flattened seq) -+
-;;
-;; 1.  Get a value that can be used to unflatten a sequence later with `counts-of`.
-;; 2.  Flatten the sequence with `counts-flatten`
-;; 3.  Modify the flattened sequence as needed
-;; 4.  Unflatten the sequence by calling `counts-unflatten` with the modified sequence and value from step 1
-;; 5.  `map merge` the original sequence and the unflattened sequence.
-;;
-;; For your convenience `counts-apply` combines these steps for you.
+(defmulti simple-hydrate
+  {:arglists '([model results k])}
+  (fn [model _ k]
+    [(dispatch/toucan-type model) k])
+  :hierarchy #'dispatch/hierarchy)
 
-(defn- counts-of
-  "Return a sequence of counts / keywords that can be used to unflatten
-   COLL later.
+(defmulti batched-hydrate
+  {:arglists '([model results k])}
+  (fn [model _ k]
+    [(dispatch/toucan-type model) k])
+  :hierarchy #'dispatch/hierarchy)
 
-    (counts-of [{:a [{:b 1} {:b 2}], :c 2}
-                {:a {:b 3}, :c 4}] :a)
-      -> [2 :atom]
+(defmulti automagic-hydration-key-model
+  {:arglists '([k])}
+  identity
+  :default   ::default
+  :hierarchy #'dispatch/hierarchy)
 
-   For each `x` in COLL, return:
-
-   *  `(count (k x))` if `(k x)` is sequential
-   *  `:atom`         if `(k x)` is otherwise non-nil
-   *  `:nil`          if `x` has key `k` but the value is nil
-   *  `nil`           if `x` is nil."
-  [coll k]
-  (map (fn [x]
-         (cond
-           (sequential? (k x)) (count (k x))
-           (k x)               :atom
-           (contains? x k)     :nil
-           :else               nil))
-       coll))
-
-(defn- counts-flatten
-  "Flatten COLL by K.
-
-    (counts-flatten [{:a [{:b 1} {:b 2}], :c 2}
-                     {:a {:b 3}, :c 4}] :a)
-      -> [{:b 1} {:b 2} {:b 3}]"
-  [coll k]
-  {:pre [(sequential? coll)
-         (keyword? k)]}
-  (->> coll
-       (map k)
-       (mapcat (fn [x]
-                 (if (sequential? x)  x
-                     [x])))))
-
-(defn- counts-unflatten
-  "Unflatten COLL by K using COUNTS from `counts-of`.
-
-    (counts-unflatten [{:b 2} {:b 4} {:b 6}] :a [2 :atom])
-      -> [{:a [{:b 2} {:b 4}]}
-          {:a {:b 6}}]"
-  ([coll k counts]
-   (counts-unflatten [] coll k counts))
-  ([acc coll k [count & more]]
-   (let [[unflattend coll] (condp = count
-                             nil   [nil (rest coll)]
-                             :atom [(first coll) (rest coll)]
-                             :nil  [:nil (rest coll)]
-                             (split-at count coll))
-         acc (conj acc unflattend)]
-     (if-not (seq more) (map (fn [x]
-                               (when x
-                                 {k (when-not (= x :nil) x)}))
-                             acc)
-             (recur acc coll k more)))))
-
-(defn- counts-apply
-  "Apply F to values of COLL flattened by K, then return unflattened/updated results.
-
-    (counts-apply [{:a [{:b 1} {:b 2}], :c 2}
-                   {:a {:b 3}, :c 4}]
-      :a #(update-in % [:b] (partial * 2)))
-
-      -> [{:a [{:b 2} {:b 4}], :c 2}
-          {:a {:b 3}, :c 4}]"
-  [coll k f]
-  (let [counts (counts-of coll k)
-        new-vals (-> coll
-                     (counts-flatten k)
-                     f
-                     (counts-unflatten k counts))]
-    (map merge coll new-vals)))
+(defmethod automagic-hydration-key-model ::default
+  [_]
+  nil)
 
 
 ;;;                                                     Util Fns
@@ -130,75 +47,31 @@
 
      (kw-append :user \"_id\") -> :user_id"
   [k suffix]
-  (keyword (str (name k) suffix)))
-
-(defn- lookup-functions-with-metadata-key
-  "Return a map of hydration keywords to functions that should be used to hydrate them, e.g.
-
-     {:fields #'my-project.models.table/fields
-      :tables #'my-project.models.database/tables
-      ...}
-
-   These functions are ones that are marked METADATA-KEY, e.g. `^:hydrate` or `^:batched-hydrate`."
-  [metadata-key]
-  (loop [m {}, [[k f] & more] (for [ns          (all-ns)
-                                    [symb varr] (ns-interns ns)
-                                    :let        [hydration-key (metadata-key (meta varr))]
-                                    :when       hydration-key]
-                                [(if (true? hydration-key)
-                                   (keyword (name symb))
-                                   hydration-key)
-                                 varr])]
-    (cond
-      (not k) m
-      (m k)   (throw (Exception.
-                      (format "Duplicate `^%s` functions for key '%s': %s and %s." metadata-key k (m k) f)))
-      :else   (recur (assoc m k f) more))))
+  (keyword
+   (str (when-let [nmspc (namespace k)]
+          (str nmspc "/"))
+        (name k)
+        suffix)))
 
 
 ;;;                                  Automagic Batched Hydration (via :model-keys)
 ;;; ==================================================================================================================
 
-(defn- require-model-namespaces-and-find-hydration-fns
-  "Return map of `hydration-key` -> model
-  e.g. `:user -> User`.
-
-  This is built pulling the `hydration-keys` set from all of our entities."
-  []
-  (into {} (for [ns       (all-ns)
-                 [_ varr] (ns-publics ns)
-                 :let     [model (var-get varr)]
-                 :when    (models/model? model)
-                 :let     [hydration-keys (models/hydration-keys model)]
-                 k        hydration-keys]
-             {k model})))
-
-(def ^:private automagic-batched-hydration-key->model* (atom nil))
-
-(defn- automagic-batched-hydration-key->model
-  "Get a map of hydration keys to corresponding models."
-  []
-  (or @automagic-batched-hydration-key->model*
-      (reset! automagic-batched-hydration-key->model* (require-model-namespaces-and-find-hydration-fns))))
-
-
 (defn- can-automagically-batched-hydrate?
-  "Can we do a batched hydration of RESULTS with key K?"
+  "Can we do a batched hydration of `results` with key `k`?"
   [results k]
-  (let [k-id-u (kw-append k "_id")
-        k-id-d (kw-append k "-id")
-        contains-k-id? (fn [obj]
-                         (or (contains? obj k-id-u)
-                             (contains? obj k-id-d)))]
-    (and (contains? (automagic-batched-hydration-key->model) k)
+  (let [underscore-id-key (kw-append k "_id")
+        dash-id-key       (kw-append k "-id")
+        contains-k-id?    #(some % [underscore-id-key dash-id-key])]
+    (and (automagic-hydration-key-model k)
          (every? contains-k-id? results))))
 
 (defn- automagically-batched-hydrate
-  "Hydrate keyword DEST-KEY across all RESULTS by aggregating corresponding source keys (`DEST-KEY_id`),
-  doing a single `db/select`, and mapping corresponding objects to DEST-KEY."
+  "Hydrate keyword `dest-key` across all `results` by aggregating corresponding source keys (`DEST-KEY_id`),
+  doing a single `db/select`, and mapping corresponding objects to `dest-key`."
   [results dest-key]
   {:pre [(keyword? dest-key)]}
-  (let [model       ((automagic-batched-hydration-key->model) dest-key)
+  (let [model       (automagic-hydration-key-model dest-key)
         source-keys #{(kw-append dest-key "_id") (kw-append dest-key "-id")}
         ids         (set (for [result results
                                :when  (not (get result dest-key))
@@ -220,16 +93,8 @@
 ;;;                         Function-Based Batched Hydration (fns marked ^:batched-hydrate)
 ;;; ==================================================================================================================
 
-(def ^:private hydration-key->batched-f*
-  (atom nil))
-
-(defn- hydration-key->batched-f
-  "Map of keys to functions marked `^:batched-hydrate` for them."
-  []
-  (or @hydration-key->batched-f*
-      (reset! hydration-key->batched-f* (lookup-functions-with-metadata-key :batched-hydrate))))
-
-(defn- can-fn-based-batched-hydrate? [_ k]
+(defn- can-fn-based-batched-hydrate? [model k]
+  (get-method batched-hydrate)
   (contains? (hydration-key->batched-f) k))
 
 (defn- fn-based-batched-hydrate
@@ -294,7 +159,7 @@
       (counts-apply results k #(apply hydrate % more)))))
 
 (defn- hydrate-kw
-  "Hydrate a single keyword."
+  "Hydrate a single key."
   [results k]
   (cond
     (can-automagically-batched-hydrate? results k) (automagically-batched-hydrate results k)
