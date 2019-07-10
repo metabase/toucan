@@ -12,29 +12,29 @@
 
 (expect
   nil
-  (dispatch/toucan-type nil))
+  (dispatch/dispatch-value nil))
 
 (expect
  nil
- (dispatch/toucan-type {}))
+ (dispatch/dispatch-value {}))
 
 (expect
   ::MyModel
-  (dispatch/toucan-type (instance/of ::MyModel {})))
+  (dispatch/dispatch-value (instance/of ::MyModel {})))
 
 (expect
   ::MyAspect
-  (dispatch/toucan-type {:toucan/type ::MyAspect}))
+  (dispatch/dispatch-value {:toucan/model ::MyAspect}))
 
 ;; string
 (expect
   :toucan.dispatch-test/MyAspect
-  (dispatch/toucan-type "toucan.dispatch-test/MyAspect"))
+  (dispatch/dispatch-value "toucan.dispatch-test/MyAspect"))
 
 ;; symbol
 (expect
   :toucan.dispatch-test/MyAspect
-  (dispatch/toucan-type 'toucan.dispatch-test/MyAspect))
+  (dispatch/dispatch-value 'toucan.dispatch-test/MyAspect))
 
 (db/defaspect A)
 

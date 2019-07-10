@@ -5,9 +5,7 @@
              [hydrate :as hydrate]
              [instance :as instance]]))
 
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
+
 
 (potemkin/import-vars
  [dispatch toucan-type]
@@ -110,17 +108,9 @@
 
 ;; TODO - how to apply types to `pre-select` ??
 
-(defmethod post-select ::types
-  [{:keys [types]} result]
-  (reduce
-   (fn [result [field type-fn]]
-     (update result field (if (fn? type-fn)
-                            type-fn
-                            (partial type-out type-fn))))
-   result
-   types))
+
 
 (defn types [field->type-fn]
-  {:toucan/type ::types, :types field->type-fn})
+  {:toucan/model ::types, :types field->type-fn})
 
 ;; TODO - default fields

@@ -5,26 +5,30 @@
 ;; NOCOMMIT
 (doseq [[symb] (ns-interns *ns*)]
   (ns-unmap *ns* symb))
-#_(doseq [[symb] (ns-aliases *ns*)]
-  (ns-unalias *ns* symb))
+
+(defmulti hydration-keys
+  {:arglists '([model])}
+  "The `hydration-keys` method can be overrode to specify the keyword field names that should be hydrated
+     as instances of this model. For example, `User` might include `:creator`, which means `hydrate` will
+     look for `:creator_id` or `:creator-id` in other objects to find the User ID, and fetch the `Users`
+     corresponding to those values."
+  dispatch/dispatch-value
+  )
 
 (defmulti simple-hydrate
   {:arglists '([model results k])}
   (fn [model _ k]
-    [(dispatch/toucan-type model) k])
-  :hierarchy #'dispatch/hierarchy)
+    [(dispatch/dispatch-value model) k]))
 
 (defmulti batched-hydrate
   {:arglists '([model results k])}
   (fn [model _ k]
-    [(dispatch/toucan-type model) k])
-  :hierarchy #'dispatch/hierarchy)
+    [(dispatch/dispatch-value model) k]))
 
 (defmulti automagic-hydration-key-model
   {:arglists '([k])}
   identity
-  :default   ::default
-  :hierarchy #'dispatch/hierarchy)
+  :default   ::default)
 
 (defmethod automagic-hydration-key-model ::default
   [_]

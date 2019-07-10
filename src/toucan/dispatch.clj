@@ -2,32 +2,21 @@
   (:require [flatland.ordered.map :as ordered-map]
             [toucan.instance :as instance]))
 
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
+;; TODO - rename to `dispatch-value`?
+(defn dispatch-value [x & _]
+  (instance/model x))
 
-(def hierarchy
-  (make-hierarchy))
-
-;; TODO - `derive`
-
-;; TODO - fix confusion between `type`, `aspect`, and `model`
-(defn toucan-type [x & _]
-  (or
-   (instance/model x)
-   (if (map? x)
-     (:toucan/type x)
-     (keyword x))))
-
+;; TODO - are we sure this belongs here, and not in `models`?
+;; TODO - dox
 (defmulti aspects
   {:arglists '([model])}
-  toucan-type
-  :hierarchy #'hierarchy)
+  dispatch-value)
 
 (defmethod aspects :default
   [_]
   nil)
 
+;; TODO - dox
 (defn all-aspects
   ([x]
    (all-aspects x #{}))
@@ -43,6 +32,7 @@
      (aspects x))
     [x])))
 
+;; TODO - dox
 (defn all-aspect-methods [multifn model]
   {:pre [(instance? clojure.lang.MultiFn multifn) (some? model)]}
   (let [default-method (get-method multifn :default)]
@@ -51,14 +41,16 @@
       (when default-method
         {:default default-method}))
      (for [aspect (all-aspects model)
-           :let   [method (get-method multifn (toucan-type aspect))]
+           :let   [method (get-method multifn (dispatch-value aspect))]
            :when  (not (identical? method default-method))]
        [aspect method]))))
 
-(defn combined-method [method model]
+;; TODO - dox
+(defn combined-method [multifn model & {:keys [reverse?], :or {reverse? false}}]
   (reduce
    (fn [f [dispatch-value method]]
      (fn [arg]
        (method dispatch-value (f arg))))
    identity
-   (all-aspect-methods method model)))
+   (cond-> (all-aspect-methods multifn model)
+     reverse? reverse)))

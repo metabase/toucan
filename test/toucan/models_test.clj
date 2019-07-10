@@ -149,6 +149,23 @@
    (db/delete! Category :id 2)
    (set (Category))))
 
+;;; ## `default-fields`
+
+(defmodel UserWithDefaultFields
+  (aspects
+   (default-fields :first-name :last-name)))
+
+;; if there is not `currently` a `:select` clause in HoneySQL query, `default-fields` should add it to the HoneySQL
+;; query
+(expect
+ {:select [:first-name :last-name]}
+ ((dispatch/combined-method pre-select UserWithDefaultFields) {}))
+
+;; if there is already a `:select` clause, `default-fields` should leave HoneySQL query as-is
+(expect
+ {:select [:email]}
+ ((dispatch/combined-method pre-select UserWithDefaultFields) {:select [:email]}))
+
 ;; Test default-fields
 ;; by default Venue doesn't return :created-at or :updated-at
 (expect
