@@ -16,12 +16,13 @@
    "lint"                      ["do" ["eastwood"] ["bikeshed"] ["check-namespace-decls"] ["docstring-checker"]]}
 
   :dependencies
-  [[org.clojure/java.jdbc "0.7.9"]
-   [org.clojure/tools.logging "0.5.0-alpha.1"]
+  [[org.clojure/tools.logging "0.5.0-alpha.1"]
    [camsaul/pretty "1.0.0"]
-   [org.flatland/ordered "1.5.7"]
    [honeysql "0.9.4"]
-   [potemkin "0.4.5"]]
+   [org.flatland/ordered "1.5.7"]
+   [potemkin "0.4.5"]
+   [seancorfield/next.jdbc "1.0.1"]
+   [vvvvalvalval/supdate "0.2.3"]]
 
   :profiles
   {:dev

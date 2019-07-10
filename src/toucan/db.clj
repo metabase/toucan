@@ -3,9 +3,8 @@
   (:refer-clojure :exclude [count])
   (:require [clojure
              [pprint :refer [pprint]]
-             [string :as s]
+             [string :as str]
              [walk :as walk]]
-            [clojure.java.jdbc :as jdbc]
             [clojure.tools.logging :as log]
             [honeysql
              [core :as hsql]
@@ -13,97 +12,42 @@
              [helpers :as h]]
             [toucan
              [models :as models]
-             [util :as u]]))
+             [util :as u]]
+            [toucan.dispatch :as dispatch]))
 
 ;;;                                                   CONFIGURATION
 ;;; ==================================================================================================================
 
-;;; #### Quoting Style
+(defmulti quoting-style
+  "The quoting style is the HoneySQL quoting style that should be used to quote identifiers. By default, this is
+  `:ansi`, which wraps identifers in double-quotes. Alternatively, you can specify `:mysql` (backticks), or
+  `:sqlserver` (square brackets for legacy SQL Server)."
+  {:arglists '([model])}
+  dispatch/toucan-type
+  :hierarchy #'dispatch/hierarchy)
 
-;; The quoting style is the HoneySQL quoting style that should be used to quote identifiers. By default, this is
-;; `:ansi`, which wraps identifers in double-quotes. Alternatively, you can specify `:mysql` (backticks), or
-;; `:sqlserver` (square brackets)
+;; TODO - instructions on setting for all vs settign for only some
 
-(defonce ^:private default-quoting-style (atom :ansi))
+(defmethod quoting-style :default
+  [_]
+  :ansi)
 
-(def ^:dynamic *quoting-style*
-  "Bind this to override the identifier quoting style. Provided for cases where you want to override the quoting
-  style (such as when connecting to a different DB) without changing the default value."
-  nil)
+(defmulti automatically-convert-dashes-and-underscores?
+  "Convert dashes to underscores in queries going into the DB, and underscores in results back to dashes coming out of
+  the DB. By default, this is disabled. See the documentation in `setup.md` for more details."
+  {:arglists '([model])}
+  dispatch/toucan-type
+  :hierarcht #'dispatch/hierarchy)
 
-(defn set-default-quoting-style!
-  "Set the default quoting style that should be used to quote identifiers. Defaults to `:ansi`, but you can instead
-  set it to `:mysql` or `:sqlserver`."
-  [new-quoting-style]
-  (reset! default-quoting-style new-quoting-style))
+(defmethod automatically-convert-dashes-and-underscores?
+  [_]
+  false)
 
-(defn quoting-style
-  "Fetch the HoneySQL quoting style that should be used to quote identifiers. One of `:ansi`, `:mysql`, or
-  `:sqlserver`.
-
-  Returns the value of `*quoting-style*` if it is bound, otherwise returns the default quoting style, which is
-  normally `:ansi`; this can be changed by calling `set-default-quoting-style!`."
-  ^clojure.lang.Keyword []
-  (or *quoting-style*
-      @default-quoting-style))
-
-;;; ### Additional HoneySQL options
-
-;;; #### Automatically Convert Dashes & Underscores
-
-;; Convert dashes to underscores in queries going into the DB, and underscores in results back to dashes coming out of
-;; the DB. By default, this is disabled. See the documentation in `setup.md` for more details.
-
-(defonce ^:private default-automatically-convert-dashes-and-underscores (atom false))
-
-(def ^:dynamic *automatically-convert-dashes-and-underscores*
-  "Bind this to enable automatic conversion between dashes and underscores for indentifiers. Provided for cases where
-  you want to override the behavior (such as when connecting to a different DB) without changing the default value."
-  nil)
-
-(defn set-default-automatically-convert-dashes-and-underscores!
-  "Set the default value for allowing dashes in field names. Defaults to `true`."
-  [^Boolean new-automatically-convert-dashes-and-underscores]
-  (reset! default-automatically-convert-dashes-and-underscores new-automatically-convert-dashes-and-underscores))
-
-(defn automatically-convert-dashes-and-underscores?
-  "Deterimine whether we should automatically convert dashes and underscores in identifiers.
-
-  Returns the value of `*automatically-convert-dashes-and-underscores*` if it is bound, otherwise returns the
-  `default-automatically-convert-dashes-and-underscores`, which is normally `false`; this can be changed by calling
-  `set-default-automatically-convert-dashes-and-underscores!`."
-  ^Boolean []
-  (if (nil? *automatically-convert-dashes-and-underscores*)
-    @default-automatically-convert-dashes-and-underscores
-    *automatically-convert-dashes-and-underscores*))
-
-;;; #### DB Connection
-
-;; The default DB connection is used automatically when accessing the DB; it can be anything that would normally be
-;; passed to `clojure.java.jdbc` functions -- normally a connection details map, but alternatively something like
-;; a C3PO connection pool.
-
-(defonce ^:private default-db-connection (atom nil))
-
-(def ^:dynamic *db-connection*
-  "Bind this to override the default DB connection used by `toucan.db` functions. Provided for situations where you'd
-  like to connect to a DB other than the primary application DB, or connect to it with different connection options."
-  nil)
-
-(defn set-default-db-connection!
-  "Set the JDBC connecton details map for the default application DB connection. This connection is used by default by
-  the various `toucan.db` functions.
-
-   `db-connection-map` is passed directly to `clojure.java.jdbc`; it can be anything that is accepted by it.
-
-     (db/set-default-db-connection!
-       {:classname   \"org.postgresql.Driver\"
-        :subprotocol \"postgresql\"
-        :subname     \"//localhost:5432/my_db\"
-        :user        \"cam\"})"
-  {:style/indent 0}
-  [db-connection-map]
-  (reset! default-db-connection db-connection-map))
+(defmulti datasource
+  ;; TODO - dox
+  {:arglists '([model])}
+  dispatch/toucan-type
+  :hierarchy #'dispatch/hierarchy)
 
 
 ;;;                                         TRANSACTION & CONNECTION UTIL FNS

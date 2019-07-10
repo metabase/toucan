@@ -6,171 +6,6 @@
             [toucan.util :as u])
   (:import honeysql.format.ToSql))
 
-;;;                                                   Configuration
-;;; ==================================================================================================================
-
-;;; ### Root Model Namespace
-
-;; The root model namespace is the parent namespace of all Toucan models. Toucan knows how to automatically load
-;; namespaces where models live, which is handy for avoiding circular references; to facilitate this, Toucan models
-;; need to live in places that match an expected pattern.
-;;
-;; For example, a model named `UserFollow` must live in the namespace `<root-model-namespace>.user-follow`.
-;;
-;; The root model namespace defaults to `models`; in the example above, `UserFollow` would live in
-;; `models.user-follow`.
-;;
-;; This is almost certainly not what you want; set your own value by calling `set-root-namespace!`:
-;;
-;;     (models/set-root-namespace! 'my-project.models)
-;;
-;; After setting the default model root namespace as in the example above, Toucan will look for `UserFollow`
-;; in `my-project.models.user-follow`.
-
-
-(defonce ^:private -root-namespace (atom 'models))
-
-(defn set-root-namespace!
-  "Set the root namespace where all models are expected to live.
-
-     (set-root-namespace! 'my-project.models)
-
-  In this example, Toucan would look for a model named `UserFollow` in the namespace `my-project.models.user-follow`."
-  [new-root-namespace]
-  {:pre [(symbol? new-root-namespace)]}
-  (reset! -root-namespace new-root-namespace))
-
-(defn root-namespace
-  "Fetch the parent namespace for all Toucan models."
-  []
-  @-root-namespace)
-
-
-;;; ### Types
-
-;; Model types are a easy way to define functions that should be used to transform values of a certain column
-;; when they come out from or go into the database.
-;;
-;; For example, suppose you had a `Venue` model, and wanted the value of its `:category` column to automatically
-;; be converted to a Keyword when it comes out of the DB, and back into a string when put in. You could let Toucan
-;; know to take care of this by defining the model as follows:
-;;
-;;     (defmodel Venue :my_venue_table)
-;;
-;;     (extend (class Venue)
-;;       models/IModel
-;;       (merge models/IModelDefaults
-;;              {:types (constantly {:category :keyword})}))
-;;
-;; Whenever you fetch a Venue, Toucan will automatically apply the appropriate `:out` function for values of
-;; `:category`:
-;;
-;;     (db/select-one Venue) ; -> {:id 1, :category :bar, ...}
-;;
-;; In the other direction, `insert!` and `update!` will automatically do the reverse, and call the appropriate `:in`
-;; function.
-;;
-;; `:keyword` is the only Toucan type defined by default, but adding more is simple.
-;;
-;; You can add a new type by calling `add-type!`:
-;;
-;;     ;; add a :json type (using Cheshire) will serialize objects as JSON
-;;     ;; going into the DB, and deserialize JSON coming out from the DB
-;;     (add-type! :json
-;;       :in  json/generate-string
-;;       :out #(json/parse-string % keyword))
-;;
-;; In the example above, values of any columns marked as `:json` would be serialized as JSON before going into the DB,
-;; and deserialized *from* JSON when coming out of the DB.
-
-(defonce ^:private type-fns
-  (atom {:keyword {:in  u/keyword->qualified-name
-                   :out keyword}}))
-
-(defn add-type!
-  "Add a new type mapping for type named by key K. Supply mappings for the functions that should prepare value
-   when it goes `:in` to the database, and for when it comes `:out`.
-
-     ;; add a :json type (using Cheshire) will serialize objects as JSON
-     ;; going into the DB, and deserialize JSON coming out from the DB
-     (add-type! :json
-       :in  json/generate-string
-       :out #(json/parse-string % keyword))"
-  {:style/indent 1}
-  [k & {:keys [in out]}]
-  {:pre [(fn? in) (fn? out)]}
-  (swap! type-fns assoc k {:in in, :out out}))
-
-
-;;; ### Properties
-
-;; Model properties are a powerful way to extend the functionality of Toucan models.
-;;
-;; With properties, you can define custom functions that can modify the values (or even add new ones) of an object
-;; before it is saved (via the `insert!` and `update!` family of functions) or when it comes out of the DB (via the
-;; `select` family of functions).
-;;
-;; Properties are global, which lets you define a single set of functions that can be applied to multiple models
-;; that have the same property, without having to define repetitive code in model methods such as `pre-insert!`.
-;;
-;; For example, suppose you have several models with `:created-at` and `:updated-at` columns. Whenever a new instance
-;; of these models is inserted, you want to set `:created-at` and `:updated-at` to be the current time; whenever an
-;; instance is updated, you want to update `:updated-at`.
-;;
-;; You *could* handle this behavior by defining custom implementations for `pre-insert` and `pre-update` for each of
-;; these models, but that gets repetitive quickly. Instead, you can simplfy this behavior by defining a new *property*
-;; that can be shared by multiple models:
-;;
-;;     (add-property! :timestamped?
-;;       :insert (fn [obj _]
-;;                 (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
-;;                   (assoc obj :created-at now, :updated-at now)))
-;;       :update (fn [obj _]
-;;                 (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
-;;
-;;     (defmodel Venue :my_venue_table)
-;;
-;;     (extend (class Venue)
-;;       models/IModel
-;;       (merge models/IModelDefaults
-;;              {:properties (constantly {:timestamped? true})}))
-;;
-;; In this example, before a Venue is inserted, a new value for `:created-at` and `:updated-at` will be added; before
-;; one is updated, a new value for `:updated-at` will be added.
-;;
-;; Property functions can be defined for any combination of `:insert`, `:update`, and `:select`.
-;; If these functions are defined, they will be called as such:
-;;
-;;     (fn [object property-value])
-;;
-;; where `property-value` is the value for the key in question returned by the model's implementation of `properties`.
-;;
-;; In the example above, `:timestamped?` is set to `true` for `Venue`; since we're not interested in the value in the
-;; example above we simply ignore it (by binding it to `_`).
-;;
-;; You can set the value to any truthy value you'd like, which can be used to customize behavior for different models,
-;; making properties even more flexible.
-
-(defonce ^:private property-fns (atom nil))
-
-(defn add-property!
-  "Define a new model property and set the functions used to implement its functionality.
-   See documentation for more details.
-
-     (add-property! :timestamped?
-       :insert (fn [obj _]
-                 (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
-                   (assoc obj :created-at now, :updated-at now)))
-       :update (fn [obj _]
-                 (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))"
-  {:style/indent 1}
-  [k & {:keys [insert update select]}]
-  {:pre [(or (not insert) (fn? insert))
-         (or (not update) (fn? update))
-         (or (not select) (fn? select))]}
-  (swap! property-fns assoc k {:insert insert, :update update, :select select}))
-
-
 ;;;                                                 IModel Interface
 ;;; ==================================================================================================================
 
@@ -266,19 +101,6 @@
      look for `:creator_id` or `:creator-id` in other objects to find the User ID, and fetch the `Users`
      corresponding to those values.")
 
-  (types ^clojure.lang.IPersistentMap [this]
-    "Return a map of keyword field names to their types for fields that should be serialized/deserialized in a special
-     way. Values belonging to a type are sent through an input function before being inserted into the DB, and sent
-     through an output function on their way out. `:keyword` is the only type enabled by default; you can add more by
-     calling `add-type!`:
-
-       (add-type! :json, :in json/generate-string, :out json/parse-string)
-
-   Set the types for a model like so:
-
-       ;; convert `:category` to a keyword when it comes out of the DB; convert back to a string before going in
-       (types [_] {:category :keyword})")
-
   (properties ^clojure.lang.IPersistentMap [this]
     "Return a map of properties of this model. Properties can be used to implement advanced behavior across many
      different models; see the documentation for more details. Declare a model's properties as such:
@@ -295,74 +117,6 @@
 ;;;                                                   INTERNAL IMPL
 ;;; ==================================================================================================================
 
-(defn- apply-type-fns
-  "Apply the appropriate `type-fns` for OBJ."
-  [obj direction]
-  (into obj (for [[col type] (types obj)]
-              (when-let [v (get obj col)]
-                {col ((get-in @type-fns [type direction]) v)}))))
-
-(defn- apply-property-fns
-  [context obj]
-  (loop [obj obj, [[k v] & more] (seq (properties obj))]
-    (let [f (get-in @property-fns [k context])]
-      (cond
-        (not k) obj
-        f       (recur (f obj v) more)
-        :else   (recur obj       more)))))
-
-
-(defprotocol ICreateFromMap
-  "Used by internal functions like `do-post-select`."
-  (^:private map-> [klass, ^clojure.lang.IPersistentMap m]
-   "Convert map M to instance of record type KLASS."))
-
-;; these functions call (map-> model ...) twice to make sure functions like pre-insert/post-select
-;; didn't do something that accidentally removed the typing
-
-(defn do-pre-insert
-  "Don't call this directly! Apply functions like `pre-insert` before inserting an object into the DB."
-  [model obj]
-  (as-> obj <>
-    (map-> model <>)
-    (pre-insert <>)
-    (map-> model <>)
-    (apply-type-fns <> :in)
-    (apply-property-fns :insert <>)))
-
-(defn do-pre-update
-  "Don't call this directly! Apply internal functions like `pre-update` before updating an object in the DB."
-  [model obj]
-  (as-> obj <>
-    (map-> model <>)
-    (pre-update <>)
-    (map-> model <>)
-    (apply-type-fns <> :in)
-    (apply-property-fns :update <>)))
-
-(defn do-post-select
-  "Don't call this directly! Apply internal functions like `post-select` when an object is retrieved from the DB."
-  [model obj]
-  (as-> obj <>
-    (map-> model <>)
-    (apply-type-fns <> :out)
-    (post-select <>)
-    (map-> model <>)
-    (apply-property-fns :select <>)))
-
-(def IModelDefaults
-  "Default implementations for `IModel` methods."
-  {:default-fields (constantly nil)
-   :primary-key    (constantly :id)
-   :types          (constantly nil)
-   :properties     (constantly nil)
-   :pre-insert     identity
-   :post-insert    identity
-   :pre-update     identity
-   :post-update    nil
-   :post-select    identity
-   :pre-delete     (constantly nil)
-   :hydration-keys (constantly nil)})
 
 (defn- invoke-model
   "Fetch an object with a specific ID or all objects of type ENTITY from the DB.
@@ -400,46 +154,7 @@
 ;;;                                                   DEFMODEL MACRO
 ;;; ==================================================================================================================
 
-(defn- ifn-invoke-forms
-  "Macro helper, generates
-
-       (~'invoke [this#]
-        (invoke-model-or-instance this#))
-       (~'invoke [this# id#]
-        (invoke-model-or-instance this# id#))
-       (~'invoke [this# arg1# arg2#]
-        (invoke-model-or-instance this# arg1# arg2#))
-       ,,,"
-  []
-  (let [args (map #(symbol (str "arg" %)) (range 1 19))
-        arg-lists (reductions conj ['this] args)]
-    (for [l arg-lists]
-      (list 'invoke l (concat `(invoke-model-or-instance) l)))))
-
-(defn- fully-qualified-symbol
-  "Make a symbol fully qualified by resolving it as a var in the current namespace.
-
-     conj        ;;=> clojure.core/conj
-     str/join    ;;=> clojure.string/join
-     foo.bar/baz ;;=> foo.bar/baz "
-  [s]
-  (let [{:keys [ns name]} (meta (resolve s))]
-    (symbol (str ns "/" name))))
-
-(defn- method-forms-map
-  "Take in forms as passed to defrecord or extend-type (protocol or interface
-  name followed by method definitions), and return a map suitable for use with
-  extend.
-
-    (IFn (invoke [this] this)) ;;=> {IFn {:invoke (fn [this] this)}}"
-  [forms]
-  (second
-   (reduce (fn [[type acc] form]
-             (if (symbol? form)
-               [(fully-qualified-symbol form) acc]
-               [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))
-
-(defmacro defmodel
+#_(defmacro defmodel
   "Define a new \"model\". Models encapsulate information and behaviors related to a specific table in the application
   DB, and have their own unique record type.
 
@@ -523,3 +238,172 @@
          (~map->instance {:table  ~table-name
                           :name   ~(name model)
                           ::model true})))))
+
+(defn- model-kw [model-symb]
+  (keyword (name (ns-name *ns*)) (name model-symb)))
+
+(defmacro defaspect
+  {:style/indent 1}
+  [aspect-name & parent-aspects]
+  `(do
+     (def ~aspect-name
+       ~(model-kw aspect-name))
+
+     (defmethod dispatch/aspects ~(model-kw aspect-name)
+       [~'_]
+       ~(vec parent-aspects))))
+
+(defmacro defmodel
+  {:style/indent 2}
+  [model-name table & parent-aspects]
+  `(do
+     (defaspect ~model-name
+       ~@parent-aspects)
+
+     (defmethod table ~(model-kw model-name)
+       [~'_]
+       ~table)))
+
+(defmulti table
+  {:arglists '([model])}
+  toucan-type
+  :hierarchy #'dispatch/hierarchy)
+
+;; TODO - some way to add optional attributes to a model?
+;; TODO - some way to add docstrings to a model?
+
+;; TODO - need an `add-aspects!` fn?
+
+;; TODO - `primary-key` (?)
+
+;; TODO - `hydration-keys`
+
+
+;;;                                                 Predefined Aspects
+;;; ==================================================================================================================
+
+;;; ### Types
+
+;; Model types are a easy way to define functions that should be used to transform values of a certain column
+;; when they come out from or go into the database.
+;;
+;; For example, suppose you had a `Venue` model, and wanted the value of its `:category` column to automatically
+;; be converted to a Keyword when it comes out of the DB, and back into a string when put in. You could let Toucan
+;; know to take care of this by defining the model as follows:
+;;
+;;     (defmodel Venue :my_venue_table
+;;       (types {:category :keyword})
+;;
+;; Whenever you fetch a Venue, Toucan will automatically apply the appropriate `:out` function for values of
+;; `:category`:
+;;
+;;    (db/select-one Venue) ; -> {:id 1, :category :bar, ...}
+;;
+;; In the other direction, `insert!`, `update!`, and `save!` will automatically do the reverse, and call the
+;; appropriate `type-in` implementation.
+;;
+;; `:keyword` is the only Toucan type defined by default, but adding more is simple.
+;;
+;; You can add a new type by implementing `type-in` and `type-out`:
+;;
+;;    ;; add a :json type (using Cheshire) will serialize objects as JSON
+;;    ;; going into the DB, and deserialize JSON coming out from the DB
+;;    (defmethod type-in :json
+;;      [_ v]
+;;      (json/generate-string v))
+;;
+;;    (defmethod type-out :json
+;;      [_ v]
+;;      (json/parse-string v keyword))
+;;
+;; In the example above, values of any columns marked as `:json` would be serialized as JSON before going into the DB,
+;; and deserialized *from* JSON when coming out of the DB.
+
+;; TODO - should these dispatch off of `model` as well?
+(defmulti type-in
+  "Define "
+  {:arglists '([type-name v])}
+  toucan-type
+  :hierarchy #'dispatch/hierarchy)
+
+(defmulti type-out
+  {:arglists '([type-name v])}
+  toucan-type
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod type-in :keyword
+  [_ v]
+  (if-not (keyword? v)
+    (name v)
+    )
+  (name v))
+
+
+
+;;; ### Properties
+
+;; Model properties are a powerful way to extend the functionality of Toucan models.
+;;
+;; With properties, you can define custom functions that can modify the values (or even add new ones) of an object
+;; before it is saved (via the `insert!` and `update!` family of functions) or when it comes out of the DB (via the
+;; `select` family of functions).
+;;
+;; Properties are global, which lets you define a single set of functions that can be applied to multiple models
+;; that have the same property, without having to define repetitive code in model methods such as `pre-insert!`.
+;;
+;; For example, suppose you have several models with `:created-at` and `:updated-at` columns. Whenever a new instance
+;; of these models is inserted, you want to set `:created-at` and `:updated-at` to be the current time; whenever an
+;; instance is updated, you want to update `:updated-at`.
+;;
+;; You *could* handle this behavior by defining custom implementations for `pre-insert` and `pre-update` for each of
+;; these models, but that gets repetitive quickly. Instead, you can simplfy this behavior by defining a new *property*
+;; that can be shared by multiple models:
+;;
+;;     (add-property! :timestamped?
+;;       :insert (fn [obj _]
+;;                 (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
+;;                   (assoc obj :created-at now, :updated-at now)))
+;;       :update (fn [obj _]
+;;                 (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))
+;;
+;;     (defmodel Venue :my_venue_table)
+;;
+;;     (extend (class Venue)
+;;       models/IModel
+;;       (merge models/IModelDefaults
+;;              {:properties (constantly {:timestamped? true})}))
+;;
+;; In this example, before a Venue is inserted, a new value for `:created-at` and `:updated-at` will be added; before
+;; one is updated, a new value for `:updated-at` will be added.
+;;
+;; Property functions can be defined for any combination of `:insert`, `:update`, and `:select`.
+;; If these functions are defined, they will be called as such:
+;;
+;;     (fn [object property-value])
+;;
+;; where `property-value` is the value for the key in question returned by the model's implementation of `properties`.
+;;
+;; In the example above, `:timestamped?` is set to `true` for `Venue`; since we're not interested in the value in the
+;; example above we simply ignore it (by binding it to `_`).
+;;
+;; You can set the value to any truthy value you'd like, which can be used to customize behavior for different models,
+;; making properties even more flexible.
+
+(defonce ^:private property-fns (atom nil))
+
+(defn add-property!
+  "Define a new model property and set the functions used to implement its functionality.
+   See documentation for more details.
+
+     (add-property! :timestamped?
+       :insert (fn [obj _]
+                 (let [now (java.sql.Timestamp. (System/currentTimeMillis))]
+                   (assoc obj :created-at now, :updated-at now)))
+       :update (fn [obj _]
+                 (assoc obj :updated-at (java.sql.Timestamp. (System/currentTimeMillis)))))"
+  {:style/indent 1}
+  [k & {:keys [insert update select]}]
+  {:pre [(or (not insert) (fn? insert))
+         (or (not update) (fn? update))
+         (or (not select) (fn? select))]}
+  (swap! property-fns assoc k {:insert insert, :update update, :select select}))

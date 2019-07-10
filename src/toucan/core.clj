@@ -1,8 +1,8 @@
 (ns toucan.core
-  (:require [clojure.java.jdbc :as jdbc]
-            [potemkin :as potemkin]
+  (:require [potemkin :as potemkin]
             [toucan
              [dispatch :as dispatch]
+             [hydrate :as hydrate]
              [instance :as instance]]))
 
 ;; NOCOMMIT
@@ -16,52 +16,13 @@
 ;;;                                                 defmodel & related
 ;;; ==================================================================================================================
 
-(defmulti table
-  {:arglists '([model])}
-  toucan-type
-  :hierarchy #'dispatch/hierarchy)
 
-(defn- model-kw [model-symb]
-  (keyword (name (ns-name *ns*)) (name model-symb)))
-
-;; TODO - some way to add optional attributes to a model?
-;; TODO - some way to add docstrings to a model?
-
-(defmacro defaspect
-  {:style/indent 1}
-  [aspect-name & parent-aspects]
-  `(do
-     (def ~aspect-name
-       ~(model-kw aspect-name))
-
-     (defmethod dispatch/aspects ~(model-kw aspect-name)
-       [~'_]
-       ~(vec parent-aspects))))
-
-(defmacro defmodel
-  {:style/indent 2}
-  [model-name table & parent-aspects]
-  `(do
-     (defaspect ~model-name
-       ~@parent-aspects)
-
-     (defmethod table ~(model-kw model-name)
-       [~'_]
-       ~table)))
-
-;; TODO - `primary-key` (?)
-
-;; TODO - `hydration-keys`
 
 ;;;                                                 Low-level JDBC Fns
 ;;; ==================================================================================================================
 
 
-;; TODO
-(defmulti connection
-  {:arglists '([model])}
-  toucan-type
-  :hierarchy #'dispatch/hierarchy)
+
 
 (defmulti query
   {:arglists '([model sql-params] [model sql-params opts])}
@@ -139,18 +100,11 @@
 ;; TODO - `upsert!`?
 
 
-;;;                                                 Predefined Aspects
-;;; ==================================================================================================================
 
-(defmulti type-in
-  {:arglists '([type-name v])}
-  toucan-type
-  :hierarchy #'dispatch/hierarchy)
 
-(defmulti type-out
-  {:arglists '([type-name v])}
-  toucan-type
-  :hierarchy #'dispatch/hierarchy)
+
+
+
 
 ;; TODO - `pre-select`
 
