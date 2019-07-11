@@ -5,10 +5,6 @@
              [instance :as instance]]
             [toucan.models.impl :as impl]))
 
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
-
 ;; TODO - imported for convenience of people using this namespace
 (potemkin/import-vars
  [dispatch aspects]

@@ -12,10 +12,13 @@
              [format :as hformat]
              [helpers :as h]]
             [toucan
+             [compile :as compile]
              [instance :as instance]
              [dispatch :as dispatch]
              [models :as models]
-             [util :as u]]))
+             [util :as u]]
+            [toucan.db.impl :as impl]
+            [toucan.connection :as connection]))
 
 ;; NOCOMMIT
 (doseq [[symb] (ns-interns *ns*)]
@@ -23,209 +26,7 @@
 
 ;; TODO `save!` (?) `copy!` (?) Or do
 
-;;;                                                   CONFIGURATION
-;;; ==================================================================================================================
-
-
-
-(defmulti quoting-style
-  "The quoting style that should be used to quote identifiers when compiling HoneySQL forms. This can be either a
-  keyword such as `:ansi` or `:mysql`, or a function used to do quoting. Keywords can be anything accepted by HoneySQL
-  and are used to look up the corresponding function in `honeysql.format/quote-fns`.
-
-  The default quoting style is `:ansi`. You can change the default quoting style by providing an implementation for
-  `:default`."
-  {:arglists '([model])}
-  dispatch/toucan-type)
-
-(defn quote-fn [model]
-  (let [fn-or-kw (quoting-style)]
-    (if (keyword? fn-or-kw)
-      (or (get #'honeysql.format/quote-fns fn-or-kw)
-          (throw (ex-info (format "Cannot find HoneySQL quote function for key %s" fn-or-kw)
-                          {:key fn-or-kw, :found (set (keys @#'honeysql.format/quote-fns))})))
-      fn-or-kw)))
-
-;;; #### Quoting Style
-
-
-
-(defonce ^:private default-quoting-style (atom :ansi))
-
-(def ^:dynamic *quoting-style*
-  "Bind this to override the identifier quoting style. Provided for cases where you want to override the quoting
-  style (such as when connecting to a different DB) without changing the default value."
-  nil)
-
-(defn set-default-quoting-style!
-  "Set the default quoting style that should be used to quote identifiers. Defaults to `:ansi`, but you can instead
-  set it to `:mysql` or `:sqlserver`."
-  [new-quoting-style]
-  (reset! default-quoting-style new-quoting-style))
-
-(defn quoting-style
-  "Fetch the HoneySQL quoting style that should be used to quote identifiers. One of `:ansi`, `:mysql`, or
-  `:sqlserver`.
-
-  Returns the value of `*quoting-style*` if it is bound, otherwise returns the default quoting style, which is
-  normally `:ansi`; this can be changed by calling `set-default-quoting-style!`."
-  ^clojure.lang.Keyword []
-  (or *quoting-style*
-      @default-quoting-style))
-
-;;; ### Additional HoneySQL options
-
-;;; #### Automatically Convert Dashes & Underscores
-
-;; Convert dashes to underscores in queries going into the DB, and underscores in results back to dashes coming out of
-;; the DB. By default, this is disabled. See the documentation in `setup.md` for more details.
-
-(defonce ^:private default-automatically-convert-dashes-and-underscores (atom false))
-
-(def ^:dynamic *automatically-convert-dashes-and-underscores*
-  "Bind this to enable automatic conversion between dashes and underscores for indentifiers. Provided for cases where
-  you want to override the behavior (such as when connecting to a different DB) without changing the default value."
-  nil)
-
-(defn set-default-automatically-convert-dashes-and-underscores!
-  "Set the default value for allowing dashes in field names. Defaults to `true`."
-  [^Boolean new-automatically-convert-dashes-and-underscores]
-  (reset! default-automatically-convert-dashes-and-underscores new-automatically-convert-dashes-and-underscores))
-
-(defn automatically-convert-dashes-and-underscores?
-  "Deterimine whether we should automatically convert dashes and underscores in identifiers.
-
-  Returns the value of `*automatically-convert-dashes-and-underscores*` if it is bound, otherwise returns the
-  `default-automatically-convert-dashes-and-underscores`, which is normally `false`; this can be changed by calling
-  `set-default-automatically-convert-dashes-and-underscores!`."
-  ^Boolean []
-  (if (nil? *automatically-convert-dashes-and-underscores*)
-    @default-automatically-convert-dashes-and-underscores
-    *automatically-convert-dashes-and-underscores*))
-
-;;; #### DB Connection
-
-;; The default DB connection is used automatically when accessing the DB; it can be anything that would normally be
-;; passed to `clojure.java.jdbc` functions -- normally a connection details map, but alternatively something like
-;; a C3PO connection pool.
-
-(defonce ^:private default-db-connection (atom nil))
-
-(def ^:dynamic *db-connection*
-  "Bind this to override the default DB connection used by `toucan.db` functions. Provided for situations where you'd
-  like to connect to a DB other than the primary application DB, or connect to it with different connection options."
-  nil)
-
-(defn set-default-db-connection!
-  "Set the JDBC connecton details map for the default application DB connection. This connection is used by default by
-  the various `toucan.db` functions.
-
-   `db-connection-map` is passed directly to `clojure.java.jdbc`; it can be anything that is accepted by it.
-
-     (db/set-default-db-connection!
-       {:classname   \"org.postgresql.Driver\"
-        :subprotocol \"postgresql\"
-        :subname     \"//localhost:5432/my_db\"
-        :user        \"cam\"})"
-  {:style/indent 0}
-  [db-connection-map]
-  (reset! default-db-connection db-connection-map))
-
-
-;;;                                         TRANSACTION & CONNECTION UTIL FNS
-;;; ==================================================================================================================
-
-(def ^:private ^:dynamic *transaction-connection*
-  "Transaction connection to the application DB. Used internally by `transaction`."
-  nil)
-
-(defn connection
-  "Fetch the JDBC connection details for passing to `clojure.java.jdbc`. Returns `*db-connection*`, if it is set;
-  otherwise `*transaction-connection*`, if we're inside a `transaction` (this is bound automatically); otherwise the
-  default DB connection, set by `set-default-db-connection!`.
-
-  If no DB connection has been set this function will throw an exception."
-  []
-  (or *db-connection*
-      *transaction-connection*
-      @default-db-connection
-      (throw (Exception. "DB is not set up. Make sure to call set-default-db-connection! or bind *db-connection*."))))
-
-(defn do-in-transaction
-  "Execute F inside a DB transaction. Prefer macro form `transaction` to using this directly."
-  [f]
-  (jdbc/with-db-transaction [conn (connection)]
-    (binding [*transaction-connection* conn]
-      (f))))
-
-(defmacro transaction
-  "Execute all queries within the body in a single transaction."
-  {:arglists '([body] [options & body]), :style/indent 0}
-  [& body]
-  `(do-in-transaction (fn [] ~@body)))
-
-
-;;;                                                   QUERY UTIL FNS
-;;; ==================================================================================================================
-
-(def ^:dynamic ^Boolean *disable-db-logging*
-  "Should we disable logging for database queries? Normally `false`, but bind this to `true` to keep logging from
-  getting too noisy during operations that require a lot of DB access, like the sync process."
-  false)
-
-(defn- model-symb->ns
-  "Return the namespace symbol where we'd expect to find an model symbol.
-
-     (model-symb->ns 'CardFavorite) -> 'my-project.models.card-favorite"
-  [symb]
-  {:pre [(symbol? symb)]}
-  (symbol (str (models/root-namespace) \. (s/lower-case (s/replace (name symb) #"([a-z])([A-Z])" "$1-$2")))))
-
-(defn- resolve-model-from-symbol
-  "Resolve the model associated with SYMB, calling `require` on its namespace if needed.
-
-     (resolve-model-from-symbol 'CardFavorite) -> my-project.models.card-favorite/CardFavorite"
-  [symb]
-  (let [model-ns (model-symb->ns symb)]
-    @(try (ns-resolve model-ns symb)
-          (catch Throwable _
-            (require model-ns)
-            (ns-resolve model-ns symb)))))
-
-(defn resolve-model
-  "Resolve a model *if* it's quoted. This also unwraps entities when they're inside vectores.
-
-     (resolve-model Database)         -> #'my-project.models.database/Database
-     (resolve-model [Database :name]) -> #'my-project.models.database/Database
-     (resolve-model 'Database)        -> #'my-project.models.database/Database"
-  [model]
-  {:post [(:toucan.models/model %)]}
-  (cond
-    (:toucan.models/model model) model
-    (vector? model)              (resolve-model (first model))
-    (symbol? model)              (resolve-model-from-symbol model)
-    :else                        (throw (Exception. (str "Invalid model: " model)))))
-
-(defn quote-fn
-  "The function that JDBC should use to quote identifiers for our database. This is passed as the `:entities` option
-  to functions like `jdbc/insert!`."
-  []
-  ((quoting-style) @(resolve 'honeysql.format/quote-fns))) ; have to call resolve because it's not public
-
-
-(def ^:private ^:dynamic *call-count*
-  "Atom used as a counter for DB calls when enabled. This number isn't *perfectly* accurate, only mostly; DB calls
-  made directly to JDBC won't be logged."
-  nil)
-
-(defn -do-with-call-counting
-  "Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve the
-  current call count. (It's probably more useful to use the macro form of this function, `with-call-counting`,
-  instead.)"
-  {:style/indent 0}
-  [f]
-  (binding [*call-count* (atom 0)]
-    (f (partial deref *call-count*))))
+;; TODO - separate debug namespace ??
 
 (defmacro with-call-counting
   "Execute `body` and track the number of DB calls made inside it. `call-count-fn-binding` is bound to a zero-arity
@@ -235,7 +36,7 @@
        (call-count))"
   {:style/indent 1}
   [[call-count-fn-binding] & body]
-  `(-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
+  `(impl/-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
 
 (defmacro debug-count-calls
   "Print the number of DB calls executed inside `body` to `stdout`. Intended for use during REPL development."
@@ -246,237 +47,37 @@
        (println "DB Calls:" (call-count#))
        results#)))
 
-
-(defn- format-sql [sql]
-  (when sql
-    (loop [sql sql, [k & more] ["FROM" "LEFT JOIN" "INNER JOIN" "WHERE" "GROUP BY" "HAVING" "ORDER BY" "OFFSET"
-                                "LIMIT"]]
-      (if-not k
-        sql
-        (recur (s/replace sql (re-pattern (format "\\s+%s\\s+" k)) (format "\n%s " k))
-               more)))))
-
-(def ^:dynamic ^:private *debug-print-queries* false)
-
-(defn -do-with-debug-print-queries
-  "Execute `f` with debug query logging enabled. Don't use this directly; prefer the `debug-print-queries` macro form
-  instead."
-  [f]
-  (binding [*debug-print-queries* true]
-    (f)))
-
-(defmacro debug-print-queries
+(defmacro debug
   "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
   development."
   {:style/indent 0}
   [& body]
-  `(-do-with-debug-print-queries (fn [] ~@body)))
+  `(binding [impl/*debug* true]
+     ~@body))
 
-(defn honeysql->sql
-  "Compile `honeysql-form` to SQL.
-  This returns a vector with the SQL string as its first item and prepared statement params as the remaining items."
-  [honeysql-form]
-  {:pre [(map? honeysql-form)]}
-  ;; Not sure *why* but without setting this binding on *rare* occasion HoneySQL will unwantedly
-  ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
-  (let [[sql & args :as sql+args]
-        (binding [hformat/*subquery?* false]
-          (hsql/format honeysql-form
-                       :quoting             (quoting-style)
-                       :allow-dashed-names? (not (automatically-convert-dashes-and-underscores?))))]
-    (when *debug-print-queries*
-      (println (pprint honeysql-form)
-               (format "\n%s\n%s" (format-sql sql) args)))
-    (when-not *disable-db-logging*
-      (log/debug (str "DB Call: " sql))
-      (when *call-count*
-        (swap! *call-count* inc)))
-    sql+args))
+(defn select
+  ;; TODO
+  [model & args]
+  (let [model          (instance/model model)
+        honeysql-form  (impl/do-pre-select model (compile/compile-select-args model args))
+        do-post-select (impl/post-select-fn model)]
+    (map
+     #(do-post-select (instance/of model %))
+     (connection/query model honeysql-form))))
 
-(defn query
-  "Compile `honeysql-from` and call `jdbc/query` against the application database. Options are passed along to
-  `jdbc/query`."
-  [honeysql-form & {:as options}]
-  (jdbc/query (connection) (honeysql->sql honeysql-form) options))
-
-(defn reducible-query
-  "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
-  to `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
-  [honeysql-form & {:as options}]
-  (jdbc/reducible-query (connection) (honeysql->sql honeysql-form) options))
+(defn select-reducible
+  ;; TODO
+  [model & args]
+  (let [model         (instance/model model)
+        honeysql-form (impl/do-pre-select model (compile/compile-select-args model args))]
+    (eduction
+     (comp (map (partial instance/of model))
+           (map (impl/post-select-fn model)))
+     (connection/reducible-query model honeysql-form))))
 
 
-(defn qualify
-  "Qualify a `field-name` name with the name its `entity`. This is necessary for disambiguating fields for HoneySQL
-  queries that contain joins.
-
-     (db/qualify 'CardFavorite :id) -> :report_cardfavorite.id"
-  ^clojure.lang.Keyword [model field-name]
-  (if (vector? field-name)
-    [(qualify model (first field-name)) (second field-name)]
-    (hsql/qualify (:table (resolve-model model)) field-name)))
-
-(defn qualified?
-  "Is `field-name` qualified (e.g. with its table name)?"
-  ^Boolean [field-name]
-  (if (vector? field-name)
-    (qualified? (first field-name))
-    (boolean (re-find #"\." (name field-name)))))
-
-(defn- maybe-qualify
-  "Qualify `field-name` with its table name if it's not already qualified."
-  ^clojure.lang.Keyword [model field-name]
-  (if (qualified? field-name)
-    field-name
-    (qualify model field-name)))
-
-
-(defn- model->fields
-  "Get the fields that should be used in a query, destructuring `entity` if it's wrapped in a vector, otherwise
-   calling `default-fields`. This will return `nil` if the model isn't wrapped in a vector and uses the default
-   implementation of `default-fields`.
-
-     (model->fields 'User) -> [:id :email :date_joined :first-name :last-name :last_login :is_superuser :is_qbnewb]
-     (model->fields ['User :first-name :last-name]) -> [:first-name :last-name]
-     (model->fields 'Database) -> nil"
-  [model]
-  (if (vector? model)
-    (let [[model & fields] model]
-      (for [field fields]
-        (maybe-qualify model field)))
-    (models/default-fields (resolve-model model))))
-
-(defn- replace-underscores
-  "Replace underscores in `k` with dashes. In other words, converts a keyword from `:snake_case` to `:lisp-case`.
-
-     (replace-underscores :2_cans) ; -> :2-cans"
-  ^clojure.lang.Keyword [k]
-  ;; if k is not a string or keyword don't transform it
-  (if-not ((some-fn string? keyword?) k)
-    k
-    (let [k-str (u/keyword->qualified-name k)]
-      (if (s/index-of k-str \_)
-        (keyword (s/replace k-str \_ \-))
-        k))))
-
-(defn- transform-keys
-  "Replace the keys in any maps in `x` with the result of `(f key)`. Recursively walks `x` using `clojure.walk`."
-  [f x]
-  (walk/postwalk
-   (fn [y]
-     (if-not (map? y)
-       y
-       (into {} (for [[k v] y]
-                  [(f k) v]))))
-   x))
-
-(defn do-post-select
-  "Perform post-processing for objects fetched from the DB. Convert results `objects` to `entity` record types and
-  call the model's `post-select` method on them."
-  {:style/indent 1}
-  [model objects]
-  (let [model            (resolve-model model)
-        key-transform-fn (if-not (automatically-convert-dashes-and-underscores?)
-                           identity
-                           (partial transform-keys replace-underscores))]
-    (vec (for [object objects]
-           (models/do-post-select model (key-transform-fn object))))))
-
-(defn- merge-select-and-from
-  "Includes projected fields and a from clause for `honeysql-form`. Will not override if already present."
-  [resolved-model honeysql-form]
-  (merge {:select (or (models/default-fields resolved-model)
-                      [:*])
-          :from   [resolved-model]}
-         honeysql-form))
-
-(defn simple-select
-  "Select objects from the database.
-
-  Like `select`, but doesn't offer as many conveniences, so prefer that instead; like `select`,
-  `simple-select` callts `post-select` on the results, but unlike `select`, only accepts a single
-  raw HoneySQL form as an argument.
-
-    (db/simple-select 'User {:where [:= :id 1]})"
-  {:style/indent 1}
-  [model honeysql-form]
-  (let [model (resolve-model model)]
-    (do-post-select model (query (merge-select-and-from model honeysql-form)))))
-
-(defn simple-select-reducible
-  "Select objects from the database.
-
-  Same as `simple-select`, but returns something reducible instead of a result set. Like `simple-select`, will call
-  `post-select` on the results, but will do so lazily.
-
-    (transduce (filter can-read?) conj [] (simple-select-reducible 'User {:where [:= :id 1]}))"
-  {:style/indent 1}
-  [model honeysql-form]
-  (let [model (resolve-model model)]
-    (eduction (map #(models/do-post-select model %))
-              (reducible-query (merge-select-and-from model honeysql-form)))))
-
-(defn simple-select-one
-  "Select a single object from the database.
-
-  Like `select-one`, but doesn't offer as many conveniences, so prefer that instead; like `select-one`,
-  `simple-select-one` callts `post-select` on the results, but unlike `select-one`, only accepts a single raw HoneySQL
-  form as an argument.
-
-    (db/simple-select-one 'User (h/where [:= :first-name \"Cam\"]))"
-  ([model]
-   (simple-select-one model {}))
-  ([model honeysql-form]
-   (first (simple-select model (h/limit honeysql-form (hsql/inline 1))))))
-
-(defn execute!
-  "Compile `honeysql-form` and call `jdbc/execute!` against the application DB.
-  `options` are passed directly to `jdbc/execute!` and can be things like `:multi?` (default `false`) or
-  `:transaction?` (default `true`)."
-  [honeysql-form & {:as options}]
-  (jdbc/execute! (connection) (honeysql->sql honeysql-form) options))
-
-(defn- where
-  "Generate a HoneySQL `where` form using key-value args.
-
-     (where {} :a :b)        -> (h/merge-where {} [:= :a :b])
-     (where {} :a [:!= b])   -> (h/merge-where {} [:!= :a :b])
-     (where {} {:a [:!= b]}) -> (h/merge-where {} [:!= :a :b])"
-  {:style/indent 1}
-
-  ([honeysql-form]
-   honeysql-form) ; no-op
-
-  ([honeysql-form m]
-   (apply where honeysql-form (apply concat m)))
-
-  ([honeysql-form k v]
-   (h/merge-where honeysql-form (if (vector? v)
-                                  (let [[f & args] v] ; e.g. :id [:!= 1] -> [:!= :id 1]
-                                    (assert (keyword? f))
-                                    (vec (cons f (cons k args))))
-                                  [:= k v])))
-
-  ([honeysql-form k v & more]
-   (apply where (where honeysql-form k v) more)))
-
-(defn- where+
-  "Generate a HoneySQL form, converting pairs of arguments with keywords into a `where` clause, and merging other
-  HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So-called because it handles `where`
-  *plus* other clauses).
-
-     (where+ {} [:id 1 {:limit 10}]) -> {:where [:= :id 1], :limit 10}"
-  [honeysql-form args]
-  (loop [honeysql-form honeysql-form, [first-arg & [second-arg & more, :as butfirst]] args]
-    (cond
-      (keyword? first-arg) (recur (where honeysql-form first-arg second-arg) more)
-      first-arg            (recur (merge honeysql-form first-arg)            butfirst)
-      :else                honeysql-form)))
 
 ;;; ### UPDATE!
-
-(defn- method-implemented? [^clojure.lang.Keyword methodk model]
-  (not (nil? (find-protocol-method models/IModel methodk model))))
 
 (defn update!
   "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise. Accepts either a
@@ -488,22 +89,16 @@
   {:style/indent 2}
 
   (^Boolean [model honeysql-form]
-   (let [model (resolve-model model)]
-     (not= [0] (execute! (merge (h/update model)
-                                honeysql-form)))))
+   (not= [0] (connection/execute! model (merge (h/update model) honeysql-form))))
 
   (^Boolean [model id kvs]
    {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
-   (let [model       (resolve-model model)
-         primary-key (models/primary-key model)
-         kvs         (-> (models/do-pre-update model (assoc kvs primary-key id))
+   (let [primary-key (models/primary-key model)
+         kvs         (-> (impl/do-pre-update model (assoc kvs primary-key id))
                          (dissoc primary-key))
          updated?    (update! model (-> (h/sset {} kvs)
-                                        (where primary-key id)))]
-        (when (and updated?
-                   (method-implemented? :post-update model))
-          (models/post-update (model id)))
-     updated?))
+                                        (compile/where primary-key id)))]
+     (impl/do-post-update instance)))
 
   (^Boolean [model id k v & more]
    (update! model id (apply array-map k v more))))
@@ -569,7 +164,7 @@
           primary-key (models/primary-key model)]
       (doall
        (for [row-map row-maps
-             :let    [sql (honeysql->sql {:insert-into model, :values [row-map]})]]
+             :let    [sql (compile-honeysql {:insert-into model, :values [row-map]})]]
          (->> (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
               (get-inserted-id primary-key)))))))
 
@@ -780,6 +375,7 @@
       (models/pre-delete object)
       (simple-delete! model primary-key (primary-key object)))))
 
+;; TODO
 #_(defn- invoke-model
   "Fetch an object with a specific ID or all objects of type ENTITY from the DB.
 
@@ -795,3 +391,8 @@
 
   ([model k v & more]
    (apply (resolve 'toucan.db/select-one) model k v more)))
+
+(potemkin/import-vars
+ [connection connection transaction query reducible-query])
+
+;; TODO - `instance-of` <-> `instance/of`

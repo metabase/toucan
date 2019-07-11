@@ -1,4 +1,4 @@
-(defproject metabase/toucan "2.0.0-alpha1"
+(defproject metabase/toucan "2.0.0-SNAPSHOT"
   :description ""
   :url "https://github.com/metabase/toucan"
   :min-lein-version "2.5.0"

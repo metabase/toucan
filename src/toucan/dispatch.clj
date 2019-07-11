@@ -45,12 +45,11 @@
            :when  (not (identical? method default-method))]
        [aspect method]))))
 
-;; TODO - dox
-(defn combined-method [multifn model & {:keys [reverse?], :or {reverse? false}}]
+(defn combined-method [multifn model in-or-out]
   (reduce
    (fn [f [dispatch-value method]]
      (fn [arg]
        (method dispatch-value (f arg))))
    identity
    (cond-> (all-aspect-methods multifn model)
-     reverse? reverse)))
+     (= in-or-out :in) reverse)))
