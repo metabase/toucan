@@ -1,123 +1,230 @@
 (ns toucan.db
   "Helper functions for querying the DB and inserting or updating records using Toucan models."
   (:refer-clojure :exclude [count])
-  (:require [clojure
-             [pprint :refer [pprint]]
-             [string :as s]
-             [walk :as walk]]
-            [clojure.java.jdbc :as jdbc]
-            [clojure.tools.logging :as log]
-            [honeysql
-             [core :as hsql]
-             [format :as hformat]
-             [helpers :as h]]
+  (:require [clojure.java.jdbc :as jdbc]
+            [potemkin :as potemkin]
             [toucan
              [compile :as compile]
+             [connection :as connection]
              [instance :as instance]
-             [dispatch :as dispatch]
-             [models :as models]
-             [util :as u]]
-            [toucan.db.impl :as impl]
-            [toucan.connection :as connection]))
+             [models :as models]]
+            [toucan.db.impl :as impl]))
 
 ;; NOCOMMIT
 (doseq [[symb] (ns-interns *ns*)]
   (ns-unmap *ns* symb))
 
-;; TODO `save!` (?) `copy!` (?) Or do
 
-;; TODO - separate debug namespace ??
-
-(defmacro with-call-counting
-  "Execute `body` and track the number of DB calls made inside it. `call-count-fn-binding` is bound to a zero-arity
-  function that can be used to fetch the current DB call count.
-
-     (db/with-call-counting [call-count] ...
-       (call-count))"
-  {:style/indent 1}
-  [[call-count-fn-binding] & body]
-  `(impl/-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
-
-(defmacro debug-count-calls
-  "Print the number of DB calls executed inside `body` to `stdout`. Intended for use during REPL development."
-  {:style/indent 0}
-  [& body]
-  `(with-call-counting [call-count#]
-     (let [results# (do ~@body)]
-       (println "DB Calls:" (call-count#))
-       results#)))
-
-(defmacro debug
-  "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
-  development."
-  {:style/indent 0}
-  [& body]
-  `(binding [impl/*debug* true]
-     ~@body))
+;;;                                                       select
+;;; ==================================================================================================================xf
 
 (defn select
-  ;; TODO
-  [model & args]
-  (let [model          (instance/model model)
-        honeysql-form  (impl/do-pre-select model (compile/compile-select-args model args))
-        do-post-select (impl/post-select-fn model)]
-    (map
-     #(do-post-select (instance/of model %))
-     (connection/query model honeysql-form))))
+  ([object]
+   (select object (models/primary-key-value object)))
+
+  ([model & args]
+   (let [query*        (partial connection/query model)
+         honeysql-form (apply compile/compile-select model args)]
+     (seq (impl/do-select model query* honeysql-form)))))
 
 (defn select-reducible
-  ;; TODO
+  ([object]
+   (select object (models/primary-key-value object)))
+
+  ([model & args]
+   (let [query*        (partial connection/reducible-query model)
+         honeysql-form (apply compile/compile-select model args)]
+     (impl/do-select model query* honeysql-form))))
+
+(defn select-one
+  "Select a single object from the database.
+
+     (select-one ['Database :name] :id 1) -> {:name \"Sample Dataset\"}"
+  {:style/indent 1, :arglists '([object] [model & args])}
+  [& args]
+  (first (apply select (concat args [{:limit 1}]))))
+
+(defn select-one-field
+  "Select a single `field` of a single object from the database.
+
+     (select-one-field :name 'Database :id 1) -> \"Sample Dataset\""
+  {:style/indent 2, :arglists '([field object] [field model & args])}
+  [field model & args]
+  {:pre [(keyword? field)]}
+  (get (apply select-one [model field] args) field))
+
+(defn select-one-id
+  "Select the `:id` of a single object from the database.
+
+     (select-one-id 'Database :name \"Sample Dataset\") -> 1"
+  {:style/indent 1, :arglists '([object] [model & args])}
   [model & args]
-  (let [model         (instance/model model)
-        honeysql-form (impl/do-pre-select model (compile/compile-select-args model args))]
-    (eduction
-     (comp (map (partial instance/of model))
-           (map (impl/post-select-fn model)))
-     (connection/reducible-query model honeysql-form))))
+  (let [pk-key (models/primary-key model)]
+    (if-not (sequential? pk-key)
+      (apply select-one-field pk-key model args)
+      (let [[result] (apply select-one (into [model] pk-key) args)]
+        (when result
+          (map result pk-key))))))
+
+(defn select-field-seq
+  {:style/indent 2, :arglists '([field object] [field model & args])}
+  [field model & options]
+  {:pre [(keyword? field)]}
+  (seq (map field (apply select [model field] options))))
+
+(defn select-field-set
+  "Select values of a single field for multiple objects. These are returned as a set if any matching fields
+   were returned, otherwise `nil`.
+
+     (select-field :name 'Database) -> #{\"Sample Dataset\", \"test-data\"}"
+  {:style/indent 2, :arglists '([field object] [field model & args])}
+  [field model & args]
+  (set (apply select-field-seq field model args)))
+
+(defn select-ids-seq
+  [model & options]
+  (let [pk-key (models/primary-key model)]
+    (if-not (sequential? pk-key)
+      (apply select-field-seq pk-key model options)
+      (when-let [results (seq (apply select (into [model] pk-key) options))]
+        (for [result results]
+          (mapv result pk-key))))))
+
+(defn select-ids-set
+  "Select IDs for multiple objects. These are returned as a set if any matching IDs were returned, otherwise `nil`.
+
+     (select-ids 'Table :db_id 1) -> #{1 2 3 4}"
+  {:style/indent 1}
+  [model & options]
+  (seq (apply select-ids-seq model options)))
+
+(defn select-field->field
+  "Select fields `k` and `v` from objects in the database, and return them as a map from `k` to `v`.
+
+     (select-field->field :id :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
+  {:style/indent 3}
+  [k v model & options]
+  {:pre [(keyword? k) (keyword? v)]}
+  (into {} (for [result (apply select [model k v] options)]
+             {(k result) (v result)})))
+
+(defn select-field->id
+  "Select `field` and `:id` from objects in the database, and return them as a map from `field` to `:id`.
+
+     (select-field->id :name 'Database) -> {\"Sample Dataset\" 1, \"test-data\" 2}"
+  {:style/indent 2}
+  [field model & options]
+  (let [pk-key (models/primary-key model)]
+    (if-not (sequential? pk-key)
+      (apply select-field->field field pk-key model options)
+      (when-let [rows (seq (apply select (into [model field] pk-key) options))]
+        (into {} (for [row rows]
+                   [(get row field) (mapv row pk-key)]))))))
+
+(defn select-id->field
+  "Select `field` and `:id` from objects in the database, and return them as a map from `:id` to `field`.
+
+     (select-id->field :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
+  {:style/indent 2}
+  [field model & options]
+  (let [pk-key (models/primary-key model)]
+    (if-not (sequential? pk-key)
+      (apply select-field->field pk-key field model options)
+      (when-let [rows (seq (apply select (into [model field] pk-key) options))]
+        (into {} (for [row rows]
+                   [(mapv row pk-key) (get row field)]))))))
+
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                              Other query util fns                                              |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+(defn count
+  "Select the count of objects matching some condition.
+
+     ;; Get all Users whose email is non-nil
+     (count 'User :email [:not= nil]) -> 12"
+  {:style/indent 1}
+  [model & options]
+  (:count (apply select-one [model [:%count.* :count]] options)))
+
+(defn exists?
+  "Easy way to see if something exists in the DB.
+
+    (db/exists? User :id 100)"
+  {:style/indent 1}
+  ([object]
+   (exists? object {:where (models/primary-key-where-clause object)}))
+
+  ([model & options]
+   (let [results (connection/query model (merge
+                                          (compile/compile-select-options options)
+                                          {:select [[true :exists]]
+                                           :from   [(instance/model model)]
+                                           :limit  1}))]
+     (boolean (seq results)))))
 
 
 
-;;; ### UPDATE!
+;;;                                                      update!
+;;; ==================================================================================================================
+
+;; TODO - these fns need to call `debug`
 
 (defn update!
-  "Update a single row in the database. Returns `true` if a row was affected, `false` otherwise. Accepts either a
-  single map of updates to make or kwargs. `entity` is automatically resolved, and `pre-update` is called on `kvs`
-  before the object is inserted into the database.
+  "Update a single row in the database. Returns updated object if a row was affected, `nil` otherwise. Accepts either an
+  object, a single map of changes, or an id and keyword args. Various `pre-update` methods for the model are called
+  before performing the updates, and `post-update` methods are called on the results.
 
-     (db/update! 'Label 11 :name \"ToucanFriendly\")
-     (db/update! 'Label 11 {:name \"ToucanFriendly\"})"
-  {:style/indent 2}
+     (db/update! (assoc (db/select-one Label 11) :name \"ToucanFriendly\"))
+     (db/update! Label 11 :name \"ToucanFriendly\")
+     (db/update! Label 11 {:name \"ToucanFriendly\"})"
+  ([object]
+   {:pre [(map? object)]}
+   (update! object (models/primary-key-value object) (instance/changes object)))
 
-  (^Boolean [model honeysql-form]
-   (not= [0] (connection/execute! model (merge (h/update model) honeysql-form))))
+  ([model pk-value changes]
+   {:pre [(instance/model model) (map? changes)]}
+   (when (seq changes)
+     (let [pk-value (models/assoc-primary-key-value changes pk-value)
+           object   (impl/do-pre-update (instance/of model pk-value))
+           changes  (models/dissoc-primary-key-value object)]
+       (when (seq changes)
+         (connection/transaction
+           (let [[num-rows-changed] (connection/execute! object {:update [object]
+                                                                 :set    changes
+                                                                 :where  (models/primary-key-where-clause object)})]
+             (when (pos? num-rows-changed)
+               (impl/do-post-update (select object)))))))))
 
-  (^Boolean [model id kvs]
-   {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
-   (let [primary-key (models/primary-key model)
-         kvs         (-> (impl/do-pre-update model (assoc kvs primary-key id))
-                         (dissoc primary-key))
-         updated?    (update! model (-> (h/sset {} kvs)
-                                        (compile/where primary-key id)))]
-     (impl/do-post-update instance)))
-
-  (^Boolean [model id k v & more]
-   (update! model id (apply array-map k v more))))
+  ([model id k v & more]
+   (update! model id (into {k v} more))))
 
 (defn update-where!
-  "Convenience for updating several objects matching `conditions-map`. Returns `true` if any objects were affected.
-  For updating a single object, prefer using `update!`, which calls `entity`'s `pre-update` method first.
+  "Convenience for updating several objects matching `conditions-map`. Selects objects matching `conditions` map, then
+  calls `update!` on all matching objects sequentially.
 
-     (db/update-where! Table {:name  table-name
+     (db/update-where! Table {:name table-name
                               :db_id (:id database)}
-       :active false)"
+       :active false)
+
+  This function favors convenience over performance; for updating truly massive numbers of objects (where you don't
+  care about calling the usual `pre-update` and `post-update` hooks) consider using `execute!` directly."
   {:style/indent 2}
-  ^Boolean [model conditions-map & {:as values}]
-  {:pre [(map? conditions-map) (every? keyword? (keys values))]}
-  (update! model (where {:set values} conditions-map)))
+  ([model conditions changes]
+   {:pre [(instance/model model) (map? conditions) (map? changes)]}
+   (when (seq changes)
+     (when-let [matching-objects (seq (apply select model (mapcat identity {:a 1, :b 2})))]
+       (connection/transaction
+         (mapv update! (for [object matching-objects]
+                         (merge object changes)))))))
+
+  ([model conditions-map k v & more]
+   (update-where! model conditions-map (into {k v} more))))
 
 
 (defn update-non-nil-keys!
-  "Like `update!`, but filters out KVS with `nil` values."
+  "Like `update!`, but filters out key-value pairs with `nil` values."
   {:style/indent 2}
   ([model id kvs]
    (update! model id (into {} (for [[k v] kvs
@@ -127,9 +234,10 @@
    (update-non-nil-keys! model id (apply array-map k v more))))
 
 
-;;; ### INSERT!
+;;;                                                      insert!
+;;; ==================================================================================================================
 
-(def ^:private inserted-id-keys
+(def ^:private ^:deprecated inserted-id-keys
   "Different possible keys that might come back for the ID of a newly inserted row. Differs by DB."
   [;; Postgres, newer H2, and most others return :id
    :id
@@ -142,13 +250,13 @@
    ;; last_insert_rowid() returned by SQLite3
    (keyword "last_insert_rowid()")])
 
-(defn get-inserted-id
+(defn ^:deprecated get-inserted-id
   "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
   [primary-key insert-result]
   (when insert-result
     (some insert-result (cons primary-key inserted-id-keys))))
 
-(defn simple-insert-many!
+(defn ^:deprecated simple-insert-many!
   "Do a simple JDBC `insert!` of multiple objects into the database.
   Normally you should use `insert-many!` instead, which calls the model's `pre-insert` method on the `row-maps`;
   `simple-insert-many!` is offered for cases where you'd like to specifically avoid this behavior. Returns a sequences
@@ -160,12 +268,11 @@
   [model row-maps]
   {:pre [(sequential? row-maps) (every? map? row-maps)]}
   (when (seq row-maps)
-    (let [model       (resolve-model model)
-          primary-key (models/primary-key model)]
+    (let [primary-key (models/primary-key model)]
       (doall
        (for [row-map row-maps
-             :let    [sql (compile-honeysql {:insert-into model, :values [row-map]})]]
-         (->> (jdbc/db-do-prepared-return-keys (connection) false sql {}) ; false = don't use a transaction
+             :let    [sql (compile/compile-honeysql {:insert-into model, :values [row-map]})]]
+         (->> (jdbc/db-do-prepared-return-keys (connection/connection) false sql {}) ; false = don't use a transaction
               (get-inserted-id primary-key)))))))
 
 (defn insert-many!
@@ -180,11 +287,10 @@
                               {:name \"Bird Approved\"}]) -> [38 39]"
   {:style/indent 1}
   [model row-maps]
-  (let [model (resolve-model model)]
-    (simple-insert-many! model (for [row-map row-maps]
-                                  (models/do-pre-insert model row-map)))))
+  (simple-insert-many! model (for [row-map row-maps]
+                               (impl/do-pre-insert model row-map))))
 
-(defn simple-insert!
+(defn ^:deprecated simple-insert!
   "Do a simple JDBC `insert` of a single object.
   This is similar to `insert!` but returns the ID of the newly created object rather than the object itself,
   and does not call `pre-insert` or `post-insert`.
@@ -196,9 +302,11 @@
   ([model row-map]
    {:pre [(map? row-map) (every? keyword? (keys row-map))]}
    (first (simple-insert-many! model [row-map])))
+
   ([model k v & more]
    (simple-insert! model (apply array-map k v more))))
 
+;; TODO
 (defn insert!
   "Insert a new object into the Database. Resolves `entity`, calls its `pre-insert` method on `row-map` to prepare
   it before insertion; after insert, it fetches and the newly created object, passes it to `post-insert`, and
@@ -211,136 +319,18 @@
   {:style/indent 1}
   ([model row-map]
    {:pre [(map? row-map) (every? keyword? (keys row-map))]}
-   (let [model (resolve-model model)]
-     (when-let [id (simple-insert! model (models/do-pre-insert model row-map))]
-       (models/post-insert (model id)))))
+   (when-let [id (simple-insert! model (impl/do-pre-insert model row-map))]
+     (models/post-insert (model id))))
+
   ([model k v & more]
-   (insert! model (apply array-map k v more))))
+   (insert! model (into {k v} more))))
 
-;;; ### SELECT
 
-;; All of the following functions are based off of the old `sel` macro and can do things like select
-;; certain fields by wrapping ENTITY in a vector and automatically convert kv-args to a `where` clause
+;;;                                                      delete!
+;;; ==================================================================================================================
 
-(defn select-one
-  "Select a single object from the database.
-
-     (select-one ['Database :name] :id 1) -> {:name \"Sample Dataset\"}"
-  {:style/indent 1}
-  [model & options]
-  (let [fields (model->fields model)]
-    (simple-select-one model (where+ {:select (or fields [:*])} options))))
-
-(defn select-one-field
-  "Select a single `field` of a single object from the database.
-
-     (select-one-field :name 'Database :id 1) -> \"Sample Dataset\""
-  {:style/indent 2}
-  [field model & options]
-  {:pre [(keyword? field)]}
-  (field (apply select-one [model field] options)))
-
-(defn select-one-id
-  "Select the `:id` of a single object from the database.
-
-     (select-one-id 'Database :name \"Sample Dataset\") -> 1"
-  {:style/indent 1}
-  [model & options]
-  (let [model (resolve-model model)]
-    (apply select-one-field (models/primary-key model) model options)))
-
-(defn count
-  "Select the count of objects matching some condition.
-
-     ;; Get all Users whose email is non-nil
-     (count 'User :email [:not= nil]) -> 12"
-  {:style/indent 1}
-  [model & options]
-  (:count (apply select-one [model [:%count.* :count]] options)))
-
-(defn select
-  "Select objects from the database.
-
-     (select 'Database :name [:not= nil] {:limit 2}) -> [...]"
-  {:style/indent 1}
-  [model & options]
-  (simple-select model (where+ {:select (or (model->fields model)
-                                            [:*])}
-                               options)))
-
-(defn select-reducible
-  "Select objects from the database, returns a reducible.
-
-     (transduce (map :name) conj [] (select 'Database :name [:not= nil] {:limit 2}))
-        -> [\"name1\", \"name2\"]"
-  {:style/indent 1}
-  [model & options]
-  (simple-select-reducible model (where+ {:select (or (model->fields model)
-                                                      [:*])}
-                                         options)))
-
-(defn select-field
-  "Select values of a single field for multiple objects. These are returned as a set if any matching fields
-   were returned, otherwise `nil`.
-
-     (select-field :name 'Database) -> #{\"Sample Dataset\", \"test-data\"}"
-  {:style/indent 2}
-  [field model & options]
-  {:pre [(keyword? field)]}
-  (when-let [results (seq (map field (apply select [model field] options)))]
-    (set results)))
-
-(defn select-ids
-  "Select IDs for multiple objects. These are returned as a set if any matching IDs were returned, otherwise `nil`.
-
-     (select-ids 'Table :db_id 1) -> #{1 2 3 4}"
-  {:style/indent 1}
-  [model & options]
-  (let [model (resolve-model model)]
-    (apply select-field (models/primary-key model) model options)))
-
-(defn select-field->field
-  "Select fields `k` and `v` from objects in the database, and return them as a map from `k` to `v`.
-
-     (select-field->field :id :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
-  {:style/indent 3}
-  [k v model & options]
-  {:pre [(keyword? k) (keyword? v)]}
-  (into {} (for [result (apply select [model k v] options)]
-             {(k result) (v result)})))
-
-(defn select-field->id
-  "Select FIELD and `:id` from objects in the database, and return them as a map from `field` to `:id`.
-
-     (select-field->id :name 'Database) -> {\"Sample Dataset\" 1, \"test-data\" 2}"
-  {:style/indent 2}
-  [field model & options]
-  (let [model (resolve-model model)]
-    (apply select-field->field field (models/primary-key model) model options)))
-
-(defn select-id->field
-  "Select `field` and `:id` from objects in the database, and return them as a map from `:id` to `field`.
-
-     (select-id->field :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
-  {:style/indent 2}
-  [field model & options]
-  (let [model (resolve-model model)]
-    (apply select-field->field (models/primary-key model) field model options)))
-
-;;; ### EXISTS?
-
-(defn exists?
-  "Easy way to see if something exists in the DB.
-
-    (db/exists? User :id 100)"
-  {:style/indent 1}
-  ^Boolean [model & kvs]
-  (let [model (resolve-model model)]
-    (boolean (select-one-id model (apply where (h/select {} (models/primary-key model)) kvs)))))
-
-;;; ### DELETE!
-
-(defn simple-delete!
+;; TODO
+(defn ^:deprecated simple-delete!
   "Delete an object or objects from the application DB matching certain constraints.
   Returns `true` if something was deleted, `false` otherwise.
 
@@ -352,14 +342,15 @@
   {:style/indent 1}
   ([model]
    (simple-delete! model {}))
-  ([model conditions]
-   {:pre [(map? conditions) (every? keyword? (keys conditions))]}
-   (let [model (resolve-model model)]
-     (not= [0] (execute! (-> (h/delete-from model)
-                             (where conditions))))))
-  ([model k v & more]
-   (simple-delete! model (apply array-map k v more))))
 
+  ([model & conditions]
+   {:pre [(map? conditions) (every? keyword? (keys conditions))]}
+   (not= [0] (connection/execute!
+              (merge
+               {:delete-from [(instance/model model)]}
+               (compile/compile-select-options conditions))))))
+
+;; TODO
 (defn delete!
   "Delete of object(s). For each matching object, the `pre-delete` multimethod is called, which should do
   any cleanup needed before deleting the object, (such as deleting objects related to the object about to
@@ -369,11 +360,26 @@
      (delete! Database :id 1)"
   {:style/indent 1}
   [model & conditions]
-  (let [model       (resolve-model model)
-        primary-key (models/primary-key model)]
+  (let [primary-key (models/primary-key model)]
     (doseq [object (apply select model conditions)]
       (models/pre-delete object)
       (simple-delete! model primary-key (primary-key object)))))
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                                     save!                                                      |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+;; TODO
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                                     copy!                                                      |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+;; TODO
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                                      Etc                                                       |
+;;; +----------------------------------------------------------------------------------------------------------------+
 
 ;; TODO
 #_(defn- invoke-model

@@ -1,5 +1,5 @@
 (ns toucan.db-test
-  (:require [expectations :refer :all]
+  (:require [expectations :refer [expect]]
             [toucan
              [db :as db]
              [test-setup :as test]]

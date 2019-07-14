@@ -2,14 +2,15 @@
   "Test setup logic and helper functions. All test namespaces should require this one to make sure the env is set up
   properly."
   (:require [clojure.java.jdbc :as jdbc]
-            [expectations :refer :all]
+            [expectations :refer [expect]]
             (toucan [db :as db]
                     [models :as models])
             (toucan.test-models [address :refer [Address]]
                                 [category :refer [Category]]
                                 [user :refer [User]]
                                 [venue :refer [Venue]])
-            [toucan.util.test :as u])
+            [toucan.util.test :as u]
+            [toucan.connection :as connection])
   (:import java.sql.Timestamp))
 
 ;; Don't run unit tests whenever JVM shuts down
@@ -17,18 +18,18 @@
 
 ;;; Basic Setup
 
-(defn- configure-db! []
-  (db/set-default-db-connection!
-    (merge {:classname   "org.postgresql.Driver"
-            :subprotocol "postgresql"
-            :subname     (format "//%s:%s/%s"
-                                 (or (System/getenv "TOUCAN_TEST_DB_HOST") "localhost")
-                                 (or (System/getenv "TOUCAN_TEST_DB_PORT") "5432")
-                                 (or (System/getenv "TOUCAN_TEST_DB_NAME") "toucan_test"))}
-           (when-let [user (System/getenv "TOUCAN_TEST_DB_USER")]
-             {:user user})
-           (when-let [password (System/getenv "TOUCAN_TEST_DB_PASS")]
-             {:password password}))))
+(defmethod connection/spec :default
+  (merge
+   {:classname   "org.postgresql.Driver"
+    :subprotocol "postgresql"
+    :subname     (format "//%s:%s/%s"
+                         (or (System/getenv "TOUCAN_TEST_DB_HOST") "localhost")
+                         (or (System/getenv "TOUCAN_TEST_DB_PORT") "5432")
+                         (or (System/getenv "TOUCAN_TEST_DB_NAME") "toucan_test"))}
+   (when-let [user (System/getenv "TOUCAN_TEST_DB_USER")]
+     {:user user})
+   (when-let [password (System/getenv "TOUCAN_TEST_DB_PASS")]
+     {:password password})))
 
 (defn- execute! {:style/indent 0} [& statements]
   (doseq [sql statements]
@@ -105,7 +106,6 @@
   (models/set-root-namespace! 'toucan.test-models))
 
 (defn- test-setup! {:expectations-options :before-run} []
-  (configure-db!)
   (reset-db!)
   (set-models-root-namespace!))
 

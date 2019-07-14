@@ -5,17 +5,16 @@
 
 (defn- now [] (Timestamp. (System/currentTimeMillis)))
 
-(models/add-property! :timestamped?
-  :insert (fn [obj _]
-            (assoc obj :created-at (now), :updated-at (now)))
-  :update (fn [obj _]
-            (assoc obj :updated-at (now))))
+(defmethod models/pre-insert ::timestamped
+  [_ obj]
+  (assoc obj :created-at (now), :updated-at (now)))
 
+(defmethod models/pre-update ::timestamped
+  [obj]
+  (assoc obj :updated-at (now)))
 
-(models/defmodel Venue :venues)
-
-(extend (class Venue)
-  models/IModel
-  (merge models/IModelDefaults {:default-fields (constantly #{:id :name :category})
-                                :types          (constantly {:category :keyword})
-                                :properties     (constantly {:timestamped? true})}))
+(models/defmodel Venue
+  (table :venues)
+  (default-fields #{:id :name :category})
+  (types {:category :keyword})
+  ::timestamped)

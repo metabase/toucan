@@ -1,20 +1,20 @@
 (ns toucan.compile
-  (:require [clojure
-             [pprint :refer [pprint]]
-             [string :as s]
-             [walk :as walk]]
-            [clojure.java.jdbc :as jdbc]
+  (:require [clojure.pprint :refer [pprint]]
             [clojure.tools.logging :as log]
             [honeysql
              [core :as hsql]
              [format :as hformat]
              [helpers :as h]]
             [toucan
-             [instance :as instance]
              [dispatch :as dispatch]
+             [instance :as instance]
              [models :as models]
              [util :as u]]
-            [toucan.db.impl :as impl]))
+            [toucan.connection.impl :as connection.impl]))
+
+;; NOCOMMIT
+(doseq [[symb] (ns-interns *ns*)]
+  (ns-unmap *ns* symb))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                              HoneySQL Compilation                                              |
@@ -65,11 +65,11 @@
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql-args] (binding [hformat/*subquery?* false]
                                     (apply hsql/format honeysql-form (mapcat identity (honeysql-options model))))]
-    (impl/debug-println
+    (connection.impl/debug-println
      (pprint honeysql-form)
-     (format "\n%s\n%s" (impl/format-sql sql) args))
+     (format "\n%s\n%s" (u/format-sql sql) args))
     (log/debug (str "DB Call: " sql))
-    (impl/inc-call-count!)
+    (connection.impl/inc-call-count!)
     sql-args))
 
 (defn maybe-compile-honeysql
@@ -108,49 +108,47 @@
 ;;; |                                              Parsing Select Forms                                              |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-(defn where
+(defn- where
   "Generate a HoneySQL `where` form using key-value args.
 
      (where {} :a :b)        -> (h/merge-where {} [:= :a :b])
-     (where {} :a [:!= b])   -> (h/merge-where {} [:!= :a :b])
-     (where {} {:a [:!= b]}) -> (h/merge-where {} [:!= :a :b])"
-  {:style/indent 1}
+     (where {} :a [:!= b])   -> (h/merge-where {} [:!= :a :b])"
+  [honeysql-form k v]
+  (let [where-clause (if (vector? v)
+                       (let [[f & args] v]
+                         (assert (keyword? f))
+                         (into [f k] args))
+                       [:= k v])]
+    (h/merge-where honeysql-form where-clause)))
 
-  ([honeysql-form]
-   honeysql-form) ; no-op
-
-  ([honeysql-form m]
-   (apply where honeysql-form (apply concat m)))
-
-  ([honeysql-form k v]
-   (h/merge-where honeysql-form (if (vector? v)
-                                  (let [[f & args] v] ; e.g. :id [:!= 1] -> [:!= :id 1]
-                                    (assert (keyword? f))
-                                    (vec (cons f (cons k args))))
-                                  [:= k v])))
-
-  ([honeysql-form k v & more]
-   (apply where (where honeysql-form k v) more)))
-
-(defn- where+
-  "Generate a HoneySQL form, converting pairs of arguments with keywords into a `where` clause, and merging other
-  HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So-called because it handles `where`
-  *plus* other clauses).
-
-     (where+ {} [:id 1 {:limit 10}]) -> {:where [:= :id 1], :limit 10}"
-  [honeysql-form args]
-  (loop [honeysql-form honeysql-form, [first-arg & [second-arg & more, :as butfirst]] args]
+(defn compile-select-options [args]
+  (loop [honeysql-form {}, [arg1 arg2 & more :as remaining] args]
     (cond
-      (keyword? first-arg) (recur (where honeysql-form first-arg second-arg) more)
-      first-arg            (recur (merge honeysql-form first-arg)            butfirst)
-      :else                honeysql-form)))
+      (empty? remaining)
+      honeysql-form
 
-(defn merge-select-and-from
-  "Includes projected fields and a from clause for `honeysql-form`. Will not override if already present."
-  [resolved-model honeysql-form]
-  (merge {:select (or (models/default-fields resolved-model)
-                      [:*])
-          :from   [resolved-model]}
-         honeysql-form))
+      (keyword? arg1)
+      (recur (where honeysql-form arg1 arg2) more)
 
-(defn compile-select-args [model args])
+      (map? arg1)
+      (recur (merge honeysql-form arg1) (cons arg2 more))
+
+      :else
+      (throw (ex-info (format "Don't know what to do with arg: %s. Expected keyword or map" arg1)
+                      {:arg arg1, :all-args args})))))
+
+(defn compile-select
+  {:arglists '([model-or-object pk-value-or-honeysql-form? & options])}
+  ([object]
+   (compile-select object (models/primary-key-value object)))
+
+  ([model pk-value-or-honeysql-form]
+   (if (map? pk-value-or-honeysql-form)
+     (merge
+      {:select [:*]
+       :from   [(instance/model model)]}
+      pk-value-or-honeysql-form)
+     (compile-select model {:where (models/primary-key-where-clause model pk-value-or-honeysql-form)})))
+
+  ([model arg & more]
+   (compile-select model (compile-select-options (cons arg more)))))

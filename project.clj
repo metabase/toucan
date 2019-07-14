@@ -18,6 +18,7 @@
   :dependencies
   [[org.clojure/java.jdbc "0.7.9"]
    [org.clojure/tools.logging "0.5.0-alpha.1"]
+   [backtick "0.3.4"]
    [camsaul/pretty "1.0.0"]
    [honeysql "0.9.4"]
    [org.flatland/ordered "1.5.7"]

@@ -1,14 +1,13 @@
 (ns toucan.models
-  ;; TODO - dox
   (:require [toucan
              [dispatch :as dispatch]
              [instance :as instance]]
-            [toucan.models.impl :as impl]))
+            [toucan.models.options :as options])
+  (:import clojure.lang.MultiFn))
 
-;; TODO - imported for convenience of people using this namespace
-(potemkin/import-vars
- [dispatch aspects]
- [instance table])
+;; NOCOMMIT
+(doseq [[symb] (ns-interns *ns*)]
+  (ns-unmap *ns* symb))
 
 ;;;                                                      defmodel
 ;;; ==================================================================================================================
@@ -27,36 +26,10 @@
         def-form              `(def ~model
                                  ~@(when docstring [docstring])
                                  (instance/of ~model-kw))]
-    (impl/validate-defmodel-options options)
-    (if (empty? options)
-      def-form
-      `(do
-         ~def-form
-         (impl/init-defmodel-options!
-          ~model-kw
-          ~(into {} (for [[option & args] options]
-                      [(keyword option) (vec args)])))))))
+    `(do
+       ~def-form
+       (options/defmodel-options ~model-kw [~@(options/resolve-options model-kw options)]))))
 
-
-;;; |                                                      ETC                                                       |
-;;; ==================================================================================================================
-
-(defmulti primary-key
-  "Defines the primary key(s) for this Model. Defaults to `:id`.
-
-    (defmethod primary-key User [_]
-      :email)
-
-  You can specify a composite key by returning a vector of keys:
-
-    (defmethod primary-key Session [_]
-      [:user_id :session_token])"
-  {:arglists '([model])}
-  dispatch/dispatch-value)
-
-(defmethod primary-key :default
-  [_]
-  :id)
 
 ;;;                                                  CRUD functions
 ;;; ==================================================================================================================
@@ -113,7 +86,7 @@
     ;; add a `:created_at` timestamp to users before inserting them
     (defmethod models/post-insert User [user]
       (assoc user :created_at (java.sql.Timestamp. (System/currentTimeMillis))))"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
 (defmulti post-insert
@@ -128,7 +101,7 @@
     (defmethod models/post-insert User [user]
       (grant-default-permissions! user)
       user)"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
 ;; TODO - `do-insert!`
@@ -154,7 +127,7 @@
     ;; add an `:updated_at` timestamp to users before updating them
     (defmethod models/post-update User [user]
       (assoc user :updated_at (java.sql.Timestamp. (System/currentTimeMillis))))"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
 (defmulti post-update
@@ -172,7 +145,7 @@
     (defmethod models/post-update User [user]
       (audit-user-updated! user)
       user)"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
 ;; TODO - `do-update!`
@@ -192,7 +165,7 @@
     (defmethod models/pre-delete User [user]
       (assert-allowed-to-delete user)
       user))"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
 (defmulti post-delete
@@ -209,38 +182,107 @@
     (defmethod models/post-delete User [user]
       (remove-user-from-mailing-list! user)
       user)"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
-;; TODO - should this go here, or in `db` (?)
-(defmulti do-delete!
-  ;; TODO - docstring
-  {:arglists '([instance f])}
-  dispatch/dispatch-value)
 
-(defmethod do-delete! :default
-  [instance f]
-  (f instance))
-
-
-;;;                                                 Predefined Models
+;;;                                            Predefined Options & Aspects
 ;;; ==================================================================================================================
 
-;;; ### Default Fields
+;;; ### `table`
 
-(defn default-fields
-  ;; TODO - dox
-  [& fields]
-  {:toucan/model ::default-fields, :fields (vec fields)})
+(defmethod options/init! ::options/table [model {:keys [table-name]}]
+  (.addMethod ^MultiFn instance/table model (constantly table-name)))
 
-(defmethod pre-select ::default-fields
+(defmethod options/aspect ::options/table [_ _] nil)
+
+
+;;; ### `primary-key`
+
+(defmulti primary-key
+  "Defines the primary key(s) for this Model. Defaults to `:id`.
+
+    (defmethod primary-key User [_]
+      :email)
+
+  You can specify a composite key by returning a vector of keys:
+
+    (defmethod primary-key Session [_]
+      [:user_id :session_token])"
+  {:arglists '([model])}
+  dispatch/dispatch-value)
+
+(defmethod primary-key :default
+  [_]
+  :id)
+
+(defmethod options/init! ::options/primary-key [model {pk :primary-key}]
+  (.addMethod ^MultiFn primary-key model (constantly pk)))
+
+(defmethod options/aspect ::options/primary-key [_ _] nil)
+
+;; TODO - you could override this to validate etc
+(defmulti primary-key-value
+  {:arglists '([object])}
+  dispatch/dispatch-value)
+
+(defmethod primary-key-value :default
+  [object]
+  (let [pk-key (primary-key object)]
+    (if-not (sequential? pk-key)
+      (get object pk-key)
+      (mapv (partial get object) pk-key))))
+
+(defmulti primary-key-where-clause
+  {:arglists '([object] [model pk-value])}
+  dispatch/dispatch-value)
+
+(defmethod primary-key-where-clause :default
+  ([object]
+   (primary-key-where-clause object (primary-key-value object)))
+
+  ;; TODO - not sure if needed
+  ([model pk-value]
+   (let [pk-key (primary-key model)]
+     (if-not (sequential? pk-key)
+       [:= pk-key pk-value]
+       (into [:and] (for [[k v] (zipmap pk-key pk-value)]
+                      [:= k v]))))))
+
+(defmulti assoc-primary-key-value
+  {:arglists '([object primary-key-value])}
+  dispatch/dispatch-value)
+
+(defmethod assoc-primary-key-value :default
+  [object primary-key-value]
+  {:pre [(or (keyword? primary-key-value) (every? keyword? primary-key-value))]}
+  (let [pk-key (primary-key object)]
+    (if-not (sequential? pk-key)
+      (assoc object pk-key primary-key-value)
+      (into object (zipmap pk-key primary-key-value)))))
+
+(defmulti dissoc-primary-key-value
+  {:arglists '([object])}
+  dispatch/dispatch-value)
+
+(defmethod dissoc-primary-key-value :default
+  [object]
+  (let [pk-key (primary-key object)]
+    (if-not (sequential? pk-key)
+      (dissoc object pk-key)
+      (reduce dissoc object pk-key))))
+
+
+;;; ### `default-fields`
+
+(defmethod pre-select ::options/default-fields
   [{:keys [fields]} honeysql-form]
   (merge
    {:select fields}
    honeysql-form))
 
 
-;;; ### Types
+;;; ### `types`
 
 ;; Model types are a easy way to define functions that should be used to transform values of a certain column
 ;; when they come out from or go into the database.
@@ -277,10 +319,7 @@
 ;; In the example above, values of any columns marked as `:json` would be serialized as JSON before going into the DB,
 ;; and deserialized *from* JSON when coming out of the DB.
 
-;; TODO
-
 (defmulti type-in
-  "Define "
   {:arglists '([type-name v])}
   dispatch/dispatch-value)
 
@@ -288,12 +327,7 @@
   {:arglists '([type-name v])}
   dispatch/dispatch-value)
 
-(defn types
-  ;; TODO - dox
-  [field->type-fn]
-  {:toucan/model ::types, :types field->type-fn})
-
-(defmethod post-select ::types
+(defmethod post-select ::options/types
   [{:keys [types]} result]
   (reduce
    (fn [result [field type-fn]]
@@ -302,6 +336,11 @@
                             (partial type-out type-fn))))
    result
    types))
+
+(defn types [model]
+  (reduce merge (for [aspect (dispatch/aspects model)
+                      :when  (= (instance/model aspect) ::options/types)]
+                  (:types aspect))))
 
 
 ;;; #### Predefined Types
@@ -319,3 +358,5 @@
   (if (string? v)
     (keyword v)
     v))
+
+;; TODO - `parent`

@@ -1,11 +1,12 @@
 (ns toucan.models-test
-  (:require [expectations :refer :all]
+  (:require [expectations :refer [expect]]
             [toucan
              [db :as db]
              [test-setup :as test]]
             [toucan.test-models
              [category :as category :refer [Category]]
-             [venue :refer [map->VenueInstance Venue]]]))
+             [venue :refer [map->VenueInstance Venue]]]
+            [toucan.models :as models]))
 
 ;; Test types (keyword)
 
@@ -212,3 +213,14 @@
 (expect
  #toucan.test_models.venue.VenueInstance{}
  (empty (Venue :name "BevMo")))
+
+;; model with multiple primary keys
+(expect
+ [1 2]
+ (with-redefs [models/primary-key (constantly [:a :b])]
+   (models/primary-key-value {:a 1, :b 2, :c 3})))
+
+(expect
+ [:and [:= :a 1] [:= :b 2]]
+ (with-redefs [models/primary-key (constantly [:a :b])]
+   (models/primary-key-where-clause {:a 1, :b 2, :c 3})))

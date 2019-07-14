@@ -1,15 +1,15 @@
 (ns toucan.instance
-  (:require [honeysql.format :as hsql.format]
+  (:require [clojure.data :as data]
+            [honeysql.format :as hsql.format]
             [potemkin
              [collections :as p.collections]
              [types :as p.types]]
             [pretty.core :as pretty]))
 
 ;; TODO - dox
+;; TODO - rename to `type`?
 (p.types/defprotocol+ Model
   (model [this]))
-
-(println "model:" (System/identityHashCode model)) ; NOCOMMIT
 
 ;; TODO - dox
 (defn the-model [x]
@@ -49,7 +49,6 @@
 (p.types/deftype+ ToucanInstance [modl orig m mta]
   Model
   (model [_]
-    (println "modl:" modl)              ; NOCOMMIT
     modl)
 
   Original
@@ -68,7 +67,11 @@
   (empty [_]
     (ToucanInstance. modl {} {} mta))
 
-  ;; TODO - `clojure.lang.Named` (?)
+  clojure.lang.Named
+  (getName [_]
+    (name modl))
+  (getNamespace [_]
+    (namespace modl))
 
   pretty/PrettyPrintable
   (pretty [_]
@@ -76,10 +79,6 @@
     (if (seq m)
       (list 'toucan.instance/of modl m)
       (list 'toucan.instance/of modl)))
-
-  clojure.lang.Named
-  (getName [_]
-    (name modl))
 
   hsql.format/ToSql
   (to-sql [_]
@@ -141,8 +140,6 @@
   (invoke [_ a b c d e f g h i j k l m n o p q r s t more]
     (invoke-instance modl a b c d e f g h i j k l m n o p q r s t more)))
 
-(println "Model ::" (System/identityHashCode Model)) ; NOCOMMIT
-
 (extend-protocol Model
   clojure.lang.Keyword
   (model [this] this)
@@ -165,6 +162,13 @@
   nil
   (model [_] nil))
 
+(extend-protocol Original
+  Object
+  (original [_] nil)
+
+  nil
+  (original [_] nil))
+
 
 ;; TODO - dox
 (defn of
@@ -174,3 +178,7 @@
   ;; TODO - not 100% sure calling `model` here makes sense... what if we do something like the following (see below)
   ([a-model m]
    (ToucanInstance. (the-model a-model) m m (meta m))))
+
+(defn changes [m]
+  (when m
+    (second (data/diff (original m) m))))

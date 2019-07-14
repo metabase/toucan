@@ -45,11 +45,12 @@
            :when  (not (identical? method default-method))]
        [aspect method]))))
 
-(defn combined-method [multifn model in-or-out]
+(defn combined-method [multifn model & [all-methods-xform]]
   (reduce
    (fn [f [dispatch-value method]]
      (fn [arg]
        (method dispatch-value (f arg))))
    identity
-   (cond-> (all-aspect-methods multifn model)
-     (= in-or-out :in) reverse)))
+   (let [all-methods (all-aspect-methods multifn model)]
+     (cond-> all-methods
+       all-methods-xform all-methods-xform))))

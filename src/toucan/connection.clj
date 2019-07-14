@@ -1,18 +1,25 @@
 (ns toucan.connection
   (:require [clojure.java.jdbc :as jdbc]
-            [toucan.dispatch :as dispatch]
-            [toucan.compile :as compile]))
+            [toucan
+             [compile :as compile]
+             [dispatch :as dispatch]
+             [instance :as instance]]))
 
+;; TODO - does this belong here, or in `db?`
+
+;; NOCOMMIT
+(doseq [[symb] (ns-interns *ns*)]
+  (ns-unmap *ns* symb))
 ;;;                                                     Connection
 ;;; ==================================================================================================================
 
-(defmulti connection-spec
+(defmulti spec
   "Return a JDBC connecton spec that should be to run queries. The spec is passed directly to `clojure.java.jdbc`; it
   can be anything that is accepted by it. In most cases, you'll want to use the same connection for all Models in your
   application; in this case, provide an implementation for `:default`:
 
     ;; set the default connection
-    (defmethod db/connection-spec :default [_]
+    (defmethod connecton/spec :default [_]
       {:classname \"org.postgresql.Driver\"
        :subprotocol \"postgresql\"
        :subname     \"//localhost:5432/my_db\"
@@ -33,11 +40,11 @@
       (delay
        (pool/connection-pool-spec jdbc-spec)))
 
-    (defmethod db/connection-spec :default [_] @connection-pool)"
+    (defmethod connecton/spec :default [_] @connection-pool)"
   {:arglists '([model])}
   dispatch/dispatch-value)
 
-(defmethod connection-spec :default
+(defmethod spec :default
   [_]
   ;; TODO - better exception message
   (throw (Exception. "Don't know how to get a DB connection")))
@@ -46,16 +53,17 @@
   "Transaction connection to the application DB. Used internally by `transaction`."
   nil)
 
+;; TODO - should we still have `*connection` if one wants to set it ?
 (defn connection
   "The connection we are current Fetch a JDBC connection spec for passing to `clojure.java.jdbc`. Returns
   `*transaction-connection*`, if it is set (i.e., if we're inside a `transaction` -- this is bound automatically);
-  otherwise calls `connection-spec`."
+  otherwise calls `spec`."
   ([]
    (connection :default))
 
   ([model]
    (or *transaction-connection*
-       (connection-spec model))))
+       (spec model))))
 
 (defn do-in-transaction
   "Execute F inside a DB transaction. Prefer macro form `transaction` to using this directly."
@@ -70,6 +78,39 @@
   [& body]
   `(do-in-transaction (fn [] ~@body)))
 
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                                   Debugging                                                    |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+(defmacro with-call-counting
+  "Execute `body` and track the number of DB calls made inside it. `call-count-fn-binding` is bound to a zero-arity
+  function that can be used to fetch the current DB call count.
+
+     (db/with-call-counting [call-count] ...
+       (call-count))"
+  {:style/indent 1}
+  [[call-count-fn-binding] & body]
+  `(impl/-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
+
+(defmacro debug-count-calls
+  "Print the number of DB calls executed inside `body` to `stdout`. Intended for use during REPL development."
+  {:style/indent 0}
+  [& body]
+  `(with-call-counting [call-count#]
+     (let [results# (do ~@body)]
+       (println "DB Calls:" (call-count#))
+       results#)))
+
+(defmacro debug
+  "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
+  development."
+  {:style/indent 0}
+  [& body]
+  `(binding [impl/*debug* true]
+     ~@body))
+
+;; TODO - query and execute should call debugging functions
 
 ;;;                                              Low-level JDBC functions
 ;;; ==================================================================================================================
