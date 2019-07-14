@@ -1,50 +1,77 @@
 (ns toucan.hydrate
   "Functions for deserializing and hydrating fields in objects fetched from the DB."
-  (:require [toucan.dispatch :as dispatch]))
+  (:require [toucan
+             [db :as db]
+             [dispatch :as dispatch]
+             [instance :as instance]
+             [models :as models]]
+            [toucan.db.impl :as db.impl]
+            [toucan.connection :as connection]))
 
 ;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
+#_(doseq [[symb] (ns-interns *ns*)]
   (ns-unmap *ns* symb))
 
 (defmulti hydration-keys
+  "The `hydration-keys` method can be overrode to specify the keyword field names that should be hydrated as instances
+  of this model. For example, `User` might include `:creator`, which means `hydrate` will look for `:creator_id` or
+  `:creator-id` in other objects to find the User ID, and fetch the `Users` corresponding to those values."
   {:arglists '([model])}
-  "The `hydration-keys` method can be overrode to specify the keyword field names that should be hydrated
-     as instances of this model. For example, `User` might include `:creator`, which means `hydrate` will
-     look for `:creator_id` or `:creator-id` in other objects to find the User ID, and fetch the `Users`
-     corresponding to those values."
-  dispatch/dispatch-value
-  )
-
-(defmulti simple-hydrate
-  {:arglists '([model results k])}
-  (fn [model _ k]
-    [(dispatch/dispatch-value model) k]))
-
-(defmulti batched-hydrate
-  {:arglists '([model results k])}
-  (fn [model _ k]
-    [(dispatch/dispatch-value model) k]))
+  dispatch/dispatch-value)
 
 (defmulti automagic-hydration-key-model
   {:arglists '([k])}
   identity
-  :default   ::default)
+  :default ::default)
 
 (defmethod automagic-hydration-key-model ::default
   [_]
   nil)
 
+(defn- hydrate-dispatch-value [result-or-results k]
+  (if (sequential? result-or-results)
+    (recur (first result-or-results) k)
+    [(dispatch/dispatch-value result-or-results) k]))
 
-;;;                                                     Util Fns
+(defmulti batched-hydrate
+  {:arglists '([results k])}
+  hydrate-dispatch-value)
+
+(defmulti simple-hydrate
+  {:arglists '([result k])}
+  hydrate-dispatch-value)
+
+(defmethod simple-hydrate :default
+  [result k]
+  (throw (ex-info (str (format "Don't know how to hydrate %s for model %s." k (instance/model result))
+                       " Define hydration behavior by providing an implementation for `simple-hydrate`,"
+                       " `hydrate-dispatch-value`, or `batched-hydrate`. ")
+                  {:model (instance/model result), :result result, :k k})))
+
+;; TODO - huh
+
+(defmulti can-hydrate-with-strategy?
+  {:arglists '([strategy results k])}
+  (fn [strategy _ _] strategy))
+
+(defmulti hydrate-with-strategy
+  {:arglists '([strategy results k])}
+  (fn [strategy _ _] strategy))
+
+(def strategies
+  (atom [::automagic-batched ::multimethod-batched ::multimethod-simple]))
+
+(defn hydration-strategy [results k]
+  (some
+   (fn [strategy]
+     (when (can-hydrate-with-strategy? strategy results k)
+       (connection/debug-println "Hydrating with strategy:" strategy)
+       strategy))
+   @strategies))
+
+
+;;;                                  Automagic Batched Hydration (via :model-keys)
 ;;; ==================================================================================================================
-
-(defn- valid-hydration-form?
-  "Is this a valid argument to `hydrate`?"
-  [k]
-  (or (keyword? k)
-      (and (sequential? k)
-           (keyword? (first k))
-           (every? valid-hydration-form? (rest k)))))
 
 (defn- kw-append
   "Append to a keyword.
@@ -57,24 +84,17 @@
         (name k)
         suffix)))
 
+(defmethod can-hydrate-with-strategy? ::automagic-batched
+  [_ results k]
+  (boolean
+   (let [underscore-id-key (kw-append k "_id")
+         dash-id-key       (kw-append k "-id")
+         contains-k-id?    #(some % [underscore-id-key dash-id-key])]
+     (and (automagic-hydration-key-model k)
+          (every? contains-k-id? results)))))
 
-;;;                                  Automagic Batched Hydration (via :model-keys)
-;;; ==================================================================================================================
-
-(defn- can-automagically-batched-hydrate?
-  "Can we do a batched hydration of `results` with key `k`?"
-  [results k]
-  (let [underscore-id-key (kw-append k "_id")
-        dash-id-key       (kw-append k "-id")
-        contains-k-id?    #(some % [underscore-id-key dash-id-key])]
-    (and (automagic-hydration-key-model k)
-         (every? contains-k-id? results))))
-
-(defn- automagically-batched-hydrate
-  "Hydrate keyword `dest-key` across all `results` by aggregating corresponding source keys (`DEST-KEY_id`),
-  doing a single `db/select`, and mapping corresponding objects to `dest-key`."
-  [results dest-key]
-  {:pre [(keyword? dest-key)]}
+(defmethod hydrate-with-strategy ::automagic-batched
+  [_ results dest-key]
   (let [model       (automagic-hydration-key-model dest-key)
         source-keys #{(kw-append dest-key "_id") (kw-append dest-key "-id")}
         ids         (set (for [result results
@@ -94,55 +114,40 @@
         (assoc result dest-key (objs source-id))))))
 
 
-;;;                         Function-Based Batched Hydration (fns marked ^:batched-hydrate)
+;;;                         Method-Based Batched Hydration (using impls of `batched-hydrate`)
 ;;; ==================================================================================================================
 
-(defn- can-fn-based-batched-hydrate? [model k]
-  (get-method batched-hydrate)
-  (contains? (hydration-key->batched-f) k))
+(defn- batched-hydrate-method [results k]
+  (some (partial get-method batched-hydrate)
+        [(hydrate-dispatch-value results k) [:default k]]))
 
-(defn- fn-based-batched-hydrate
-  [results k]
-  {:pre [(keyword? k)]}
-  (((hydration-key->batched-f) k) results))
+(defmethod can-hydrate-with-strategy? ::multimethod-batched
+  [_ results k]
+  (boolean (batched-hydrate-method results k)))
 
-
-;;;                              Function-Based Simple Hydration (fns marked ^:hydrate)
-;;; ==================================================================================================================
-
-(def ^:private hydration-key->f*
-  (atom nil))
-
-(defn- hydration-key->f
-  "Fetch a map of keys to functions marked `^:hydrate` for them."
-  []
-  (or @hydration-key->f*
-      (reset! hydration-key->f* (lookup-functions-with-metadata-key :hydrate))))
-
-(defn- simple-hydrate
-  "Hydrate keyword K in results by calling corresponding functions when applicable."
-  [results k]
-  {:pre [(keyword? k)]}
-  (for [result results]
-    ;; don't try to hydrate if they key is already present. If we find a matching fn, hydrate with it
-    (when result
-      (or (when-not (k result)
-            (when-let [f ((hydration-key->f) k)]
-              (assoc result k (f result))))
-          result))))
+(defmethod hydrate-with-strategy ::multimethod-batched
+  [_ results k]
+  ((batched-hydrate-method results k) results k))
 
 
-;;;                                     Resetting Hydration keys (for REPL usage)
-;;; ==================================================================================================================
+;;;                          Method-Based Simple Hydration (using impls of `simple-hydrate`)
+;;; +----------------------------------------------------------------------------------------------------------------+
 
-(defn flush-hydration-key-caches!
-  "Clear out the cached hydration keys. Useful when doing interactive development and defining new hydration
-  functions."
-  []
-  (reset! automagic-batched-hydration-key->model* nil)
-  (reset! hydration-key->batched-f*               nil)
-  (reset! hydration-key->f*                       nil))
+(defn- simple-hydrate-method [results k]
+  (some (partial get-method simple-hydrate)
+        [(hydrate-dispatch-value results k) [:default k]]))
 
+(defmethod can-hydrate-with-strategy? ::multimethod-simple
+  [_ results k]
+  (boolean (simple-hydrate-method results k)))
+
+(defmethod hydrate-with-strategy ::multimethod-simple
+  [_ results k]
+  (let [method (simple-hydrate-method results k)]
+    (for [result results]
+      (if (some? (get result k))
+        result
+        (assoc result k (method result k))))))
 
 
 ;;;                                               Primary Hydration Fns
@@ -150,64 +155,76 @@
 
 (declare hydrate)
 
-(defn- hydrate-vector
+(defn- hydrate-key-seq
   "Hydrate a nested hydration form (vector) by recursively calling `hydrate`."
-  [results [k & more :as vect]]
-  (assert (> (count vect) 1)
+  [results [k & nested-keys :as coll]]
+  (assert (seq nested-keys)
     (format (str "Replace '%s' with '%s'. Vectors are for nested hydration. "
                  "There's no need to use one when you only have a single key.")
-            vect (first vect)))
-  (let [results (hydrate results k)]
-    (if-not (seq more)
-      results
-      (counts-apply results k #(apply hydrate % more)))))
+            coll k))
+  (let [results     (hydrate results k)
+        vs          (map k results)
+        hydrated-vs (apply hydrate vs nested-keys)]
+    (map
+     (fn [result v]
+       (assoc result k v))
+     results
+     hydrated-vs)))
 
-(defn- hydrate-kw
+(defn- hydrate-key
   "Hydrate a single key."
   [results k]
-  (cond
-    (can-automagically-batched-hydrate? results k) (automagically-batched-hydrate results k)
-    (can-fn-based-batched-hydrate? results k)      (fn-based-batched-hydrate results k)
-    :else                                          (simple-hydrate results k)))
+  (if-let [strategy (hydration-strategy results k)]
+    (do
+      (connection/debug-println (format "Hydrating %s with strategy %s" k strategy))
+      (hydrate-with-strategy strategy results k))
+    (do
+      (connection/debug-println (format "Unable to hydrate %k: no matching strategy found" k))
+      results)))
 
-(defn- hydrate-1
+(defn- hydrate-one-form
   "Hydrate a single hydration form."
   [results k]
-  (if (keyword? k)
-    (hydrate-kw results k)
-    (hydrate-vector results k)))
+  (cond
+    (keyword? k)
+    (hydrate-key results k)
 
-(defn- hydrate-many
-  "Hydrate many hydration forms across a *sequence* of RESULTS by recursively calling `hydrate-1`."
-  [results k & more]
-  (let [results (hydrate-1 results k)]
-    (if-not (seq more)
-      results
-      (recur results (first more) (rest more)))))
+    (sequential? k)
+    (hydrate-key-seq results k)
+
+    :else
+    (throw (ex-info (format "Invalid hydrate form: %s. Expected keyword or sequence" k) {:k k}))))
+
+(defn- hydrate-forms
+  "Hydrate many hydration forms across a *sequence* of `results` by recursively calling `hydrate-one-form`."
+  [results & forms]
+  (reduce hydrate-one-form results forms))
 
 
 ;;;                                                 Public Interface
 ;;; ==================================================================================================================
 
-;;                              hydrate <-------------+
-;;                                |                   |
-;;                            hydrate-many            |
-;;                                | (for each form)   |
-;;                            hydrate-1               | (recursively)
-;;                                |                   |
-;;                     keyword? --+-- vector?         |
-;;                        |             |             |
-;;                   hydrate-kw    hydrate-vector ----+
-;;                        |
-;;               can-automagically-batched-hydrate?
-;;                              |
-;;             true ------------+----------------- false
-;;              |                                    |
-;;     automagically-batched-hydrate    can-fn-based-batched-hydrate?
-;;                                                  |
-;;                                true -------------+------------- false
-;;                                 |                                 |
-;;                      fn-based-batched-hydrate              simple-hydrate
+;;                         hydrate <-------------+
+;;                           |                   |
+;;                       hydrate-forms           |
+;;                           | (for each form)   |
+;;                       hydrate-one-form        | (recursively)
+;;                           |                   |
+;;                keyword? --+-- sequence?       |
+;;                   |             |             |
+;;             hydrate-key   hydrate-key-seq ----+
+;;                   |
+;;          (for each strategy) <--------+
+;;           ::automagic-batched         |
+;;           ::multimethod-batched       |
+;;           ::multimethod-simple        | (try next strategy)
+;;                   |                   |
+;;          can-hydrate-with-strategy?   |
+;;                   |                   |
+;;            yes ---+--- no ------------+
+;;             |
+;;    hydrate-with-strategy
+
 
 (defn hydrate
   "Hydrate a single object or sequence of objects.
@@ -238,7 +255,7 @@
   e.g.
 
     (defn with-fields
-      \"Efficiently add `Fields` to a collection of TABLES.\"
+      \"Efficiently add `:fields` to a collection of `tables`.\"
       {:batched-hydrate :fields}
       [tables]
       ...)
@@ -292,11 +309,9 @@
              [:a [:b :c] :e])
       -> {:a {:b {:c 1} :e 2}}"
   [results k & ks]
-  {:pre [(valid-hydration-form? k)
-         (every? valid-hydration-form? ks)]}
   (when results
     (if (sequential? results)
       (if (empty? results)
         results
-        (apply hydrate-many results k ks))
-      (first (apply hydrate-many [results] k ks)))))
+        (apply hydrate-forms results k ks))
+      (first (apply hydrate-forms [results] k ks)))))

@@ -1,15 +1,13 @@
 (ns toucan.connection
   (:require [clojure.java.jdbc :as jdbc]
+            [clojure.pprint :as pprint]
+            [clojure.string :as str]
             [toucan
              [compile :as compile]
              [dispatch :as dispatch]
-             [instance :as instance]]))
+             [instance :as instance]]
+            [toucan.models :as models]))
 
-;; TODO - does this belong here, or in `db?`
-
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
 ;;;                                                     Connection
 ;;; ==================================================================================================================
 
@@ -44,10 +42,12 @@
   {:arglists '([model])}
   dispatch/dispatch-value)
 
-(defmethod spec :default
-  [_]
-  ;; TODO - better exception message
-  (throw (Exception. "Don't know how to get a DB connection")))
+(when-not (get-method spec :default)
+  (defmethod spec :default
+    [_]
+    ;; TODO - better exception message
+    (throw (Exception. (str "Don't know how to get a DB connection. You can set the default connection by providing a"
+                            " default implementation for `toucan.connection/spec`.")))))
 
 (def ^:private ^:dynamic *transaction-connection*
   "Transaction connection to the application DB. Used internally by `transaction`."
@@ -83,6 +83,44 @@
 ;;; |                                                   Debugging                                                    |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
+(def ^:dynamic *debug*
+  ;; TODO - dox
+  false)
+
+(defmacro debug-println
+  ;; TODO - dox
+  [& args]
+  `(when *debug*
+     (println ~@args)))
+
+(defmacro debug
+  "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
+  development."
+  {:style/indent 0}
+  [& body]
+  `(binding [*debug* true]
+     ~@body))
+
+(def ^:private ^:dynamic *call-count*
+  "Atom used as a counter for DB calls when enabled. This number isn't *perfectly* accurate, only mostly; DB calls
+  made directly to JDBC won't be logged."
+  nil)
+
+(defn -do-with-call-counting
+  "Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve the
+  current call count. (It's probably more useful to use the macro form of this function, `with-call-counting`,
+  instead.)"
+  {:style/indent 0}
+  [f]
+  (binding [*call-count* (atom 0)]
+    (f (partial deref *call-count*))))
+
+(defn- inc-call-count!
+  ;; TODO - dox
+  []
+  (when *call-count*
+    (swap! *call-count* inc)))
+
 (defmacro with-call-counting
   "Execute `body` and track the number of DB calls made inside it. `call-count-fn-binding` is bound to a zero-arity
   function that can be used to fetch the current DB call count.
@@ -91,7 +129,7 @@
        (call-count))"
   {:style/indent 1}
   [[call-count-fn-binding] & body]
-  `(impl/-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
+  `(-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
 
 (defmacro debug-count-calls
   "Print the number of DB calls executed inside `body` to `stdout`. Intended for use during REPL development."
@@ -102,27 +140,26 @@
        (println "DB Calls:" (call-count#))
        results#)))
 
-(defmacro debug
-  "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
-  development."
-  {:style/indent 0}
-  [& body]
-  `(binding [impl/*debug* true]
-     ~@body))
-
-;; TODO - query and execute should call debugging functions
-
 ;;;                                              Low-level JDBC functions
 ;;; ==================================================================================================================
+
+(defn- maybe-compile [model query]
+  (when (map? query)
+    (debug-println "HoneySQL form:" (with-out-str (pprint/pprint query))))
+  (let [sql-args (compile/maybe-compile-honeysql model query)]
+    (debug-println "SQL & Args:" (with-out-str (pprint/pprint sql-args)))
+    sql-args))
 
 (defmulti query*
   ;; TODO
   {:arglists '([model honeysql-form-or-sql-params jdbc-options])}
   dispatch/dispatch-value)
 
-(defmethod query* :default
-  [model honeysql-form-or-sql-params jdbc-options]
-  (jdbc/query (connection model) (compile/maybe-compile-honeysql model honeysql-form-or-sql-params) jdbc-options))
+(when-not false #_(get-method query* :default)
+  (defmethod query* :default
+    [model honeysql-form-or-sql-params jdbc-options]
+    (inc-call-count!)
+    (jdbc/query (connection model) (maybe-compile model honeysql-form-or-sql-params) jdbc-options)))
 
 (defn query
   ;; TODO - update dox
@@ -131,8 +168,8 @@
   {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
   [& args]
   (let [[model query jdbc-options] (if (instance/model (first args))
-                                args
-                                (cons :default args))]
+                                     args
+                                     (cons nil args))]
     (query* model query jdbc-options)))
 
 (defmulti reducible-query*
@@ -140,9 +177,11 @@
   {:arglists '([model honeysql-form-or-sql-params jdbc-options])}
   dispatch/dispatch-value)
 
-(defmethod reducible-query* :default
-  [model honeysql-form-or-sql-params jdbc-options]
-  (jdbc/reducible-query (connection model) (compile/maybe-compile-honeysql model honeysql-form-or-sql-params) jdbc-options))
+(when-not (get-method reducible-query* :default)
+  (defmethod reducible-query* :default
+    [model honeysql-form-or-sql-params jdbc-options]
+    (inc-call-count!)
+    (jdbc/reducible-query (connection model) (maybe-compile model honeysql-form-or-sql-params) jdbc-options)))
 
 (defn reducible-query
   ;; TODO - update dox
@@ -155,7 +194,6 @@
                                      (cons :default args))]
     (reducible-query* model query jdbc-options)))
 
-;; TODO - `execute!*` ?
 (defn execute!
   "Compile `honeysql-form` and call `jdbc/execute!` against the application DB.
   `options` are passed directly to `jdbc/execute!` and can be things like `:multi?` (default `false`) or
@@ -165,4 +203,35 @@
   (let [[model statement jdbc-options] (if (instance/model (first args))
                                          args
                                          (cons :default args))]
-    (jdbc/execute! (connection model) (compile/maybe-compile-honeysql model statement) jdbc-options)))
+    (inc-call-count!)
+    (jdbc/execute! (connection model) (maybe-compile model statement) jdbc-options)))
+
+;; TODO - should these go here, or in `db.impl` ?
+
+(defn insert!
+  ;; TODO - `[honeysql-form-or-sql-params]` and `[model honeysql-form-or-sql-params opts]` arities
+  [model honeysql-form-or-sql-params]
+  (let [[sql & params] (maybe-compile model honeysql-form-or-sql-params)]
+    (with-open [^java.sql.PreparedStatement prepared-statement (jdbc/prepare-statement
+                                                                (jdbc/get-connection (connection model))
+                                                                sql
+                                                                {:return-keys (let [pk (models/primary-key model)]
+                                                                                (if (sequential? pk) pk [pk]))})]
+      (#'jdbc/dft-set-parameters prepared-statement params)
+      (inc-call-count!)
+      (when (pos? (.executeUpdate prepared-statement))
+        (with-open [generated-keys-result-set (.getGeneratedKeys prepared-statement)]
+          (vec (jdbc/result-set-seq generated-keys-result-set)))))))
+
+(defn update!
+  [model honeysql-form-or-sql-params]
+  (let [sql-params (maybe-compile model honeysql-form-or-sql-params)]
+    (let [[rows-affected] (execute! model sql-params)]
+      (not (zero? rows-affected)))))
+
+(defn delete!
+  ;; TODO - `[honeysql-form-or-sql-params]` and `[model honeysql-form-or-sql-params opts]` arities
+  [model honeysql-form-or-sql-params]
+  (let [sql-params (maybe-compile model honeysql-form-or-sql-params)]
+    (let [[rows-affected] (execute! model sql-params)]
+      (not (zero? rows-affected)))))

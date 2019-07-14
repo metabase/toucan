@@ -2,15 +2,11 @@
   "Test setup logic and helper functions. All test namespaces should require this one to make sure the env is set up
   properly."
   (:require [clojure.java.jdbc :as jdbc]
-            [expectations :refer [expect]]
-            (toucan [db :as db]
-                    [models :as models])
-            (toucan.test-models [address :refer [Address]]
-                                [category :refer [Category]]
-                                [user :refer [User]]
-                                [venue :refer [Venue]])
-            [toucan.util.test :as u]
-            [toucan.connection :as connection])
+            expectations
+            [toucan
+             [connection :as connection]
+             [db :as db]
+             [test-models :as m]])
   (:import java.sql.Timestamp))
 
 ;; Don't run unit tests whenever JVM shuts down
@@ -19,6 +15,7 @@
 ;;; Basic Setup
 
 (defmethod connection/spec :default
+  [_]
   (merge
    {:classname   "org.postgresql.Driver"
     :subprotocol "postgresql"
@@ -35,6 +32,7 @@
   (doseq [sql statements]
     (jdbc/execute! (db/connection) [sql])))
 
+;; TODO - maybe these should go in each model's namespace?
 (defn- create-models! []
   (execute!
     ;; User
@@ -77,24 +75,25 @@
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))
 
 (defn- insert-test-data! []
-  ;; User
-  (db/simple-insert-many! User
-    [{:first-name "Cam",   :last-name "Saul"}
-     {:first-name "Rasta", :last-name "Toucan"}
-     {:first-name "Lucky", :last-name "Bird"}])
-  ;; Venue
-  (db/simple-insert-many! Venue
-      [{:name "Tempest",     :category "bar",   :created-at jan-first-2017, :updated-at jan-first-2017}
-       {:name "Ho's Tavern", :category "bar",   :created-at jan-first-2017, :updated-at jan-first-2017}
-       {:name "BevMo",       :category "store", :created-at jan-first-2017, :updated-at jan-first-2017}])
-  ;; Category
-  (db/simple-insert-many! Category
-    [{:name "bar"}
-     {:name "dive-bar", :parent-category-id 1}
-     {:name "resturaunt"}
-     {:name "mexican-resturaunt", :parent-category-id 3}])
-  ;; Address
-  (db/simple-insert! Address {:street_name "1 Toucan Drive"}))
+  (binding [db/*behavior* :no-pre-post]
+    ;; User
+    (db/insert! m/User
+      [{:first-name "Cam", :last-name "Saul"}
+       {:first-name "Rasta", :last-name "Toucan"}
+       {:first-name "Lucky", :last-name "Bird"}])
+    ;; Venue
+    (db/insert! m/Venue
+      [{:name "Tempest", :category "bar", :created-at jan-first-2017, :updated-at jan-first-2017}
+       {:name "Ho's Tavern", :category "bar", :created-at jan-first-2017, :updated-at jan-first-2017}
+       {:name "BevMo", :category "store", :created-at jan-first-2017, :updated-at jan-first-2017}])
+    ;; Category
+    (db/insert! m/Category
+      [{:name "bar"}
+       {:name "dive-bar", :parent-category-id 1}
+       {:name "resturaunt"}
+       {:name "mexican-resturaunt", :parent-category-id 3}])
+    ;; Address
+    (db/insert! m/Address {:street_name "1 Toucan Drive"})))
 
 (defn reset-db!
   "Reset the DB to its initial state, creating tables if needed and inserting the initial test data."
@@ -102,16 +101,13 @@
   (create-models!)
   (insert-test-data!))
 
-(defn- set-models-root-namespace! []
-  (models/set-root-namespace! 'toucan.test-models))
-
 (defn- test-setup! {:expectations-options :before-run} []
-  (reset-db!)
-  (set-models-root-namespace!))
+  (reset-db!))
 
 (defmacro with-clean-db
-  "Run test BODY and reset the database to its initial state afterwards."
+  "Run test `body` and reset the database to its initial state afterwards."
   {:style/indent 0}
   [& body]
-  `(try ~@body
-        (finally (reset-db!))))
+  `(try
+     ~@body
+     (finally (reset-db!))))

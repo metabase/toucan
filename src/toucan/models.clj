@@ -2,12 +2,9 @@
   (:require [toucan
              [dispatch :as dispatch]
              [instance :as instance]]
-            [toucan.models.options :as options])
+            [toucan.models.options :as options]
+            [potemkin :as potemkin])
   (:import clojure.lang.MultiFn))
-
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
 
 ;;;                                                      defmodel
 ;;; ==================================================================================================================
@@ -25,10 +22,12 @@
         model-kw              (keyword (name (ns-name *ns*)) (name model))
         def-form              `(def ~model
                                  ~@(when docstring [docstring])
-                                 (instance/of ~model-kw))]
-    `(do
-       ~def-form
-       (options/defmodel-options ~model-kw [~@(options/resolve-options model-kw options)]))))
+                                 ~model-kw)]
+    (if (empty? options)
+      def-form
+      `(do
+         ~def-form
+         ~(options/defmodel-options model options)))))
 
 
 ;;;                                                  CRUD functions
@@ -68,7 +67,7 @@
 ;; TODO - some sort of `in` function that could be used for either `pre-insert` or `pre-update` (?)
 
 (defmulti pre-insert
-  "Called by `insert!`, `copy!`, and (`save!` if saving a new object) *before* inserting a new object into the database.
+  "Called by `insert!`, `copy!`, and (`save!` if saving a new instance) *before* inserting a new instance into the database.
 
   Some reasons you might implement this method:
 
@@ -90,12 +89,12 @@
   dispatch/dispatch-value)
 
 (defmulti post-insert
-  "Called by `insert!`, `copy!`, and `save!` (if saving a new object) with an object *after* it is inserted into the
+  "Called by `insert!`, `copy!`, and `save!` (if saving a new instance) with an instance *after* it is inserted into the
   database.
 
   Some reasons you might implement this method:
 
-  *  Triggering specific logic that should occur after an object is inserted
+  *  Triggering specific logic that should occur after an instance is inserted
 
     ;; grant new users default permissions after they are created
     (defmethod models/post-insert User [user]
@@ -107,7 +106,7 @@
 ;; TODO - `do-insert!`
 
 (defmulti pre-update
-  "Called by `update!` and `save!` (if saving an existing object) *before* updating the values of a row in the database.
+  "Called by `update!` and `save!` (if saving an existing instance) *before* updating the values of a row in the database.
   You can implement this method to do things like to
 
   Some reasons you might implement this method:
@@ -131,12 +130,12 @@
   dispatch/dispatch-value)
 
 (defmulti post-update
-  "Called by `update!` and `save!` (if saving an existing object) with an object *after* it was successfully updated in
+  "Called by `update!` and `save!` (if saving an existing instance) with an instance *after* it was successfully updated in
   the database.
 
   Some reasons you might implement this method:
 
-  *  Triggering specific logic that should occur after an object is updated
+  *  Triggering specific logic that should occur after an instance is updated
 
   The result of this method is passed to other implementations of `post-update` and to the caller of `update!` or
   `save!`.
@@ -151,12 +150,12 @@
 ;; TODO - `do-update!`
 
 (defmulti pre-delete
-  "Called by `delete!` and related functions for each matching object that is about to be deleted.
+  "Called by `delete!` and related functions for each matching instance that is about to be deleted.
 
   Some reasons you might implement this method:
 
   *  Checking preconditions
-  *  Deleting any objects related to this object by recursively calling `delete!`
+  *  Deleting any instances related to this instance by recursively calling `delete!`
 
   The output of this function is passed to other implementations of `pre-delete` and to the low-level implementation
   of `delete!`.
@@ -169,11 +168,11 @@
   dispatch/dispatch-value)
 
 (defmulti post-delete
-  "Called by `delete!` and related functions for each matching object *after* it was successfully deleted.
+  "Called by `delete!` and related functions for each matching instance *after* it was successfully deleted.
 
   Some reasons you might implement this method:
 
-  *  Triggering specific logic that should occur after an object is deleted, such as cleanup
+  *  Triggering specific logic that should occur after an instance is deleted, such as cleanup
 
   The output of this function is passed to other implementations of `post-delete` and to the caller of the original
   function (e.g. `delete!`).
@@ -216,6 +215,8 @@
   [_]
   :id)
 
+(defmethod options/global-option 'primary-key [_] `options/primary-key)
+
 (defmethod options/init! ::options/primary-key [model {pk :primary-key}]
   (.addMethod ^MultiFn primary-key model (constantly pk)))
 
@@ -223,63 +224,62 @@
 
 ;; TODO - you could override this to validate etc
 (defmulti primary-key-value
-  {:arglists '([object])}
+  {:arglists '([instance])}
   dispatch/dispatch-value)
 
 (defmethod primary-key-value :default
-  [object]
-  (let [pk-key (primary-key object)]
+  [instance]
+  (let [pk-key (primary-key instance)]
     (if-not (sequential? pk-key)
-      (get object pk-key)
-      (mapv (partial get object) pk-key))))
+      (get instance pk-key)
+      (mapv (partial get instance) pk-key))))
 
 (defmulti primary-key-where-clause
-  {:arglists '([object] [model pk-value])}
+  {:arglists '([instance] [model pk-value])}
   dispatch/dispatch-value)
 
 (defmethod primary-key-where-clause :default
-  ([object]
-   (primary-key-where-clause object (primary-key-value object)))
+  ([instance]
+   (primary-key-where-clause instance (primary-key-value instance)))
 
   ;; TODO - not sure if needed
   ([model pk-value]
-   (let [pk-key (primary-key model)]
+   (when-let [pk-key (primary-key model)]
      (if-not (sequential? pk-key)
        [:= pk-key pk-value]
        (into [:and] (for [[k v] (zipmap pk-key pk-value)]
                       [:= k v]))))))
 
 (defmulti assoc-primary-key-value
-  {:arglists '([object primary-key-value])}
+  {:arglists '([instance primary-key-value])}
   dispatch/dispatch-value)
 
 (defmethod assoc-primary-key-value :default
-  [object primary-key-value]
-  {:pre [(or (keyword? primary-key-value) (every? keyword? primary-key-value))]}
-  (let [pk-key (primary-key object)]
+  [instance primary-key-value]
+  (let [pk-key (primary-key instance)]
     (if-not (sequential? pk-key)
-      (assoc object pk-key primary-key-value)
-      (into object (zipmap pk-key primary-key-value)))))
+      (assoc instance pk-key primary-key-value)
+      (into instance (zipmap pk-key primary-key-value)))))
 
 (defmulti dissoc-primary-key-value
-  {:arglists '([object])}
+  {:arglists '([instance])}
   dispatch/dispatch-value)
 
 (defmethod dissoc-primary-key-value :default
-  [object]
-  (let [pk-key (primary-key object)]
+  [instance]
+  (let [pk-key (primary-key instance)]
     (if-not (sequential? pk-key)
-      (dissoc object pk-key)
-      (reduce dissoc object pk-key))))
+      (dissoc instance pk-key)
+      (reduce dissoc instance pk-key))))
 
 
 ;;; ### `default-fields`
 
 (defmethod pre-select ::options/default-fields
-  [{:keys [fields]} honeysql-form]
-  (merge
-   {:select fields}
-   honeysql-form))
+  [{:keys [fields]} {existing-select :select, :as honeysql-form}]
+  (if (or (not existing-select) (= existing-select [:*]))
+    (assoc honeysql-form :select fields)
+    honeysql-form))
 
 
 ;;; ### `types`
@@ -306,7 +306,7 @@
 ;;
 ;; You can add a new type by implementing `type-in` and `type-out`:
 ;;
-;;    ;; add a :json type (using Cheshire) will serialize objects as JSON
+;;    ;; add a :json type (using Cheshire) will serialize instances as JSON
 ;;    ;; going into the DB, and deserialize JSON coming out from the DB
 ;;    (defmethod type-in :json
 ;;      [_ v]
@@ -359,4 +359,19 @@
     (keyword v)
     v))
 
+;;; ### `automatically-convert-dashes-and-underscores`
+
+(defmulti automatically-convert-dashes-and-underscores?
+  {:arglists '([model])}
+  dispatch/dispatch-value)
+
+(when-not (get-method automatically-convert-dashes-and-underscores? :default)
+  (defmethod automatically-convert-dashes-and-underscores? :default
+    [_]
+    false))
+
 ;; TODO - `parent`
+
+;; TODO - should we import `table` and `
+(potemkin/import-vars
+ [instance table])

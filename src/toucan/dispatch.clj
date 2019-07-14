@@ -2,6 +2,11 @@
   (:require [flatland.ordered.map :as ordered-map]
             [toucan.instance :as instance]))
 
+#_(doseq [[symb] (ns-interns *ns*)]
+  (ns-unmap *ns* symb))
+
+
+
 ;; TODO - rename to `dispatch-value`?
 (defn dispatch-value [x & _]
   (instance/model x))

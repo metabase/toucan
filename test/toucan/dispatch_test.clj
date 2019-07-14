@@ -2,13 +2,9 @@
   (:require [expectations :refer [expect]]
             [flatland.ordered.map :as ordered-map]
             [toucan
-             [core :as db]
              [dispatch :as dispatch]
-             [instance :as instance]]))
-
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
+             [instance :as instance]
+             [models :as models]]))
 
 (expect
   nil
@@ -36,36 +32,41 @@
   :toucan.dispatch-test/MyAspect
   (dispatch/dispatch-value 'toucan.dispatch-test/MyAspect))
 
-(db/defaspect A)
+;; vector
+(expect
+ ::MyModel
+ (dispatch/dispatch-value [::MyModel :id :name]))
 
-(db/defaspect B
+(models/defmodel A)
+
+(models/defmodel B
   A)
 
-(db/defaspect C
+(models/defmodel C
   A
   B)
 
-(db/defaspect D
+(models/defmodel D
   C)
 
-(db/defmodel MyModel :table
+(models/defmodel MyModel :table
   B
   C)
 
-(defmethod db/post-select A [_ m] (update m :post concat ['A]))
-(defmethod db/post-select B [_ m] (update m :post concat ['B]))
-(defmethod db/post-select C [_ m] (update m :post concat ['C]))
+(defmethod models/post-select A [_ m] (update m :post concat ['A]))
+(defmethod models/post-select B [_ m] (update m :post concat ['B]))
+(defmethod models/post-select C [_ m] (update m :post concat ['C]))
 
-(defmethod db/post-select MyModel [_ m] (update m :post concat ['MyModel]))
+(defmethod models/post-select MyModel [_ m] (update m :post concat ['MyModel]))
 
 (expect
   (ordered-map/ordered-map
-   A       (get-method db/post-select A)
-   B       (get-method db/post-select B)
-   C       (get-method db/post-select C)
-   MyModel (get-method db/post-select MyModel))
-  (dispatch/all-aspect-methods db/post-select MyModel))
+   A       (get-method models/post-select A)
+   B       (get-method models/post-select B)
+   C       (get-method models/post-select C)
+   MyModel (get-method models/post-select MyModel))
+  (dispatch/all-aspect-methods models/post-select MyModel))
 
 (expect
   {:post '(A B C MyModel)}
-  ((dispatch/combined-method db/post-select MyModel) {}))
+  ((dispatch/combined-method models/post-select MyModel) {}))

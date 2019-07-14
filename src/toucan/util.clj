@@ -46,3 +46,6 @@
         sql
         (recur (str/replace sql (re-pattern (format "\\s+%s\\s+" k)) (format "\n%s " k))
                more)))))
+
+(defn sequencify [v-or-vs]
+  (if (sequential? v-or-vs) v-or-vs [v-or-vs]))

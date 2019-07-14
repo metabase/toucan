@@ -6,7 +6,7 @@
              [types :as p.types]]
             [pretty.core :as pretty]))
 
-;; TODO - dox
+
 ;; TODO - rename to `type`?
 (p.types/defprotocol+ Model
   (model [this]))
@@ -24,16 +24,10 @@
 (p.types/defprotocol+ Original
   (original [this]))
 
-(defmulti invoke-instance
-  ;; TODO - dox
-  {:arglists '([instance & args])}
-  dispatch-on-model)
-;; TODO - implement elsewhere
-
 (defmulti table
   ;; TODO - dox
   {:arglists '([x])}
-  model)
+  dispatch-on-model)
 
 (defmethod table :default [x]
   (throw
@@ -84,80 +78,33 @@
   (to-sql [_]
     (table modl))
 
-  java.util.concurrent.Callable
-  (call [_]
-    (invoke-instance modl))
-
-  java.lang.Runnable
-  (run [_]
-    (invoke-instance modl))
-
   clojure.lang.IFn
   (applyTo [this arglist]
-    (apply invoke-instance modl arglist))
-  (invoke [_]
-    (invoke-instance modl))
-  (invoke [_ a]
-    (invoke-instance modl a))
-  (invoke [_ a b]
-    (invoke-instance modl a b))
-  (invoke [_ a b c]
-    (invoke-instance modl a b c))
-  (invoke [_ a b c d]
-    (invoke-instance modl a b c d))
-  (invoke [_ a b c d e]
-    (invoke-instance modl a b c d e))
-  (invoke [_ a b c d e f]
-    (invoke-instance modl a b c d e f))
-  (invoke [_ a b c d e f g]
-    (invoke-instance modl a b c d e f g))
-  (invoke [_ a b c d e f g h]
-    (invoke-instance modl a b c d e f g h))
-  (invoke [_ a b c d e f g h i]
-    (invoke-instance modl a b c d e f g h i))
-  (invoke [_ a b c d e f g h i j]
-    (invoke-instance modl a b c d e f g h i j))
-  (invoke [_ a b c d e f g h i j k]
-    (invoke-instance modl a b c d e f g h i j k))
-  (invoke [_ a b c d e f g h i j k l]
-    (invoke-instance modl a b c d e f g h i j k l))
-  (invoke [_ a b c d e f g h i j k l m]
-    (invoke-instance modl a b c d e f g h i j k l m))
-  (invoke [_ a b c d e f g h i j k l m n]
-    (invoke-instance modl a b c d e f g h i j k l m n))
-  (invoke [_ a b c d e f g h i j k l m n o]
-    (invoke-instance modl a b c d e f g h i j k l m n o))
-  (invoke [_ a b c d e f g h i j k l m n o p]
-    (invoke-instance modl a b c d e f g h i j k l m n o p))
-  (invoke [_ a b c d e f g h i j k l m n o p q]
-    (invoke-instance modl a b c d e f g h i j k l m n o p q))
-  (invoke [_ a b c d e f g h i j k l m n o p q r]
-    (invoke-instance modl a b c d e f g h i j k l m n o p q r))
-  (invoke [_ a b c d e f g h i j k l m n o p q r s]
-    (invoke-instance modl a b c d e f g h i j k l m n o p q r s))
-  (invoke [_ a b c d e f g h i j k l m n o p q r s t]
-    (invoke-instance modl a b c d e f g h i j k l m n o p q r s t))
-  (invoke [_ a b c d e f g h i j k l m n o p q r s t more]
-    (invoke-instance modl a b c d e f g h i j k l m n o p q r s t more)))
+    (apply m arglist))
+  (invoke [_ k]
+    (get m k))
+  (invoke [_ k not-found]
+    (get m k not-found)))
 
 (extend-protocol Model
   clojure.lang.Keyword
   (model [this] this)
-
-  clojure.lang.Symbol
-  (model [this] (keyword this))
-
-  String
-  (model [this] (keyword this))
 
   clojure.lang.IPersistentMap
   (model [this]
     ;; TODO - fix this HACKINESS
     (if (instance? ToucanInstance this)
       (do
-        (println "FIXME: `model` is being hacky!")
+        (println "FIXME: `model` is being hacky!") ; NOCOMMIT
         (.modl ^ToucanInstance this))
       (:toucan/model this)))
+
+  clojure.lang.IPersistentVector
+  (model [this]
+    (model (first this)))
+
+  Object
+  (model [_] nil)
 
   nil
   (model [_] nil))
@@ -169,6 +116,8 @@
   nil
   (original [_] nil))
 
+(defn toucan-instance [model orig m mta]
+  (ToucanInstance. (the-model model) orig m mta))
 
 ;; TODO - dox
 (defn of
@@ -177,8 +126,11 @@
 
   ;; TODO - not 100% sure calling `model` here makes sense... what if we do something like the following (see below)
   ([a-model m]
-   (ToucanInstance. (the-model a-model) m m (meta m))))
+   {:pre [((some-fn nil? map?) m)]}
+   (toucan-instance a-model m m (meta m))))
 
 (defn changes [m]
   (when m
     (second (data/diff (original m) m))))
+
+;; TODO - `instance-of?` fn

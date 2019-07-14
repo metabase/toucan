@@ -1,20 +1,13 @@
 (ns toucan.compile
-  (:require [clojure.pprint :refer [pprint]]
-            [clojure.tools.logging :as log]
-            [honeysql
+  (:require [honeysql
              [core :as hsql]
              [format :as hformat]
              [helpers :as h]]
             [toucan
              [dispatch :as dispatch]
              [instance :as instance]
-             [models :as models]
-             [util :as u]]
-            [toucan.connection.impl :as connection.impl]))
-
-;; NOCOMMIT
-(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
+             [models :as models]]
+            [toucan.util :as u]))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                              HoneySQL Compilation                                              |
@@ -36,24 +29,27 @@
 
 ;; TODO - should we validate the options before use?
 
-(defmethod honeysql-options :default
-  [_]
-  {:quoting :ansi, :allow-dashed-names? true})
+(when-not (get-method honeysql-options :default)
+  (defmethod honeysql-options :default
+    [model]
+    {:quoting :ansi, :allow-dashed-names? (not (models/automatically-convert-dashes-and-underscores? model))}))
 
 (defn quoting-style
   ;; TODO - dox
   ([]
    (quoting-style :default))
+
   ([model]
-   (:quoting-style (honeysql-options model))))
+   (:quoting (honeysql-options model))))
 
 (defn quote-fn
   "The function that JDBC should use to quote identifiers for our database. This is passed as the `:entities` option
   to functions like `jdbc/insert!`."
   ([]
    (quote-fn :default))
+
   ([model]
-   (get #'honeysql.format/quote-fns (quoting-style model))))
+   (get @#'honeysql.format/quote-fns (quoting-style model))))
 
 
 (defn compile-honeysql
@@ -65,16 +61,12 @@
   ;; generate SQL for a subquery and wrap the query in parens like "(UPDATE ...)" which is invalid
   (let [[sql & args :as sql-args] (binding [hformat/*subquery?* false]
                                     (apply hsql/format honeysql-form (mapcat identity (honeysql-options model))))]
-    (connection.impl/debug-println
-     (pprint honeysql-form)
-     (format "\n%s\n%s" (u/format-sql sql) args))
-    (log/debug (str "DB Call: " sql))
-    (connection.impl/inc-call-count!)
     sql-args))
 
 (defn maybe-compile-honeysql
   ;; TODO
   [model honeysql-form-or-sql-args]
+  {:pre [((some-fn map? string? sequential?) honeysql-form-or-sql-args)]}
   (if (map? honeysql-form-or-sql-args)
     (compile-honeysql model honeysql-form-or-sql-args)
     honeysql-form-or-sql-args))
@@ -94,7 +86,7 @@
   [model field-name]
   (if (vector? field-name)
     [(qualify model (first field-name)) (second field-name)]
-    (hsql/qualify (models/table model) field-name)))
+    (hsql/qualify (instance/table model) field-name)))
 
 (defn maybe-qualify
   "Qualify `field-name` with its table name if it's not already qualified."
@@ -124,7 +116,7 @@
 (defn compile-select-options [args]
   (loop [honeysql-form {}, [arg1 arg2 & more :as remaining] args]
     (cond
-      (empty? remaining)
+      (nil? arg1)
       honeysql-form
 
       (keyword? arg1)
@@ -142,13 +134,16 @@
   ([object]
    (compile-select object (models/primary-key-value object)))
 
-  ([model pk-value-or-honeysql-form]
-   (if (map? pk-value-or-honeysql-form)
-     (merge
-      {:select [:*]
-       :from   [(instance/model model)]}
-      pk-value-or-honeysql-form)
-     (compile-select model {:where (models/primary-key-where-clause model pk-value-or-honeysql-form)})))
+  ([model form]
+   (let [[model & fields] (u/sequencify model)]
+     (if (map? form)
+       (merge
+        {:select (if (seq fields)
+                   (vec fields)
+                   [:*])
+         :from   [(instance/table model)]}
+        form)
+       (compile-select model {:where (models/primary-key-where-clause model form)}))))
 
   ([model arg & more]
    (compile-select model (compile-select-options (cons arg more)))))

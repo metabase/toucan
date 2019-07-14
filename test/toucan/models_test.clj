@@ -2,50 +2,51 @@
   (:require [expectations :refer [expect]]
             [toucan
              [db :as db]
+             [dispatch :as dispatch]
+             [models :as models]
+             [test-models :as m]
              [test-setup :as test]]
-            [toucan.test-models
-             [category :as category :refer [Category]]
-             [venue :refer [map->VenueInstance Venue]]]
-            [toucan.models :as models]))
+            [toucan.db.impl :as db.impl]
+            [toucan.models.options :as options]))
 
 ;; Test types (keyword)
 
 ;; :bar should come back as a Keyword even though it's a VARCHAR in the DB, just like :name
 (expect
- #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}
- (db/select-one Venue :id 1))
+ {:category :bar, :name "Tempest", :id 1}
+ (db/select-one m/Venue :id 1))
 
 ;; should still work when not fetching whole object
 (expect
  :bar
- (db/select-one-field :category Venue :id 1))
+ (db/select-one-field :category m/Venue :id 1))
 
 ;; should also work when setting values
 (expect
- #toucan.test_models.venue.VenueInstance{:category :dive-bar, :name "Tempest", :id 1}
+ {:category :dive-bar, :name "Tempest", :id 1}
  (test/with-clean-db
-   (db/update! Venue 1 :category :dive-bar)
-   (db/select-one Venue :id 1)))
+   (db/update! m/Venue 1 :category :dive-bar)
+   (db/select-one m/Venue :id 1)))
 
 ;; Make sure namespaced keywords are preserved
 (expect
- #toucan.test_models.venue.VenueInstance{:category :bar/dive-bar, :name "Tempest", :id 1}
+ {:category :bar/dive-bar, :name "Tempest", :id 1}
  (test/with-clean-db
-   (db/update! Venue 1 :category :bar/dive-bar)
-   (db/select-one Venue :id 1)))
+   (db/update! m/Venue 1 :category :bar/dive-bar)
+   (db/select-one m/Venue :id 1)))
 
-;; Test custom types. Category.name is a custom type,:lowercase-string, that automatically lowercases strings as they
+;; Test custom types. m/Category.name is a custom type,:lowercase-string, that automatically lowercases strings as they
 ;; come in
 (expect
- #toucan.test_models.category.CategoryInstance{:id 5, :name "wine-bar", :parent-category-id nil}
+ {:id 5, :name "wine-bar", :parent-category-id nil}
  (test/with-clean-db
-   (db/insert! Category, :name "Wine-Bar")))
+   (db/insert! m/Category, :name "Wine-Bar")))
 
 (expect
- #toucan.test_models.category.CategoryInstance{:id 1, :name "bar-or-club", :parent-category-id nil}
+ {:id 1, :name "bar-or-club", :parent-category-id nil}
  (test/with-clean-db
-   (db/update! Category 1, :name "Bar-Or-Club")
-   (Category 1)))
+   (db/update! m/Category 1, :name "Bar-Or-Club")
+   (m/Category 1)))
 
 ;; Test properties (custom property -- timestamp)
 (defn- timestamp-after? [^java.sql.Timestamp original, ^java.sql.Timestamp newer]
@@ -55,150 +56,127 @@
 
 (def ^:private timestamp-after-jan-first? (partial timestamp-after? test/jan-first-2017))
 
-;; calling insert! for Venue should trigger the :timestamped? :insert function
+;; calling insert! for m/Venue should trigger the :timestamped? :insert function
 ;; which should set an appropriate :created-at and :updated-at value
 (expect
- #toucan.test_models.venue.VenueInstance{:created-at true, :updated-at true}
+ {:created-at true, :updated-at true}
  (test/with-clean-db
-   (db/insert! Venue, :name "Zeitgeist", :category "bar")
-   (-> (db/select-one [Venue :created-at :updated-at] :name "Zeitgeist")
+   (db/insert! m/Venue, :name "Zeitgeist", :category "bar")
+   (-> (db/select-one [m/Venue :created-at :updated-at] :name "Zeitgeist")
        (update :created-at timestamp-after-jan-first?)
        (update :updated-at timestamp-after-jan-first?))))
 
-;; calling update! for Venue should trigger the :timestamped? :insert function
+;; calling update! for m/Venue should trigger the :timestamped? :insert function
 ;; which in this case updates :updated-at (but not :created-at)
 (expect
  (test/with-clean-db
-   (let [venue (db/insert! Venue, :name "Zeitgeist", :category "bar")]
+   (let [venue (db/insert! m/Venue, :name "Zeitgeist", :category "bar")]
      (Thread/sleep 1000)
-     (db/update! Venue (:id venue) :category "dive-bar"))
-   (let [{:keys [created-at updated-at]} (db/select-one [Venue :created-at :updated-at] :name "Zeitgeist")]
+     (db/update! m/Venue (:id venue) :category "dive-bar"))
+   (let [{:keys [created-at updated-at]} (db/select-one [m/Venue :created-at :updated-at] :name "Zeitgeist")]
      (timestamp-after? created-at updated-at))))
 
 ;; Test pre-insert
 
-;; for Category, we set up `pre-insert` and `pre-update` to assert that a Category with `parent-category-id` exists
+;; for m/Category, we set up `pre-insert` and `pre-update` to assert that a m/Category with `parent-category-id` exists
 ;; before setting it.
 
 (expect
  AssertionError
  (test/with-clean-db
-   (db/insert! Category :name "seafood", :parent-category-id 100)))
+   (db/insert! m/Category :name "seafood", :parent-category-id 100)))
 
 (expect
- #toucan.test_models.category.CategoryInstance{:id 5, :name "seafood", :parent-category-id 1}
+ {:id 5, :name "seafood", :parent-category-id 1}
  (test/with-clean-db
-   (db/insert! Category :name "seafood", :parent-category-id 1)))
+   (db/insert! m/Category :name "seafood", :parent-category-id 1)))
 
 ;; Test pre-update
 (expect
  AssertionError
  (test/with-clean-db
-   (db/update! Category 2
+   (db/update! m/Category 2
      :parent-category-id 100)))
 
 (expect
  (test/with-clean-db
-   (db/update! Category 2
+   (db/update! m/Category 2
      :parent-category-id 4)))
 
 ;; Test post-insert Categories adds the IDs of recently created Categories to a "moderation queue" as part of its
-;; `post-insert` implementation; check that creating a new Category results in the ID of the new Category being at the
+;; `post-insert` implementation; check that creating a new m/Category results in the ID of the new m/Category being at the
 ;; front of the queue
 (expect
  5
  (test/with-clean-db
    (reset! category/categories-awaiting-moderation (clojure.lang.PersistentQueue/EMPTY))
-   (db/insert! Category :name "toucannery")
+   (db/insert! m/Category :name "toucannery")
    (peek @category/categories-awaiting-moderation)))
 
 ;; TODO - Test post-select
 
 ;; Test post-update Categories adds the IDs of recently updated Categories to a "update queue" as part of its
-;; `post-update` implementation; check that updating a Category results in the ID of the updated Category being at the
+;; `post-update` implementation; check that updating a m/Category results in the ID of the updated m/Category being at the
 ;; front of the queue
 (expect
   2
   (test/with-clean-db
     (reset! category/categories-recently-updated (clojure.lang.PersistentQueue/EMPTY))
-    (db/update! Category 2 :name "lobster")
+    (db/update! m/Category 2 :name "lobster")
     (peek @category/categories-recently-updated)))
 
 (expect
   [1 2]
   (test/with-clean-db
     (reset! category/categories-recently-updated (clojure.lang.PersistentQueue/EMPTY))
-    (db/update! Category 1 :name "fine-dining")
-    (db/update! Category 2 :name "steak-house")
+    (db/update! m/Category 1 :name "fine-dining")
+    (db/update! m/Category 2 :name "steak-house")
     @category/categories-recently-updated))
 
 ;; Test pre-delete
-;; For Category, deleting a parent category should also delete any child categories.
+;; For m/Category, deleting a parent category should also delete any child categories.
 (expect
- #{#toucan.test_models.category.CategoryInstance{:id 3, :name "resturaunt", :parent-category-id nil}
-   #toucan.test_models.category.CategoryInstance{:id 4, :name "mexican-resturaunt", :parent-category-id 3}}
+ #{{:id 3, :name "resturaunt", :parent-category-id nil}
+   {:id 4, :name "mexican-resturaunt", :parent-category-id 3}}
  (test/with-clean-db
-   (db/delete! Category :id 1)
-   (set (Category))))
+   (db/delete! m/Category :id 1)
+   (set (m/Category))))
 
-;; shouldn't delete anything else if the Category is not parent of anybody else
+;; shouldn't delete anything else if the m/Category is not parent of anybody else
 (expect
- #{#toucan.test_models.category.CategoryInstance{:id 1, :name "bar", :parent-category-id nil}
-   #toucan.test_models.category.CategoryInstance{:id 3, :name "resturaunt", :parent-category-id nil}
-   #toucan.test_models.category.CategoryInstance{:id 4, :name "mexican-resturaunt", :parent-category-id 3}}
+ #{{:id 1, :name "bar", :parent-category-id nil}
+   {:id 3, :name "resturaunt", :parent-category-id nil}
+   {:id 4, :name "mexican-resturaunt", :parent-category-id 3}}
  (test/with-clean-db
-   (db/delete! Category :id 2)
-   (set (Category))))
+   (db/delete! m/Category :id 2)
+   (set (m/Category))))
 
 ;;; ## `default-fields`
 
-(defmodel UserWithDefaultFields
-  (aspects
-   (default-fields :first-name :last-name)))
+(models/defmodel UserWithDefaultFields
+  (default-fields #{:first-name :last-name}))
 
 ;; if there is not `currently` a `:select` clause in HoneySQL query, `default-fields` should add it to the HoneySQL
 ;; query
 (expect
  {:select [:first-name :last-name]}
- ((dispatch/combined-method pre-select UserWithDefaultFields) {}))
+ ((dispatch/combined-method models/pre-select UserWithDefaultFields) {}))
 
 ;; if there is already a `:select` clause, `default-fields` should leave HoneySQL query as-is
 (expect
  {:select [:email]}
- ((dispatch/combined-method pre-select UserWithDefaultFields) {:select [:email]}))
+ ((dispatch/combined-method models/pre-select UserWithDefaultFields) {:select [:email]}))
 
 ;; Test default-fields
-;; by default Venue doesn't return :created-at or :updated-at
+;; by default m/Venue doesn't return :created-at or :updated-at
 (expect
- #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}
- (db/select-one Venue :id 1))
+ {:category :bar, :name "Tempest", :id 1}
+ (db/select-one m/Venue :id 1))
 
 ;; check that we can still override default-fields
 (expect
- (map->VenueInstance {:created-at test/jan-first-2017})
- (db/select-one [Venue :created-at] :id 1))
-
-;; Test invoking model as a function (no args)
-(expect
- [#toucan.test_models.venue.VenueInstance{:category :bar,   :name "Tempest",     :id 1}
-  #toucan.test_models.venue.VenueInstance{:category :bar,   :name "Ho's Tavern", :id 2}
-  #toucan.test_models.venue.VenueInstance{:category :store, :name "BevMo",       :id 3}]
- (sort-by :id (Venue)))
-
-;; Test invoking model as a function (single arg, id)
-(expect
- #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}
- (Venue 1))
-
-;; Test invoking model as a function (kwargs)
-(expect
- #toucan.test_models.venue.VenueInstance{:category :store, :name "BevMo", :id 3}
- (Venue :name "BevMo"))
-
-;; Test invoking model as a function with apply
-(expect
- #toucan.test_models.venue.VenueInstance{:category :store, :name "BevMo", :id 3}
- (apply Venue [:name "BevMo"]))
+ {:created-at test/jan-first-2017}
+ (db/select-one [m/Venue :created-at] :id 1))
 
 ;; Test using model in HoneySQL form
 (expect
@@ -206,13 +184,13 @@
   {:id 2, :name "Ho's Tavern"}
   {:id 3, :name "BevMo"}]
  (db/query {:select   [:id :name]
-            :from     [Venue]
+            :from     [m/Venue]
             :order-by [:id]}))
 
 ;; Test (empty)
 (expect
- #toucan.test_models.venue.VenueInstance{}
- (empty (Venue :name "BevMo")))
+ {}
+ (empty (m/Venue :name "BevMo")))
 
 ;; model with multiple primary keys
 (expect
@@ -224,3 +202,38 @@
  [:and [:= :a 1] [:= :b 2]]
  (with-redefs [models/primary-key (constantly [:a :b])]
    (models/primary-key-where-clause {:a 1, :b 2, :c 3})))
+
+
+;;;                                            Pre-definied aspects: types
+;;; ==================================================================================================================
+
+(expect
+  {:count 1}
+  (models/post-select (options/types nil {:count (fnil inc 0)}) {}))
+
+(models/defmodel ModelWithInlineType
+  (types {:count (fnil inc 0)}))
+
+(expect
+ {:count 1}
+ ((db.impl/post-select-fn ModelWithInlineType) {}))
+
+(defmethod models/type-in ::json [_ v]
+  (list 'json v))
+
+(defmethod models/type-out ::json [_ v]
+  (list 'parse-json v))
+
+(expect
+ {:query '(parse-json "{\"json\":true}")}
+ (models/post-select (options/types nil {:query ::json}) {:query "{\"json\":true}"}))
+
+(models/defmodel ModelWithNamedType
+  (types {:query ::json}))
+
+(expect
+ {:query '(parse-json "{\"json\":true}")}
+ ((db.impl/post-select-fn ModelWithNamedType) {:query "{\"json\":true}"}))
+
+;; TODO - e2e tests using `select` for both Models
+;; TODO - tests for pre-insert or somthing else testing `in`

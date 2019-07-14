@@ -18,7 +18,7 @@
   :dependencies
   [[org.clojure/java.jdbc "0.7.9"]
    [org.clojure/tools.logging "0.5.0-alpha.1"]
-   [backtick "0.3.4"]
+   #_[backtick "0.3.4"]
    [camsaul/pretty "1.0.0"]
    [honeysql "0.9.4"]
    [org.flatland/ordered "1.5.7"]
@@ -29,7 +29,8 @@
   {:dev
    {:dependencies
     [[org.clojure/clojure "1.10.1"]
-     [expectations "2.2.0-beta2"]]
+     [expectations "2.2.0-beta2"]
+     [postgresql "9.3-1102.jdbc41"]]
 
     :injections
     [(require 'expectations)

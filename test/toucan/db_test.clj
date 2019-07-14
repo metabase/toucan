@@ -3,100 +3,12 @@
             [toucan
              [db :as db]
              [test-setup :as test]]
-            [toucan.test-models
-             [address :refer [Address]]
-             [category :refer [Category]]
-             [phone-number :refer [PhoneNumber]]
-             [user :refer [User]]
-             [venue :refer [Venue]]]))
+            [toucan.test-models :as mk]
+            [toucan.connection :as connection]))
 
-;; Test overriding quoting-style
-(expect
- "`toucan`"
- (binding [db/*quoting-style* :mysql]
-   ((db/quote-fn) "toucan")))
 
-(expect
- "\"toucan\""
- (binding [db/*quoting-style* :ansi]
-   ((db/quote-fn) "toucan")))
-
-(expect
- "[toucan]"
- (binding [db/*quoting-style* :sqlserver]
-   ((db/quote-fn) "toucan")))
-
-;; Test allowing dashed field names
-(expect
- false
- (db/automatically-convert-dashes-and-underscores?))
-
-(expect
-  (binding [db/*automatically-convert-dashes-and-underscores* true]
-    (db/automatically-convert-dashes-and-underscores?)))
-
-(expect
- false
-  (binding [db/*automatically-convert-dashes-and-underscores* false]
-    (db/automatically-convert-dashes-and-underscores?)))
-
-(expect
-  {:street_name "1 Toucan Drive"}
-  (db/select-one [Address :street_name]))
-
-(expect
-  {:street-name "1 Toucan Drive"}
-  (binding [db/*automatically-convert-dashes-and-underscores* true]
-    (db/select-one [Address :street-name])))
-
-(expect
-  "1 Toucan Drive"
-  (binding [db/*automatically-convert-dashes-and-underscores* true]
-    (db/select-one-field :street-name Address)))
 
 ;; Test replace-underscores
-(expect
- :2-cans
- (#'db/replace-underscores :2_cans))
-
-;; shouldn't do anything to keywords with no underscores
-(expect
- :2-cans
- (#'db/replace-underscores :2-cans))
-
-;; should work with strings as well
-(expect
- :2-cans
- (#'db/replace-underscores "2_cans"))
-
-;; make sure it respects namespaced keywords or keywords with slashes in them
-(expect
- :bird-types/two-cans
- (#'db/replace-underscores :bird-types/two_cans))
-
-;; don't barf if there's a nil input
-(expect
- nil
- (#'db/replace-underscores nil))
-
-;; shouldn't do anything for numbers!
-(expect
- 2
- (#'db/replace-underscores 2))
-
-;; Test transform-keys
-(expect
- {:2-cans true}
- (#'db/transform-keys #'db/replace-underscores {:2_cans true}))
-
-;; make sure it works recursively and inside arrays
-(expect
- [{:2-cans {:2-cans true}}]
- (#'db/transform-keys #'db/replace-underscores [{:2_cans {:2_cans true}}]))
-
-;; TODO - Test DB connection (how?)
-
-;; TODO - Test overriding DB connection (how?)
 
 ;; Test transaction
 (expect
@@ -112,28 +24,6 @@
    (db/count Venue :name "Cam's Toucannery")))
 
 ;; TODO - Test DB logging (how?)
-
-;; Test resolve-model
-(expect
- User
- (db/resolve-model 'User))
-
-;; If model is already resolved it should just return it as-is
-(expect
- User
- (db/resolve-model User))
-
-;; Trying to resolve an model that cannot be found should throw an Exception
-(expect
- Exception
- (db/resolve-model 'Fish))
-
-;; ... as should trying to resolve things that aren't entities or symbols
-(expect Exception (db/resolve-model {}))
-(expect Exception (db/resolve-model 100))
-(expect Exception (db/resolve-model "User"))
-(expect Exception (db/resolve-model :user))
-(expect Exception (db/resolve-model 'user)) ; entities symbols are case-sensitive
 
 ;; Test with-call-counting
 (expect
@@ -175,20 +65,7 @@
                                          :order-by [:id]
                                          :limit    1})))
 
-;; Test qualify
-(expect
-  :users.first-name
-  (db/qualify User :first-name))
 
-(expect
-  :users.first-name
-  (db/qualify User "first-name"))
-
-;; test qualified?
-(expect true  (db/qualified? :users.first-name))
-(expect true  (db/qualified? "users.first-name"))
-(expect false (db/qualified? :first-name))
-(expect false (db/qualified? "first-name"))
 
 ;; Test simple-select
 (expect

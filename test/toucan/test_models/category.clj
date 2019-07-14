@@ -21,9 +21,6 @@
 (defmethod models/type-out ::lowercase-string [_ v]
   (maybe-lowercase-string v))
 
-
-(models/defmodel SomeOtherModel)
-
 (models/defmodel Category
   (table :categories)
   (types {:name ::lowercase-string}))
