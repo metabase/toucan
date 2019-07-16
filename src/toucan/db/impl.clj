@@ -1,20 +1,19 @@
 (ns toucan.db.impl
   (:require [toucan
+             [connection :as connection]
              [dispatch :as dispatch]
              [instance :as instance]
-             [models :as models]]
-            [toucan.connection :as connection]))
-
+             [models :as models]]))
 
 ;;; ### `select`
 
 (defmulti do-select
-  {:arglists '([behavior model f honeysql-form])}
+  {:arglists '([behavior model f query])}
   (fn [behavior & _] behavior))
 
 (defmethod do-select :no-pre-post
-  [_ _ f honeysql-form]
-  (f honeysql-form))
+  [_ _ f query]
+  (f query))
 
 (defn pre-select-fn [model]
   (dispatch/combined-method models/pre-select model reverse))
@@ -23,11 +22,11 @@
   (dispatch/combined-method models/post-select model))
 
 (defmethod do-select :default
-  [_ model f honeysql-form]
+  [_ model f query]
   (let [pre-select  (pre-select-fn model)
         post-select (comp (map (partial instance/of model))
                           (map (post-select-fn model)))]
-    (let [results (f (pre-select honeysql-form))]
+    (let [results (f (pre-select query))]
       (eduction post-select results))))
 
 
@@ -59,11 +58,11 @@
 ;;; ### `update`
 
 (defmulti do-update!
-  {:arglists '([f instances])}
-  (fn [behavior & _] behavior))
+  {:arglists '([behavior f instances])}
+  (fn [behavior f instances] behavior))
 
 (defmethod do-update! :no-pre-post
-  [f instances]
+  [_ f instances]
   (f instances))
 
 (defn pre-update-fn [model]
@@ -73,7 +72,7 @@
   (dispatch/combined-method models/post-update model))
 
 (defmethod do-update! :default
-  [f [instance :as instances]]
+  [_ f [instance :as instances]]
   (connection/transaction
     (->> instances
          (map (pre-update-fn instance))

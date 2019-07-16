@@ -18,6 +18,7 @@
                                 (cons nil args))
         model-kw              (keyword (name (ns-name *ns*)) (name model))]
     `(do
+       (dispatch/derive ~model-kw :model/any)
        (def ~model
          ~@(when docstring [docstring])
          ~model-kw)
@@ -31,12 +32,12 @@
 ;; implementations; you can provide an implementation for `:default` to do `pre-*` or `post-*` behavior for *all*
 ;; models, if you are so inclined
 
-(defmulti pre-select
+(defmulti ^:deprecated pre-select
   ;; TODO - dox
   {:arglists '([model honeysql-form])}
   dispatch/dispatch-value)
 
-(defmulti post-select
+(defmulti ^:deprecated post-select
   "Called by `select` and similar functions one each row as it comes out of the database.
 
   Some reasons you might implement this method:
@@ -60,7 +61,7 @@
 
 ;; TODO - some sort of `in` function that could be used for either `pre-insert` or `pre-update` (?)
 
-(defmulti pre-insert
+(defmulti ^:deprecated pre-insert
   "Called by `insert!`, `copy!`, and (`save!` if saving a new instance) *before* inserting a new instance into the database.
 
   Some reasons you might implement this method:
@@ -82,7 +83,7 @@
   {:arglists '([model instance])}
   dispatch/dispatch-value)
 
-(defmulti post-insert
+(defmulti ^:deprecated post-insert
   "Called by `insert!`, `copy!`, and `save!` (if saving a new instance) with an instance *after* it is inserted into the
   database.
 
@@ -99,7 +100,7 @@
 
 ;; TODO - `do-insert!`
 
-(defmulti pre-update
+(defmulti ^:deprecated pre-update
   "Called by `update!` and `save!` (if saving an existing instance) *before* updating the values of a row in the database.
   You can implement this method to do things like to
 
@@ -123,7 +124,7 @@
   {:arglists '([model instance])}
   dispatch/dispatch-value)
 
-(defmulti post-update
+(defmulti ^:deprecated post-update
   "Called by `update!` and `save!` (if saving an existing instance) with an instance *after* it was successfully updated in
   the database.
 
@@ -143,7 +144,7 @@
 
 ;; TODO - `do-update!`
 
-(defmulti pre-delete
+(defmulti ^:deprecated pre-delete
   "Called by `delete!` and related functions for each matching instance that is about to be deleted.
 
   Some reasons you might implement this method:
@@ -161,7 +162,7 @@
   {:arglists '([model instance])}
   dispatch/dispatch-value)
 
-(defmulti post-delete
+(defmulti ^:deprecated post-delete
   "Called by `delete!` and related functions for each matching instance *after* it was successfully deleted.
 
   Some reasons you might implement this method:
@@ -186,7 +187,8 @@
 
 (defmulti table
   {:arglists '([model-or-instance])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod table :default [x]
   (throw
@@ -220,7 +222,8 @@
     (defmethod primary-key Session [_]
       [:user_id :session_token])"
   {:arglists '([model])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod primary-key :default
   [_]
@@ -241,7 +244,8 @@
 ;; TODO - you could override this to validate etc
 (defmulti primary-key-value
   {:arglists '([instance])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod primary-key-value :default
   [instance]
@@ -252,7 +256,8 @@
 
 (defmulti primary-key-where-clause
   {:arglists '([instance] [model pk-value])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod primary-key-where-clause :default
   ([instance]
@@ -268,7 +273,8 @@
 
 (defmulti assoc-primary-key-value
   {:arglists '([instance primary-key-value])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod assoc-primary-key-value :default
   [instance primary-key-value]
@@ -279,7 +285,8 @@
 
 (defmulti dissoc-primary-key-value
   {:arglists '([instance])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod dissoc-primary-key-value :default
   [instance]
@@ -346,11 +353,13 @@
 
 (defmulti type-in
   {:arglists '([type-name v])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmulti type-out
   {:arglists '([type-name v])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 ;; TODO - `pre-select` (?)
 
@@ -396,7 +405,8 @@
 
 (defmulti automatically-convert-dashes-and-underscores?
   {:arglists '([model])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (when-not (get-method automatically-convert-dashes-and-underscores? :default)
   (defmethod automatically-convert-dashes-and-underscores? :default

@@ -1,7 +1,14 @@
 (ns toucan.dispatch
+  (:refer-clojure :exclude [derive])
   (:require [flatland.ordered.map :as ordered-map]
             [potemkin.types :as p.types]
             [pretty.core :as pretty]))
+
+(defonce hierarchy
+  (make-hierarchy))
+
+(defn derive [child parent]
+  (alter-var-root #'hierarchy clojure.core/derive child parent))
 
 (p.types/defprotocol+ DispatchValue
   (dispatch-value* [this]))
@@ -60,7 +67,8 @@
 ;; TODO - dox
 (defmulti aspects
   {:arglists '([model])}
-  dispatch-value)
+  dispatch-value
+  :hierarchy #'hierarchy)
 
 (defmethod aspects :default
   [_]
@@ -83,17 +91,26 @@
     [x])))
 
 ;; TODO - dox
-(defn all-aspect-methods [multifn model]
-  {:pre [(instance? clojure.lang.MultiFn multifn) (some? model)]}
-  (let [default-method (get-method multifn :default)]
-    (into
-     (ordered-map/ordered-map
-      (when default-method
-        {:default default-method}))
-     (for [aspect (all-aspects model)
-           :let   [method (get-method multifn (dispatch-value aspect))]
-           :when  (not (identical? method default-method))]
-       [aspect method]))))
+(defn all-aspect-methods
+  ([multifn model]
+   (let [[multifn & args] (if (sequential? multifn)
+                            multifn
+                            [multifn])]
+     (all-aspect-methods multifn args model)))
+
+  ([multifn multifn-args model]
+   {:pre [(instance? clojure.lang.MultiFn multifn) (some? model)]}
+   (let [default-method (get-method multifn :default)]
+     (into
+      (ordered-map/ordered-map
+       (when default-method
+         {:default default-method}))
+      (for [aspect (all-aspects model)
+            :let   [method (get-method multifn (concat multifn-args [(dispatch-value aspect)]))]
+            :when  (not (identical? method default-method))]
+        [aspect (if (seq multifn-args)
+                  (apply partial method multifn-args)
+                  method)])))))
 
 (defn combined-method [multifn model & [all-methods-xform]]
   (reduce
