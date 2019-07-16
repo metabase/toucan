@@ -82,7 +82,7 @@
   [field model & args]
   (set (apply select-field-seq field model args)))
 
-(defn select-ids-seq
+(defn select-id-seq
   [model & options]
   (let [pk-key (models/primary-key model)]
     (if-not (sequential? pk-key)
@@ -91,13 +91,13 @@
         (for [result results]
           (mapv result pk-key))))))
 
-(defn select-ids-set
+(defn select-id-set
   "Select IDs for multiple objects. These are returned as a set if any matching IDs were returned, otherwise `nil`.
 
      (select-ids 'Table :db_id 1) -> #{1 2 3 4}"
   {:style/indent 1}
   [model & options]
-  (seq (apply select-ids-seq model options)))
+  (seq (apply select-id-seq model options)))
 
 (defn select-field->field
   "Select fields `k` and `v` from objects in the database, and return them as a map from `k` to `v`.

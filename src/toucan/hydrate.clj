@@ -6,10 +6,6 @@
              [dispatch :as dispatch]
              [models :as models]]))
 
-;; NOCOMMIT
-#_(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
-
 (defmulti can-hydrate-with-strategy?
   {:arglists '([strategy results k])}
   (fn [strategy _ _] strategy))
@@ -171,14 +167,11 @@
 
 (defn- hydrate-key
   [results k]
-  (when (seq results)
-    (if (sequential? (first results))
-      (hydrate-sequence-of-sequences results k)
-      (if-let [strategy (the-hydration-strategy results k)]
-        (do
-          (debug/debug-println (format "Hydrating %s with strategy %s" k strategy))
-          (hydrate-with-strategy strategy results k))
-        results))))
+  (if-let [strategy (the-hydration-strategy results k)]
+    (do
+      (debug/debug-println (format "Hydrating %s with strategy %s" k strategy))
+      (hydrate-with-strategy strategy results k))
+    results))
 
 (defn- hydrate-key-seq
   "Hydrate a nested hydration form (vector) by recursively calling `hydrate`."
@@ -213,17 +206,18 @@
 (defn- hydrate-one-form
   "Hydrate a single hydration form."
   [results k]
-  (if (sequential? (first results))
-    (hydrate-sequence-of-sequences results k)
-    (cond
-      (keyword? k)
-      (hydrate-key results k)
+  (when (seq results)
+    (if (sequential? (first results))
+      (hydrate-sequence-of-sequences results k)
+      (cond
+        (keyword? k)
+        (hydrate-key results k)
 
-      (sequential? k)
-      (hydrate-key-seq results k)
+        (sequential? k)
+        (hydrate-key-seq results k)
 
-      :else
-      (throw (ex-info (format "Invalid hydration form: %s. Expected keyword or sequence." k) {:invalid-form k})))))
+        :else
+        (throw (ex-info (format "Invalid hydration form: %s. Expected keyword or sequence." k) {:invalid-form k}))))))
 
 (defn- hydrate-forms
   "Hydrate many hydration forms across a *sequence* of `results` by recursively calling `hydrate-one-form`."

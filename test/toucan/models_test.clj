@@ -1,13 +1,14 @@
 (ns toucan.models-test
   (:require [expectations :refer [expect]]
             [toucan
+             [connection :as connection]
              [db :as db]
              [dispatch :as dispatch]
              [models :as models]
              [test-models :as m]
              [test-setup :as test]]
             [toucan.db.impl :as db.impl]
-            [toucan.models.options :as options]))
+            [toucan.test-models.category :as category]))
 
 ;; Test types (keyword)
 
@@ -183,9 +184,9 @@
  [{:id 1, :name "Tempest"}
   {:id 2, :name "Ho's Tavern"}
   {:id 3, :name "BevMo"}]
- (db/query {:select   [:id :name]
-            :from     [m/Venue]
-            :order-by [:id]}))
+ (connection/query {:select   [:id :name]
+                    :from     [m/Venue]
+                    :order-by [:id]}))
 
 ;; Test (empty)
 (expect
@@ -208,15 +209,15 @@
 ;;; ==================================================================================================================
 
 (expect
-  {:count 1}
-  (models/post-select (options/types nil {:count (fnil inc 0)}) {}))
+ {:count 1}
+ (models/post-select [:toucan.models/types {:count (fnil inc 0)}] {}))
 
 (models/defmodel ModelWithInlineType
   (types {:count (fnil inc 0)}))
 
 (expect
  {:count 1}
- ((db.impl/post-select-fn ModelWithInlineType) {}))
+ (models/post-select ModelWithInlineType {}))
 
 (defmethod models/type-in ::json [_ v]
   (list 'json v))
@@ -226,7 +227,7 @@
 
 (expect
  {:query '(parse-json "{\"json\":true}")}
- (models/post-select (options/types nil {:query ::json}) {:query "{\"json\":true}"}))
+ (models/post-select [:toucan.models/types {:query ::json}] {:query "{\"json\":true}"}))
 
 (models/defmodel ModelWithNamedType
   (types {:query ::json}))

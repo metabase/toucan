@@ -53,7 +53,7 @@
 
     ;; select a User
     (User 1) ; -> {:id 1, :first-name \"Cam\", :last-name \"Saul\", :name \"Cam Saul\"}"
-  {:arglists '([instance])}
+  {:arglists '([model instance])}
   dispatch/dispatch-value)
 
 ;; TODO - `do-select`
