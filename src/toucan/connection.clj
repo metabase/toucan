@@ -3,6 +3,7 @@
             [clojure.pprint :as pprint]
             [toucan
              [compile :as compile]
+             [debug :as debug]
              [dispatch :as dispatch]
              [models :as models]]))
 
@@ -77,75 +78,14 @@
   `(do-in-transaction (fn [] ~@body)))
 
 
-;;; +----------------------------------------------------------------------------------------------------------------+
-;;; |                                                   Debugging                                                    |
-;;; +----------------------------------------------------------------------------------------------------------------+
-
-(def ^:dynamic *debug*
-  ;; TODO - dox
-  false)
-
-(defmacro debug-println
-  ;; TODO - dox
-  [& args]
-  `(when *debug*
-     (println ~@args)))
-
-(defmacro debug
-  "Print the HoneySQL and SQL forms of any queries executed inside `body` to `stdout`. Intended for use during REPL
-  development."
-  {:style/indent 0}
-  [& body]
-  `(binding [*debug* true]
-     ~@body))
-
-(def ^:private ^:dynamic *call-count*
-  "Atom used as a counter for DB calls when enabled. This number isn't *perfectly* accurate, only mostly; DB calls
-  made directly to JDBC won't be logged."
-  nil)
-
-(defn -do-with-call-counting
-  "Execute F with DB call counting enabled. F is passed a single argument, a function that can be used to retrieve the
-  current call count. (It's probably more useful to use the macro form of this function, `with-call-counting`,
-  instead.)"
-  {:style/indent 0}
-  [f]
-  (binding [*call-count* (atom 0)]
-    (f (partial deref *call-count*))))
-
-(defn- inc-call-count!
-  ;; TODO - dox
-  []
-  (when *call-count*
-    (swap! *call-count* inc)))
-
-(defmacro with-call-counting
-  "Execute `body` and track the number of DB calls made inside it. `call-count-fn-binding` is bound to a zero-arity
-  function that can be used to fetch the current DB call count.
-
-     (db/with-call-counting [call-count] ...
-       (call-count))"
-  {:style/indent 1}
-  [[call-count-fn-binding] & body]
-  `(-do-with-call-counting (fn [~call-count-fn-binding] ~@body)))
-
-(defmacro debug-count-calls
-  "Print the number of DB calls executed inside `body` to `stdout`. Intended for use during REPL development."
-  {:style/indent 0}
-  [& body]
-  `(with-call-counting [call-count#]
-     (let [results# (do ~@body)]
-       (println "DB Calls:" (call-count#))
-       results#)))
-
 ;;;                                              Low-level JDBC functions
 ;;; ==================================================================================================================
 
 (defn- maybe-compile [model query]
   (when (map? query)
-    (debug-println "HoneySQL form:" (with-out-str (pprint/pprint query))))
+    (debug/debug-println "HoneySQL form:" (with-out-str (pprint/pprint query))))
   (let [sql-args (compile/maybe-compile-honeysql model query)]
-    (debug-println "SQL & Args:" (with-out-str (pprint/pprint sql-args)))
+    (debug/debug-println "SQL & Args:" (with-out-str (pprint/pprint sql-args)))
     sql-args))
 
 (defn- optional-model [args]
@@ -161,7 +101,7 @@
 (when-not false #_(get-method query* :default)
   (defmethod query* :default
     [model honeysql-form-or-sql-params jdbc-options]
-    (inc-call-count!)
+    (debug/inc-call-count!)
     (jdbc/query (connection model) (maybe-compile model honeysql-form-or-sql-params) jdbc-options)))
 
 (defn query
@@ -181,7 +121,7 @@
 (when-not (get-method reducible-query* :default)
   (defmethod reducible-query* :default
     [model honeysql-form-or-sql-params jdbc-options]
-    (inc-call-count!)
+    (debug/inc-call-count!)
     (jdbc/reducible-query (connection model) (maybe-compile model honeysql-form-or-sql-params) jdbc-options)))
 
 (defn reducible-query
@@ -200,7 +140,7 @@
   {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
   [& args]
   (let [[model statement jdbc-options] (optional-model args)]
-    (inc-call-count!)
+    (debug/inc-call-count!)
     (jdbc/execute! (connection model) (maybe-compile model statement) jdbc-options)))
 
 ;; TODO - should these go here, or in `db.impl` ?
@@ -215,7 +155,7 @@
                                                                 {:return-keys (let [pk (models/primary-key model)]
                                                                                 (if (sequential? pk) pk [pk]))})]
       (#'jdbc/dft-set-parameters prepared-statement params)
-      (inc-call-count!)
+      (debug/inc-call-count!)
       (when (pos? (.executeUpdate prepared-statement))
         (with-open [generated-keys-result-set (.getGeneratedKeys prepared-statement)]
           (vec (jdbc/result-set-seq generated-keys-result-set)))))))

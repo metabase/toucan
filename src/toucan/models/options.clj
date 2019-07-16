@@ -56,10 +56,8 @@
         (println "Error parsing option" option)
         (throw (ex-info (format "Error parsing option %s" option) {:model model, :option option} e))))))
 
-(defn defmodel-options-form [model options]
-  (println "(clojure.pprint/pprint options):" options) ; NOCOMMIT
+(defmacro defmodel-options [model & options]
   (let [options (parse-options model options)]
-    (println "(clojure.pprint/pprint options):" (clojure.pprint/pprint options)) ; NOCOMMIT
     `(let [~@(mapcat :let-form options)]
        (defmethod dispatch/aspects ~model
          [~'_]

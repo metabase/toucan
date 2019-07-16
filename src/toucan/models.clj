@@ -21,7 +21,7 @@
        (def ~model
          ~@(when docstring [docstring])
          ~model-kw)
-       ~(options/defmodel-options-form model options))))
+       (options/defmodel-options ~model ~@options))))
 
 
 ;;;                                                  CRUD functions
@@ -192,8 +192,8 @@
   (throw
    (ex-info
     (str (or (dispatch/dispatch-value x) x)
-         " does not have a table associated with it. This might be because it's an aspect; if not, you can specify its"
-         " `table` by implementing `toucan.models/table` or by passing a `(table ...)` option to its `defmodel` form.")
+         " does not have a table associated with it. You can specify its `table` by implementing `toucan.models/table`"
+         " or by passing a `(table ...)` to `defmodel`.")
     {:arg x, :model (dispatch/dispatch-value x)})))
 
 (defmethod options/parse-list-option 'table

@@ -23,7 +23,7 @@
    [honeysql "0.9.4"]
    [org.flatland/ordered "1.5.7"]
    [potemkin "0.4.5"]
-   [vvvvalvalval/supdate "0.2.3"]]
+   #_[vvvvalvalval/supdate "0.2.3"]]
 
   :profiles
   {:dev

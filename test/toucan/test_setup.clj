@@ -27,6 +27,10 @@
    (when-let [password (System/getenv "TOUCAN_TEST_DB_PASS")]
      {:password password})))
 
+(defmethod connection/spec :default
+  [_]
+  spec)
+
 (defn- execute! {:style/indent 0} [& statements]
   (jdbc/with-db-connection [conn spec]
     (doseq [sql statements]
@@ -101,15 +105,6 @@
   (println "Initializing test DB...")
   (create-models!)
   (insert-test-data!))
-
-(def ^:private initialize-test-db!
-  (delay
-    (reset-db!)))
-
-(defmethod connection/spec :default
-  [_]
-  @initialize-test-db!
-  spec)
 
 
 (defmacro with-clean-db

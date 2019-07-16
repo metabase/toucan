@@ -1,8 +1,8 @@
 (ns toucan.hydrate
   "Functions for deserializing and hydrating fields in objects fetched from the DB."
   (:require [toucan
-             [connection :as connection]
              [db :as db]
+             [debug :as debug]
              [dispatch :as dispatch]
              [models :as models]]))
 
@@ -129,9 +129,10 @@
   (for [[first-result :as chunk] (partition-by dispatch/dispatch-value results)
         :let                     [method (get-method simple-hydrate (simple-hydrate-dispatch-value first-result k))]
         result                   chunk]
-    (if (some? (get result k))
-      result
-      (assoc result k (method result k)))))
+    (when result
+      (if (some? (get result k))
+        result
+        (assoc result k (method result k))))))
 
 
 ;;;                                           Hydration Using All Strategies
@@ -144,16 +145,15 @@
   (some
    (fn [strategy]
      (when (can-hydrate-with-strategy? strategy results k)
-       (connection/debug-println "Hydrating with strategy:" strategy)
        strategy))
    @strategies))
 
 ;; TODO - not sure if want
 (defn the-hydration-strategy [results k]
   (or (hydration-strategy results k)
-      (throw
+      #_(throw
        (ex-info
-        (str (format "Don't know how to hydrate %s for dispatch value %s." k (dispatch/dispatch-value results))
+        (str (format "Don't know how to hydrate %s for dispatch value %s." k [(or (dispatch/dispatch-value results) :default) k])
              " Define hydration behavior by providing an implementation for `simple-hydrate`,"
              " `hydrate-dispatch-value`, or `batched-hydrate`. ")
         ;; this info provided primarily to make life easier when debugging
@@ -170,12 +170,15 @@
 (declare hydrate)
 
 (defn- hydrate-key
-  "Hydrate a single key."
   [results k]
   (when (seq results)
-    (let [strategy (the-hydration-strategy results k)]
-      (connection/debug-println (format "Hydrating %s with strategy %s" k strategy))
-      (hydrate-with-strategy strategy results k))))
+    (if (sequential? (first results))
+      (hydrate-sequence-of-sequences results k)
+      (if-let [strategy (the-hydration-strategy results k)]
+        (do
+          (debug/debug-println (format "Hydrating %s with strategy %s" k strategy))
+          (hydrate-with-strategy strategy results k))
+        results))))
 
 (defn- hydrate-key-seq
   "Hydrate a nested hydration form (vector) by recursively calling `hydrate`."
@@ -189,22 +192,38 @@
         recursively-hydrated-values-of-k (apply hydrate values-of-k nested-keys)]
     (map
      (fn [result v]
-       (assoc result k v))
+       (when result
+         (assoc result k v)))
      results
      recursively-hydrated-values-of-k)))
+
+(declare hydrate-one-form)
+
+(defn- hydrate-sequence-of-sequences [groups k]
+  (let [indexed-flattened-results (for [[i group] (map-indexed vector groups)
+                                        result    group]
+                                    [i result])
+        indecies                  (map first indexed-flattened-results)
+        flattened                 (map second indexed-flattened-results)
+        hydrated                  (hydrate-one-form flattened k)
+        groups                    (partition-by first (map vector indecies hydrated))]
+    (for [group groups]
+      (map second group))))
 
 (defn- hydrate-one-form
   "Hydrate a single hydration form."
   [results k]
-  (cond
-    (keyword? k)
-    (hydrate-key results k)
+  (if (sequential? (first results))
+    (hydrate-sequence-of-sequences results k)
+    (cond
+      (keyword? k)
+      (hydrate-key results k)
 
-    (sequential? k)
-    (hydrate-key-seq results k)
+      (sequential? k)
+      (hydrate-key-seq results k)
 
-    :else
-    (throw (ex-info (format "Invalid hydration form: %s. Expected keyword or sequence." k) {:invalid-form k}))))
+      :else
+      (throw (ex-info (format "Invalid hydration form: %s. Expected keyword or sequence." k) {:invalid-form k})))))
 
 (defn- hydrate-forms
   "Hydrate many hydration forms across a *sequence* of `results` by recursively calling `hydrate-one-form`."

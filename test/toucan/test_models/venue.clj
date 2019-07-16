@@ -13,10 +13,8 @@
   [obj]
   (assoc obj :updated-at (now)))
 
-(def x #{:id :name :category ::x})
-
 (models/defmodel Venue
   (table :venues)
-  (default-fields x)
+  (default-fields #{:id :name :category})
   (types {:category :keyword})
   ::timestamped)

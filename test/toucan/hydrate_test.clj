@@ -4,19 +4,6 @@
              [hydrate :as hydrate]
              [test-models :as m]]))
 
-(defmethod hydrate/simple-hydrate [:default ::x]
-  [{:keys [id]} _]
-  id)
-
-(defmethod hydrate/simple-hydrate [:default ::y]
-  [{:keys [id2]} _]
-  id2)
-
-(defmethod hydrate/simple-hydrate [:default ::z]
-  [{:keys [n]} _]
-  (vec (for [i (range n)]
-         {:id i})))
-
 ;; ## TESTS FOR HYDRATION HELPER FNS
 
 ;; ### k->k_id
@@ -50,7 +37,7 @@
 ;; should fail for known keys if k_id isn't present in every map
 (expect
  false
- (hydrate/can-hydrate-with-strategy? ::hydrate/automagic-batched [{::user_id 1} {::user_id 2} {:x 3}] ::user))
+ (hydrate/can-hydrate-with-strategy? ::hydrate/automagic-batched [{::user_id 1} {::user_id 2} {:some-other-key 3}] ::user))
 
 ;; ### automagically-batched-hydrate
 
@@ -78,12 +65,12 @@
       false)))
 
 (expect true  (valid-form? :k))
-(expect true  (valid-form? [:k]))
+(expect false (valid-form? [:k]))
 (expect true  (valid-form? [:k :k2]))
-(expect true  (valid-form? [:k [:k2]]))
-(expect true  (valid-form? [:k [:k2] :k3]))
+(expect false (valid-form? [:k [:k2]]))
+(expect false (valid-form? [:k [:k2] :k3]))
 (expect true  (valid-form? [:k [:k2 :k3] :k4]))
-(expect true  (valid-form? [:k [:k2 [:k3]] :k4]))
+(expect false (valid-form? [:k [:k2 [:k3]] :k4]))
 (expect false (valid-form? 'k))
 (expect false (valid-form? [[:k]]))
 (expect false (valid-form? [:k [[:k2]]]))
@@ -94,42 +81,56 @@
 
 ;; ## TESTS FOR HYDRATE INTERNAL FNS
 
+(defmethod hydrate/simple-hydrate [:default ::x]
+  [{:keys [id]} _]
+  id)
+
+(defmethod hydrate/simple-hydrate [:default ::y]
+  [{:keys [id2]} _]
+  id2)
+
+(defmethod hydrate/simple-hydrate [:default ::z]
+  [{:keys [n]} _]
+  (vec (for [i (range n)]
+         {:id i})))
+
 ;; ### hydrate-key-seq (nested hydration)
+
 ;; check with a nested hydration that returns one result
 (expect
- [{:f {:id 1, :x 1}}]
+ [{:f {:id 1, ::x 1}}]
  (#'hydrate/hydrate-key-seq
   [{:f {:id 1}}]
-  [:f :x]))
+  [:f ::x]))
 
 (expect
- [{:f {:id 1, :x 1}}
-  {:f {:id 2, :x 2}}]
+ [{:f {:id 1, ::x 1}}
+  {:f {:id 2, ::x 2}}]
  (#'hydrate/hydrate-key-seq
   [{:f {:id 1}}
    {:f {:id 2}}]
-  [:f :x]))
+  [:f ::x]))
 
 ;; check with a nested hydration that returns multiple results
 (expect
- [{:f [{:id 1, :x 1}
-       {:id 2, :x 2}
-       {:id 3, :x 3}]}]
+ [{:f [{:id 1, ::x 1}
+       {:id 2, ::x 2}
+       {:id 3, ::x 3}]}]
  (#'hydrate/hydrate-key-seq
   [{:f [{:id 1}
         {:id 2}
         {:id 3}]}]
-  [:f :x]))
+  [:f ::x]))
 
 ;; ### hydrate-key
 (expect
- [{:id 1, :x 1}
-  {:id 2, :x 2}
-  {:id 3, :x 3}]
+ [{:id 1, ::x 1}
+  {:id 2, ::x 2}
+  {:id 3, ::x 3}]
  (#'hydrate/hydrate-key
   [{:id 1}
    {:id 2}
-   {:id 3}] :x))
+   {:id 3}] ::x))
 
 ;; ### batched-hydrate
 
@@ -137,14 +138,14 @@
 
 ;; make sure we can do basic hydration
 (expect
- {:a 1, :id 2, :x 2}
+ {:a 1, :id 2, ::x 2}
  (hydrate/hydrate {:a 1, :id 2}
-          :x))
+          ::x))
 
 ;; specifying "nested" hydration with no "nested" keys should throw an exception and tell you not to do it
 (expect
- (str "Assert failed: Replace '[:b]' with ':b'. Vectors are for nested hydration. "
-      "There's no need to use one when you only have a single key.\n(> (count vect) 1)")
+ (str "Invalid hydration form: replace [:b] with :b. Vectors are for nested hydration. "
+      "There's no need to use one when you only have a single key.")
  (try (hydrate/hydrate {:a 1, :id 2}
                [:b])
       (catch Throwable e
@@ -152,11 +153,11 @@
 
 ;; check that returning an array works correctly
 (expect
- {:n 3
-  :z [{:id 0}
-      {:id 1}
-      {:id 2}]}
- (hydrate/hydrate {:n 3} :z))
+ {:n  3
+  ::z [{:id 0}
+       {:id 1}
+       {:id 2}]}
+ (hydrate/hydrate {:n 3} ::z))
 
 ;; check that nested keys aren't hydrated if we don't ask for it
 (expect
@@ -166,193 +167,146 @@
 
 ;; check that nested keys can be hydrated if we DO ask for it
 (expect
- {:d {:id 1, :x 1}}
+ {:d {:id 1, ::x 1}}
  (hydrate/hydrate {:d {:id 1}}
-                  [:d :x]))
+                  [:d ::x]))
 
 ;; check that nested hydration also works if one step returns multiple results
 (expect
  {:n 3
-  :z [{:id 0, :x 0}
-      {:id 1, :x 1}
-      {:id 2, :x 2}]}
- (hydrate/hydrate {:n 3} [:z :x]))
+  ::z [{:id 0, ::x 0}
+      {:id 1, ::x 1}
+      {:id 2, ::x 2}]}
+ (hydrate/hydrate {:n 3} [::z ::x]))
 
 ;; check nested hydration with nested maps
 (expect
- [{:f {:id 1, :x 1}}
-  {:f {:id 2, :x 2}}
-  {:f {:id 3, :x 3}}
-  {:f {:id 4, :x 4}}]
+ [{:f {:id 1, ::x 1}}
+  {:f {:id 2, ::x 2}}
+  {:f {:id 3, ::x 3}}
+  {:f {:id 4, ::x 4}}]
  (hydrate/hydrate [{:f {:id 1}}
                    {:f {:id 2}}
                    {:f {:id 3}}
-                   {:f {:id 4}}] [:f :x]))
-
-;; check with a nasty mix of maps and seqs
-(expect
- [{:f [{:id 1, :x 1} {:id 2, :x 2} {:id 3, :x 3}]}
-  {:f {:id 1, :x 1}}
-  {:f [{:id 4, :x 4} {:id 5, :x 5} {:id 6, :x 6}]}]
- (hydrate/hydrate [{:f [{:id 1}
-                        {:id 2}
-                        {:id 3}]}
-                   {:f {:id 1}}
-                   {:f [{:id 4}
-                        {:id 5}
-                        {:id 6}]}] [:f :x]))
+                   {:f {:id 4}}] [:f ::x]))
 
 ;; check that hydration works with top-level nil values
 (expect
- [{:id 1, :x 1}
-  {:id 2, :x 2}
+ [{:id 1, ::x 1}
+  {:id 2, ::x 2}
   nil
-  {:id 4, :x 4}]
+  {:id 4, ::x 4}]
  (hydrate/hydrate [{:id 1}
                    {:id 2}
                    nil
-                   {:id 4}] :x))
+                   {:id 4}] ::x))
 
 ;; check nested hydration with top-level nil values
 (expect
- [{:f {:id 1, :x 1}}
-  {:f {:id 2, :x 2}}
+ [{:f {:id 1, ::x 1}}
+  {:f {:id 2, ::x 2}}
   nil
-  {:f {:id 4, :x 4}}]
+  {:f {:id 4, ::x 4}}]
  (hydrate/hydrate [{:f {:id 1}}
                    {:f {:id 2}}
                    nil
-                   {:f {:id 4}}] [:f :x]))
+                   {:f {:id 4}}] [:f ::x]))
 
 ;; check that nested hydration w/ nested nil values
 (expect
- [{:f {:id 1, :x 1}}
-  {:f {:id 2, :x 2}}
+ [{:f {:id 1, ::x 1}}
+  {:f {:id 2, ::x 2}}
   {:f nil}
-  {:f {:id 4, :x 4}}]
+  {:f {:id 4, ::x 4}}]
  (hydrate/hydrate [{:f {:id 1}}
                    {:f {:id 2}}
                    {:f nil}
-                   {:f {:id 4}}] [:f :x]))
+                   {:f {:id 4}}] [:f ::x]))
 
 (expect
- [{:f {:id 1, :x 1}}
-  {:f {:id 2, :x 2}}
-  {:f {:id nil, :x nil}}
-  {:f {:id 4, :x 4}}]
+ [{:f {:id 1, ::x 1}}
+  {:f {:id 2, ::x 2}}
+  {:f {:id nil, ::x nil}}
+  {:f {:id 4, ::x 4}}]
  (hydrate/hydrate [{:f {:id 1}}
                    {:f {:id 2}}
                    {:f {:id nil}}
-                   {:f {:id 4}}] [:f :x]))
+                   {:f {:id 4}}] [:f ::x]))
 
 ;; check that it works with some objects missing the key
 (expect
- [{:f [{:id 1, :x 1}
-       {:id 2, :x 2}
-       {:g 3, :x nil}]}
-  {:f {:id 1, :x 1}}
-  {:f [{:id 4, :x 4}
-       {:g 5, :x nil}
-       {:id 6, :x 6}]}]
+ [{:f [{:id 1, ::x 1}
+       {:id 2, ::x 2}
+       {:g 3, ::x nil}]}
+  {:f [{:id 1, ::x 1}]}
+  {:f [{:id 4, ::x 4}
+       {:g 5, ::x nil}
+       {:id 6, ::x 6}]}]
  (hydrate/hydrate [{:f [{:id 1}
                         {:id 2}
                         {:g 3}]}
-                   {:f  {:id 1}}
+                   {:f [{:id 1}]}
                    {:f [{:id 4}
                         {:g 5}
-                        {:id 6}]}] [:f :x]))
-
-;; check that we can handle wonky results: :f is [sequence, map sequence] respectively
-(expect
- [{:f [{:id 1, :id2 10, :x 1, :y 10}
-       {:id 2, :x 2, :y nil}
-       {:id 3, :id2 30, :x 3, :y 30}]}
-  {:f {:id 1, :id2 10, :x 1, :y 10}}
-  {:f [{:id 4, :x 4, :y nil}
-       {:id 5, :id2 50, :x 5, :y 50}
-       {:id 6, :x 6, :y nil}]}]
- (hydrate/hydrate [{:f [{:id 1, :id2 10}
-                        {:id 2}
-                        {:id 3, :id2 30}]}
-                   {:f  {:id 1, :id2 10}}
-                   {:f [{:id 4}
-                        {:id 5, :id2 50}
-                        {:id 6}]}] [:f :x :y]))
+                        {:id 6}]}] [:f ::x]))
 
 ;; nested-nested hydration
 (expect
- [{:f [{:g {:id 1, :x 1}}
-       {:g {:id 2, :x 2}}
-       {:g {:id 3, :x 3}}]}
-  {:f [{:g {:id 4, :x 4}}
-       {:g {:id 5, :x 5}}]}]
- (hydrate/hydrate [{:f [{:g {:id 1}}
-                        {:g {:id 2}}
-                        {:g {:id 3}}]}
-                   {:f [{:g {:id 4}}
-                        {:g {:id 5}}]}]
-                  [:f [:g :x]]))
+ [{:f [{:g {:id 1, ::x 1}}
+       {:g {:id 2, ::x 2}}
+       {:g {:id 3, ::x 3}}]}
+  {:f [{:g {:id 4, ::x 4}}
+       {:g {:id 5, ::x 5}}]}]
+ (hydrate/hydrate
+  [{:f [{:g {:id 1}}
+        {:g {:id 2}}
+        {:g {:id 3}}]}
+   {:f [{:g {:id 4}}
+        {:g {:id 5}}]}]
+  [:f [:g ::x]]))
 
 ;; nested + nested-nested hydration
 (expect
- [{:f [{:id 1, :g {:id 1, :x 1}, :x 1}]}
-  {:f [{:id 2, :g {:id 4, :x 4}, :x 2}
-       {:id 3, :g {:id 5, :x 5}, :x 3}]}]
+ [{:f [{:id 1, :g {:id 1, ::x 1}, ::x 1}]}
+  {:f [{:id 2, :g {:id 4, ::x 4}, ::x 2}
+       {:id 3, :g {:id 5, ::x 5}, ::x 3}]}]
  (hydrate/hydrate [{:f [{:id 1, :g {:id 1}}]}
                    {:f [{:id 2, :g {:id 4}}
                         {:id 3, :g {:id 5}}]}]
-                  [:f :x [:g :x]]))
+                  [:f ::x [:g ::x]]))
 
 ;; make sure nested-nested hydration doesn't accidentally return maps where there were none
 (expect
- {:f [{:h {:id 1, :x 1}}
+ {:f [{:h {:id 1, ::x 1}}
       {}
-      {:h {:id 3, :x 3}}]}
+      {:h {:id 3, ::x 3}}]}
  (hydrate/hydrate {:f [{:h {:id 1}}
                        {}
                        {:h {:id 3}}]}
-                  [:f [:h :x]]))
+                  [:f [:h ::x]]))
 
 ;; check nested hydration with several keys
 (expect
- [{:f [{:id 1, :h {:id 1, :id2 1, :x 1, :y 1}, :x 1}]}
-  {:f [{:id 2, :h {:id 4, :id2 2, :x 4, :y 2}, :x 2}
-       {:id 3, :h {:id 5, :id2 3, :x 5, :y 3}, :x 3}]}]
+ [{:f [{:id 1, :h {:id 1, :id2 1, ::x 1, ::y 1}, ::x 1}]}
+  {:f [{:id 2, :h {:id 4, :id2 2, ::x 4, ::y 2}, ::x 2}
+       {:id 3, :h {:id 5, :id2 3, ::x 5, ::y 3}, ::x 3}]}]
  (hydrate/hydrate [{:f [{:id 1, :h {:id 1, :id2 1}}]}
                    {:f [{:id 2, :h {:id 4, :id2 2}}
                         {:id 3, :h {:id 5, :id2 3}}]}]
-                  [:f :x [:h :x :y]]))
+                  [:f ::x [:h ::x ::y]]))
 
 ;; multiple nested-nested hydrations
 (expect
- [{:f [{:g {:id 1, :x 1}, :h {:i {:id2 1, :y 1}}}]}
-  {:f [{:g {:id 2, :x 2}, :h {:i {:id2 2, :y 2}}}
-       {:g {:id 3, :x 3}, :h {:i {:id2 3, :y 3}}}]}]
+ [{:f [{:g {:id 1, ::x 1}, :h {:i {:id2 1, ::y 1}}}]}
+  {:f [{:g {:id 2, ::x 2}, :h {:i {:id2 2, ::y 2}}}
+       {:g {:id 3, ::x 3}, :h {:i {:id2 3, ::y 3}}}]}]
  (hydrate/hydrate [{:f [{:g {:id 1}
                          :h {:i {:id2 1}}}]}
                    {:f [{:g {:id 2}
                          :h {:i {:id2 2}}}
                         {:g {:id 3}
                          :h {:i {:id2 3}}}]}]
-                  [:f [:g :x] [:h [:i :y]]]))
-
-;; *nasty* nested-nested hydration
-(expect
- [{:f [{:id 1, :h {:id2 1, :y 1}, :x 1}
-       {:id 2, :x 2}
-       {:id 3, :h {:id2 3, :y 3}, :x 3}]}
-  {:f {:id 1, :h {:id2 1, :y 1}, :x 1}}
-  {:f [{:id 4, :x 4}
-       {:id 5, :h {:id2 5, :y 5}, :x 5}
-       {:id 6, :x 6}]}]
- (hydrate/hydrate [{:f [{:id 1, :h {:id2 1}}
-                        {:id 2}
-                        {:id 3, :h {:id2 3}}]}
-                   {:f  {:id 1, :h {:id2 1}}}
-                   {:f [{:id 4}
-                        {:id 5, :h {:id2 5}}
-                        {:id 6}]}]
-                  [:f :x [:h :y]]))
+                  [:f [:g ::x] [:h [:i ::y]]]))
 
 ;; check that hydration doesn't barf if we ask it to hydrate an object that's not there
 (expect
@@ -369,17 +323,16 @@
                    :user "OK <3"}
                   :user))
 
-(defn- with-is-bird?
-  {:batched-hydrate :is-bird?}
-  [objects]
+(defmethod hydrate/batched-hydrate [:default ::is-bird?]
+  [objects _]
   (for [object objects]
-    (assoc object :is-bird? true)))
+    (assoc object ::is-bird? true)))
 
 (expect
- [{:type :toucan, :is-bird? true}
-  {:type :pigeon, :is-bird? true}]
+ [{:type :toucan, ::is-bird? true}
+  {:type :pigeon, ::is-bird? true}]
  (hydrate/hydrate [{:type :toucan}
                    {:type :pigeon}]
-                  :is-bird?))
+                  ::is-bird?))
 
 ;TODO add test for selecting hydration for where (not= pk :id)

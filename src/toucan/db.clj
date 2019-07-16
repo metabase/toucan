@@ -340,15 +340,13 @@
 
 
 
-(potemkin/import-vars
+#_(potemkin/import-vars
  [impl]
  [connection
   connection
   transaction
   query
   reducible-query
-  execute!
-  with-call-counting
-  debug-count-calls])
+  execute!])
 
 ;; TODO - `instance-of` <-> `instance/of`
