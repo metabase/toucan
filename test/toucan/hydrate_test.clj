@@ -1,15 +1,19 @@
 (ns toucan.hydrate-test
   (:require [expectations :refer [expect]]
-            [toucan.hydrate :as hydrate]
-            [toucan.test-models :as m]))
+            [toucan
+             [hydrate :as hydrate]
+             [test-models :as m]]))
 
-(defn- ^:hydrate x [{:keys [id]}]
+(defmethod hydrate/simple-hydrate [:default ::x]
+  [{:keys [id]} _]
   id)
 
-(defn- ^:hydrate y [{:keys [id2]}]
+(defmethod hydrate/simple-hydrate [:default ::y]
+  [{:keys [id2]} _]
   id2)
 
-(defn- ^:hydrate z [{:keys [n]}]
+(defmethod hydrate/simple-hydrate [:default ::z]
+  [{:keys [n]} _]
   (vec (for [i (range n)]
          {:id i})))
 
@@ -71,8 +75,7 @@
       (hydrate/hydrate [{}] form))
     true
     (catch Throwable e
-      e
-      #_false)))
+      false)))
 
 (expect true  (valid-form? :k))
 (expect true  (valid-form? [:k]))

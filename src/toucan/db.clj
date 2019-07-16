@@ -1,15 +1,15 @@
 (ns toucan.db
   "Helper functions for querying the DB and inserting or updating records using Toucan models."
   (:refer-clojure :exclude [count])
-  (:require [clojure.java.jdbc :as jdbc]
-            [potemkin :as potemkin]
+  (:require [potemkin :as potemkin]
             [toucan
              [compile :as compile]
              [connection :as connection]
+             [dispatch :as dispatch]
              [instance :as instance]
-             [models :as models]]
-            [toucan.db.impl :as impl]
-            [toucan.util :as u]))
+             [models :as models]
+             [util :as u]]
+            [toucan.db.impl :as impl]))
 
 ;; TODO - we shouldn't reference `jdbc` here, everything should be in `connection` instead
 
@@ -161,7 +161,7 @@
    (let [results (connection/query model (merge
                                           (compile/compile-select-options options)
                                           {:select [[true :exists]]
-                                           :from   [(instance/table model)]
+                                           :from   [(models/table model)]
                                            :limit  1}))]
      (boolean (seq results)))))
 
@@ -174,7 +174,7 @@
   (let [where-clauses (for [instance instances
                             :let     [changes (instance/changes instance)]
                             :when    (seq changes)]
-                        (let [honeysql-form {:update [(instance/table instance)]
+                        (let [honeysql-form {:update [(models/table instance)]
                                              :set    changes
                                              :where  (models/primary-key-where-clause instance)}]
                           (when (connection/execute! instance honeysql-form)
@@ -218,7 +218,7 @@
   care about calling the usual `pre-update` and `post-update` hooks) consider using `execute!` directly."
   {:style/indent 2}
   ([model conditions changes]
-   {:pre [(instance/model model) (map? conditions) (map? changes)]}
+   {:pre [(dispatch/dispatch-value model) (map? conditions) (map? changes)]}
    (when (seq changes)
      (when-let [matching-objects (seq (apply select model conditions))]
        (update! (for [object matching-objects]
@@ -262,7 +262,7 @@
     (some insert-result (cons primary-key inserted-id-keys))))
 
 (defn- insert!* [[instance :as instances]]
-  (let [honeysql-form {:insert-into (instance/table instance)
+  (let [honeysql-form {:insert-into (models/table instance)
                        :values      instances}
         result-rows   (connection/insert! instance honeysql-form)]
     (map
@@ -301,7 +301,7 @@
 ;;; ==================================================================================================================
 
 (defn delete!* [[instance :as instances]]
-  (connection/delete! instance {:delete-from [(instance/table instance)]
+  (connection/delete! instance {:delete-from [(models/table instance)]
                                 :where       (into [:or] (map models/primary-key-where-clause instances))}))
 
 ;; TODO

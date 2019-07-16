@@ -33,8 +33,7 @@
      [postgresql "9.3-1102.jdbc41"]]
 
     :injections
-    [(require 'expectations)
-     ((resolve 'expectations/disable-run-on-shutdown))]
+    [(require 'toucan.test-setup)]
 
     :jvm-opts
     ["-Xverify:none"]}

@@ -2,85 +2,66 @@
   (:require [toucan
              [dispatch :as dispatch]
              [instance :as instance]]
+            [potemkin.types :as p.types]
             [toucan.util :as u])
   (:import clojure.lang.MultiFn))
 
-;; TODO - should probably just move this whole namespace into models
+(defmulti parse-list-option
+  {:arglists '([option & args])}
+  (fn [option & _] option))
 
-(defmulti global-option
+(defmethod parse-list-option :default
+  [option & args]
+  (cons option args))
+
+(defmulti parse-option
   {:arglists '([option])}
-  identity)
+  class)
 
-(defmethod global-option :default [_] nil)
-
-(defmulti init!
-  {:arglists '([model option])}
-  (fn [_ option]
-    (dispatch/dispatch-value option)))
-
-(defmethod init! :default
-  [& _]
-  nil)
-
-(defmulti aspect
-  {:arglists '([model option])}
-  (fn [_ option]
-    (dispatch/dispatch-value option)))
-
-(defmethod aspect :default
-  [_ option & _]
+(defmethod parse-option :default
+  [option]
   option)
 
-(defn- resolve-option [model option]
-  (let [[option & args] (u/sequencify option)
-        option (or (global-option option) option)]
-    (if (seq args)
-      (concat (list option model) args)
-      option)))
+(defmethod parse-option clojure.lang.IPersistentList
+  [[option & args]]
+  (apply parse-list-option option args))
 
-(defn resolve-options [model options]
-  (vec (for [option options]
-         (resolve-option model option))))
 
-(defn init-options! [model options]
-  (doseq [option options]
-    (init! model option)))
+(defmulti init!
+  {:arglists '([option model])}
+  dispatch/dispatch-value)
 
-(defn option-aspects [model options]
-  (vec (for [option options
-             :let   [aspect (aspect model option)]
-             :when  aspect]
-         aspect)))
+(defmulti aspect?
+  {:arglists '([option])}
+  dispatch/dispatch-value)
 
-(defn defmodel-options [model options]
-  (let [options (resolve-options model options)]
-    `(let [options# ~options
-           aspects# (option-aspects ~model options#)]
-       (init-options! ~model options#)
+(defmethod aspect? :default
+  [_]
+  true)
+
+(defn parse-options [model options]
+  (for [option options]
+    (try
+      (let [option (parse-option option)
+            symb   (if (keyword? option)
+                     option
+                     (gensym "option-"))]
+        {:let-form  (when-not (keyword? option)
+                      `[~symb ~option])
+         :init-form (when (get-method init! (dispatch/dispatch-value option))
+                      `(init! ~symb ~model))
+         :aspect    (when (aspect? option)
+                      symb)})
+      (catch Throwable e
+        (println "Error parsing option" option)
+        (throw (ex-info (format "Error parsing option %s" option) {:model model, :option option} e))))))
+
+(defn defmodel-options-form [model options]
+  (println "(clojure.pprint/pprint options):" options) ; NOCOMMIT
+  (let [options (parse-options model options)]
+    (println "(clojure.pprint/pprint options):" (clojure.pprint/pprint options)) ; NOCOMMIT
+    `(let [~@(mapcat :let-form options)]
        (defmethod dispatch/aspects ~model
          [~'_]
-         aspects#))))
-
-
-;;;                                             Global Option Definitions
-;;; ==================================================================================================================
-
-;; TODO - move all of these into `models`
-
-(defn table [__ table-name]
-  (instance/of ::table {:table-name table-name}))
-
-(defmethod global-option 'table [_] `table)
-
-(defn primary-key [_ primary-key]
-  (instance/of ::primary-key {:primary-key primary-key}))
-
-(defn default-fields [_ fields]
-  (instance/of ::default-fields {:fields fields}))
-
-(defmethod global-option 'default-fields [_] `default-fields)
-
-(defn types [_ m]
-  (instance/of ::types {:types m}))
-
-(defmethod global-option 'types [_] `types)
+         ~(filterv some? (map :aspect options)))
+       ~@(filter some? (map :init-form options)))))

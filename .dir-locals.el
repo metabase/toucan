@@ -9,4 +9,5 @@
                   (eval . (define-clojure-indent
                             (p.types/defprotocol+ '(1 (:defn)))
                             (p.types/def-abstract-type '(1 (:defn)))
-                            (p.types/deftype+ '(2 nil nil (:defn))))))))
+                            (p.types/deftype+ '(2 nil nil (:defn)))
+                            (p.types/defrecord+ '(2 nil nil (:defn))))))))

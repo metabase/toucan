@@ -1,12 +1,10 @@
 (ns toucan.connection
   (:require [clojure.java.jdbc :as jdbc]
             [clojure.pprint :as pprint]
-            [clojure.string :as str]
             [toucan
              [compile :as compile]
              [dispatch :as dispatch]
-             [instance :as instance]]
-            [toucan.models :as models]))
+             [models :as models]]))
 
 ;;;                                                     Connection
 ;;; ==================================================================================================================
@@ -150,6 +148,11 @@
     (debug-println "SQL & Args:" (with-out-str (pprint/pprint sql-args)))
     sql-args))
 
+(defn- optional-model [args]
+  (if (dispatch/dispatch-value (first args))
+    args
+    (cons nil args)))
+
 (defmulti query*
   ;; TODO
   {:arglists '([model honeysql-form-or-sql-params jdbc-options])}
@@ -167,9 +170,7 @@
   `jdbc/query`."
   {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
   [& args]
-  (let [[model query jdbc-options] (if (instance/model (first args))
-                                     args
-                                     (cons nil args))]
+  (let [[model query jdbc-options] (optional-model args)]
     (query* model query jdbc-options)))
 
 (defmulti reducible-query*
@@ -189,9 +190,7 @@
   to `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
   {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
   [& args]
-  (let [[model query jdbc-options] (if (instance/model (first args))
-                                     args
-                                     (cons :default args))]
+  (let [[model query jdbc-options] (optional-model args)]
     (reducible-query* model query jdbc-options)))
 
 (defn execute!
@@ -200,9 +199,7 @@
   `:transaction?` (default `true`)."
   {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
   [& args]
-  (let [[model statement jdbc-options] (if (instance/model (first args))
-                                         args
-                                         (cons :default args))]
+  (let [[model statement jdbc-options] (optional-model args)]
     (inc-call-count!)
     (jdbc/execute! (connection model) (maybe-compile model statement) jdbc-options)))
 

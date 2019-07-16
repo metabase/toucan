@@ -15,27 +15,41 @@
  (dispatch/dispatch-value {}))
 
 (expect
-  ::MyModel
-  (dispatch/dispatch-value (instance/of ::MyModel {})))
+ ::MyModel
+ (dispatch/dispatch-value (instance/of ::MyModel {})))
 
 (expect
-  ::MyAspect
-  (dispatch/dispatch-value {:toucan/model ::MyAspect}))
+ ::MyModel
+ (dispatch/dispatch-value (with-meta {} {:toucan/dispatch ::MyModel})))
 
 ;; string
 (expect
-  :toucan.dispatch-test/MyAspect
-  (dispatch/dispatch-value "toucan.dispatch-test/MyAspect"))
+ nil
+ (dispatch/dispatch-value "str"))
 
 ;; symbol
 (expect
-  :toucan.dispatch-test/MyAspect
-  (dispatch/dispatch-value 'toucan.dispatch-test/MyAspect))
+  nil
+  (dispatch/dispatch-value 'symb))
 
 ;; vector
 (expect
  ::MyModel
  (dispatch/dispatch-value [::MyModel :id :name]))
+
+;; if a sequence has metadata we should dispatch off of that rather than the first arg
+(expect
+ :sequence-metadata
+ (dispatch/dispatch-value (with-meta [::MyModel :id :name] {:toucan/dispatch :sequence-metadata})))
+
+(expect
+ :wow
+ (dispatch/dispatch-value [(with-meta {} {:toucan/dispatch :wow}) :id :name]))
+
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                             combined-method tests                                              |
+;;; +----------------------------------------------------------------------------------------------------------------+
 
 (models/defmodel A)
 

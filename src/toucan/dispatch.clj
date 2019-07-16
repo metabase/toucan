@@ -1,15 +1,60 @@
 (ns toucan.dispatch
   (:require [flatland.ordered.map :as ordered-map]
-            [toucan.instance :as instance]))
+            [potemkin.types :as p.types]
+            [pretty.core :as pretty]))
 
-#_(doseq [[symb] (ns-interns *ns*)]
-  (ns-unmap *ns* symb))
+(p.types/defprotocol+ DispatchValue
+  (dispatch-value* [this]))
+
+(declare dispatch-value-with-meta)
+
+(extend-protocol DispatchValue
+  Object
+  (dispatch-value* [_] nil)
+
+  clojure.lang.Sequential
+  (dispatch-value* [this] (dispatch-value-with-meta (first this))))
 
 
+(p.types/defprotocol+ ^:private DispatchValueIncludingMeta
+  (^:private dispatch-value-with-meta [this]))
 
-;; TODO - rename to `dispatch-value`?
-(defn dispatch-value [x & _]
-  (instance/model x))
+(extend-protocol DispatchValueIncludingMeta
+  clojure.lang.IMeta
+  (dispatch-value-with-meta [this]
+    (or
+     (:toucan/dispatch (.meta ^clojure.lang.IMeta this))
+     (dispatch-value* this))))
+
+;; somewhat faster to call use these functions directly instead of providing new fns via `extend-protocol`
+(extend Object
+  DispatchValueIncludingMeta
+  {:dispatch-value-with-meta dispatch-value*})
+
+(extend nil
+  DispatchValueIncludingMeta
+  {:dispatch-value-with-meta identity})
+
+(extend clojure.lang.Keyword
+  DispatchValueIncludingMeta
+  {:dispatch-value-with-meta identity})
+
+(defn dispatch-value
+  ([x]             (dispatch-value-with-meta x))
+  ([x _]           (dispatch-value-with-meta x))
+  ([x _ _]         (dispatch-value-with-meta x))
+  ([x _ _ _]       (dispatch-value-with-meta x))
+  ([x _ _ _ _]     (dispatch-value-with-meta x))
+  ([x _ _ _ _ & _] (dispatch-value-with-meta x)))
+
+(defn the-dispatch-value [x & _]
+  (or (dispatch-value x)
+      (throw (ex-info (format "Invalid dispatch value: %s" x) {:value x}))))
+
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                           Aspects & combined-method                                            |
+;;; +----------------------------------------------------------------------------------------------------------------+
 
 ;; TODO - are we sure this belongs here, and not in `models`?
 ;; TODO - dox

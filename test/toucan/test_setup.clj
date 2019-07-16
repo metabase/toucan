@@ -14,8 +14,7 @@
 
 ;;; Basic Setup
 
-(defmethod connection/spec :default
-  [_]
+(def ^:private spec
   (merge
    {:classname   "org.postgresql.Driver"
     :subprotocol "postgresql"
@@ -29,8 +28,9 @@
      {:password password})))
 
 (defn- execute! {:style/indent 0} [& statements]
-  (doseq [sql statements]
-    (jdbc/execute! (db/connection) [sql])))
+  (jdbc/with-db-connection [conn spec]
+    (doseq [sql statements]
+      (jdbc/execute! conn [sql]))))
 
 ;; TODO - maybe these should go in each model's namespace?
 (defn- create-models! []
@@ -98,11 +98,19 @@
 (defn reset-db!
   "Reset the DB to its initial state, creating tables if needed and inserting the initial test data."
   []
+  (println "Initializing test DB...")
   (create-models!)
   (insert-test-data!))
 
-(defn- test-setup! {:expectations-options :before-run} []
-  (reset-db!))
+(def ^:private initialize-test-db!
+  (delay
+    (reset-db!)))
+
+(defmethod connection/spec :default
+  [_]
+  @initialize-test-db!
+  spec)
+
 
 (defmacro with-clean-db
   "Run test `body` and reset the database to its initial state afterwards."

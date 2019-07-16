@@ -86,7 +86,7 @@
   [model field-name]
   (if (vector? field-name)
     [(qualify model (first field-name)) (second field-name)]
-    (hsql/qualify (instance/table model) field-name)))
+    (hsql/qualify (models/table model) field-name)))
 
 (defn maybe-qualify
   "Qualify `field-name` with its table name if it's not already qualified."
@@ -141,7 +141,7 @@
         {:select (if (seq fields)
                    (vec fields)
                    [:*])
-         :from   [(instance/table model)]}
+         :from   [(models/table model)]}
         form)
        (compile-select model {:where (models/primary-key-where-clause model form)}))))
 

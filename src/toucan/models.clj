@@ -1,9 +1,6 @@
 (ns toucan.models
-  (:require [toucan
-             [dispatch :as dispatch]
-             [instance :as instance]]
-            [toucan.models.options :as options]
-            [potemkin :as potemkin])
+  (:require [toucan.dispatch :as dispatch]
+            [toucan.models.options :as options])
   (:import clojure.lang.MultiFn))
 
 ;;;                                                      defmodel
@@ -19,15 +16,12 @@
   (let [[docstring & options] (if (string? (first args))
                                 args
                                 (cons nil args))
-        model-kw              (keyword (name (ns-name *ns*)) (name model))
-        def-form              `(def ~model
-                                 ~@(when docstring [docstring])
-                                 ~model-kw)]
-    (if (empty? options)
-      def-form
-      `(do
-         ~def-form
-         ~(options/defmodel-options model options)))))
+        model-kw              (keyword (name (ns-name *ns*)) (name model))]
+    `(do
+       (def ~model
+         ~@(when docstring [docstring])
+         ~model-kw)
+       ~(options/defmodel-options-form model options))))
 
 
 ;;;                                                  CRUD functions
@@ -190,10 +184,27 @@
 
 ;;; ### `table`
 
-(defmethod options/init! ::options/table [model {:keys [table-name]}]
-  (.addMethod ^MultiFn instance/table model (constantly table-name)))
+(defmulti table
+  {:arglists '([model-or-instance])}
+  dispatch/dispatch-value)
 
-(defmethod options/aspect ::options/table [_ _] nil)
+(defmethod table :default [x]
+  (throw
+   (ex-info
+    (str (or (dispatch/dispatch-value x) x)
+         " does not have a table associated with it. This might be because it's an aspect; if not, you can specify its"
+         " `table` by implementing `toucan.models/table` or by passing a `(table ...)` option to its `defmodel` form.")
+    {:arg x, :model (dispatch/dispatch-value x)})))
+
+(defmethod options/parse-list-option 'table
+  [_ table-name]
+  ;; TODO - should we validate that `table-name` is a something that HoneySQL can use?
+  [::table table-name])
+
+(defmethod options/init! ::table [[_ table-name] model]
+  (.addMethod ^MultiFn table model (constantly table-name)))
+
+(defmethod options/aspect? ::table [_] false)
 
 
 ;;; ### `primary-key`
@@ -215,12 +226,17 @@
   [_]
   :id)
 
-(defmethod options/global-option 'primary-key [_] `options/primary-key)
+(defmethod options/parse-list-option 'primary-key
+  [_ pk]
+  [::primary-key pk])
 
-(defmethod options/init! ::options/primary-key [model {pk :primary-key}]
+(defmethod options/init! ::primary-key [[_ pk] model]
+  {:pre [(or (keyword? pk)
+             (and (sequential? pk)
+                  (every? keyword? pk)))]}
   (.addMethod ^MultiFn primary-key model (constantly pk)))
 
-(defmethod options/aspect ::options/primary-key [_ _] nil)
+(defmethod options/aspect? ::primary-key [_] false)
 
 ;; TODO - you could override this to validate etc
 (defmulti primary-key-value
@@ -275,8 +291,13 @@
 
 ;;; ### `default-fields`
 
-(defmethod pre-select ::options/default-fields
-  [{:keys [fields]} {existing-select :select, :as honeysql-form}]
+(defmethod options/parse-list-option 'default-fields
+  [_ default-fields]
+  [::default-fields default-fields])
+
+(defmethod pre-select ::default-fields
+  [[_ fields] {existing-select :select, :as honeysql-form}]
+  {:pre [((some-fn sequential? set?) fields)]}
   (if (or (not existing-select) (= existing-select [:*]))
     (assoc honeysql-form :select fields)
     honeysql-form))
@@ -319,6 +340,10 @@
 ;; In the example above, values of any columns marked as `:json` would be serialized as JSON before going into the DB,
 ;; and deserialized *from* JSON when coming out of the DB.
 
+(defmethod options/parse-list-option 'types
+  [_ m]
+  [::types m])
+
 (defmulti type-in
   {:arglists '([type-name v])}
   dispatch/dispatch-value)
@@ -327,8 +352,11 @@
   {:arglists '([type-name v])}
   dispatch/dispatch-value)
 
-(defmethod post-select ::options/types
-  [{:keys [types]} result]
+;; TODO - `pre-select` (?)
+
+(defmethod post-select ::types
+  [[_ types] result]
+  {:pre [(map? types)]}
   (reduce
    (fn [result [field type-fn]]
      (update result field (if (fn? type-fn)
@@ -337,10 +365,15 @@
    result
    types))
 
-(defn types [model]
-  (reduce merge (for [aspect (dispatch/aspects model)
-                      :when  (= (instance/model aspect) ::options/types)]
-                  (:types aspect))))
+;; TODO - `pre-insert`
+
+;; TODO - `post-insert`
+
+;; TODO - `pre-update`
+
+;; TODO - `post-update`
+
+;; TODO - `*-delete` ?
 
 
 ;;; #### Predefined Types
@@ -371,7 +404,3 @@
     false))
 
 ;; TODO - `parent`
-
-;; TODO - should we import `table` and `
-(potemkin/import-vars
- [instance table])

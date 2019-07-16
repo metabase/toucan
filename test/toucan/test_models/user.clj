@@ -5,12 +5,3 @@
 
 (models/defmodel User
   (table :users))
-
-;; TODO
-(models/defmodel User2
-  User)
-
-(models/defmodel User3)
-
-;; TODO
-(derive (instance/model User3) (instance/model User2))
