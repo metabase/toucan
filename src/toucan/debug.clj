@@ -4,6 +4,8 @@
   ;; TODO - dox
   false)
 
+;; TODO - rename to `println`
+;; TODO - different levels? `println-trace`, etc. or just `trace`
 (defmacro debug-println
   ;; TODO - dox
   [& args]

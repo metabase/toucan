@@ -49,3 +49,12 @@
 
 (defn sequencify [v-or-vs]
   (if (sequential? v-or-vs) v-or-vs [v-or-vs]))
+
+(defn dispatch-fn [^clojure.lang.MultiFn multifn]
+  (.dispatchFn multifn))
+
+(defn dispatch-value [multifn & args]
+  (apply (dispatch-fn multifn) args))
+
+(defn get-method-for-dispatch-value [multifn & args]
+  (get-method multifn (apply dispatch-value multifn args)))

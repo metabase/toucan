@@ -54,8 +54,18 @@
   (invoke [_ k not-found]
     (get m k not-found)))
 
+(defmulti instance-type
+  {:arglists '([model])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod instance-type :default
+  [model]
+  model)
+
+
 (defn toucan-instance [model orig m mta]
-  (ToucanInstance. (dispatch/the-dispatch-value model) orig m mta))
+  (ToucanInstance. (dispatch/the-dispatch-value (instance-type model)) orig m mta))
 
 ;; TODO - dox
 (defn of
@@ -68,5 +78,5 @@
    (toucan-instance model m m (meta m))))
 
 (defn changes [m]
-  (when m
+  (when (seq m)
     (second (data/diff (original m) m))))

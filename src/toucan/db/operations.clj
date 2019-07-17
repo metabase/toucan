@@ -4,7 +4,9 @@
              [connection :as connection]
              [dispatch :as dispatch]
              [instance :as instance]
-             [models :as models]]))
+             [models :as models]]
+            [toucan.util :as u]
+            [toucan.debug :as debug]))
 
 (doseq [[symb] (ns-interns *ns*)]
   (ns-unmap *ns* symb))
@@ -13,16 +15,17 @@
 ;;; |                                      Op Advice Method (e.g. post-select)                                       |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-(dispatch/derive :advice/before :advice/any)
-(dispatch/derive :advice/after  :advice/any)
-(dispatch/derive :advice/around :advice/any)
+(dispatch/derive :advice/before     :advice/any)
+(dispatch/derive :advice/after      :advice/any)
+(dispatch/derive :advice/around     :advice/any)
+(dispatch/derive :advice/around-all :advice/any)
 
 (defmulti advice
   {:arglists '([operation advice-type model arg])}
-  (fn [operation advice-type model arg] [operation advice-type model arg])
+  dispatch/dispatch-3
   :hierarchy #'dispatch/hierarchy)
 
-(defmacro defadvice {:style/indent 4} [operation advice-type model arg-binding & body]
+(defmacro defadvice {:style/indent 4} [operation advice-type model [arg-binding] & body]
   `(defmethod advice [~(if (symbol? operation)
                          `(::operation (meta (var ~operation)))
                          operation)
@@ -30,19 +33,24 @@
                       ~(if (keyword? model)
                          model
                          `(dispatch/dispatch-value ~model))]
-     [~'&operation ~'&advice-type ~'&model ~@arg-binding]
+     [~'&operation ~'&advice-type ~'&model ~(or arg-binding '_)]
      ~@body))
 
-(defmacro def-before-advice {:style/indent 3} [operation model arg-binding & body]
-  `(defadvice ~operation :advice/before ~model ~arg-binding
+(defmacro def-before-advice {:style/indent 3} [operation model [arg-binding] & body]
+  `(defadvice ~operation :advice/before ~model [~arg-binding]
      ~@body))
 
-(defmacro def-after-advice {:style/indent 3} [operation model arg-binding & body]
-  `(defadvice ~operation :advice/after ~model ~arg-binding
+(defmacro def-after-advice {:style/indent 3} [operation model [results-binding] & body]
+  `(defadvice ~operation :advice/after ~model [~results-binding]
      ~@body))
 
-(defmacro def-around-advice {:style/indent 3} [operation model arg-binding & body]
-  `(defadvice ~operation :advice/around ~model ~arg-binding
+(defmacro def-around-advice {:style/indent 3} [operation model [f-binding] & body]
+  `(defadvice ~operation :advice/around ~model [~f-binding]
+     ~@body))
+
+;; TODO - not sure we need this...
+(defmacro def-around-all-advice {:style/indent 3} [operation model [f-binding] & body]
+  `(defadvice ~operation :advice/around-all ~model [~f-binding]
      ~@body))
 
 
@@ -53,11 +61,13 @@
 (dispatch/derive :behavior/apply-combined :behavior/any)
 (dispatch/derive :behavior/no-combine     :behavior/any)
 
-(defmulti default-advice-behavior
+;; TODO - should default behavior also dispatch on model? So you could do something like `VenueNoPrePost` if you were
+;; so inclined. Or use behavior-based caching
+(defmulti default-behavior-for-operation
   {:arglists '([operation])}
   identity)
 
-(defmethod default-advice-behavior :default
+(defmethod default-behavior-for-operation :default
   [_]
   :behavior/apply-combined)
 
@@ -67,8 +77,7 @@
 
 (defmulti apply-advice
   {:arglists '([operation advice-type behavior model arg])}
-  (fn [operation advice-type behavior model _]
-    [operation advice-type behavior model])
+  dispatch/dispatch-4
   :hierarchy #'dispatch/hierarchy)
 
 (defmethod apply-advice :default
@@ -82,15 +91,19 @@
   [op advice-type _ model arg]
   (advice op advice-type model arg))
 
+;; `around-all` and `before` both combine in reversed order; `around` and `after` both combine in normal order
+(dispatch/derive :advice/around-all ::combine-reverse)
+(dispatch/derive :advice/before     ::combine-reverse)
+(dispatch/derive :advice/around     ::combine-normally)
+(dispatch/derive :advice/after      ::combine-normally)
 
-(defmethod apply-advice [:operation/any :advice/before :behavior/apply-combined :model/any]
+(defmethod apply-advice [:operation/any ::combine-reverse :behavior/apply-combined :model/any]
   [op advice-type _ model arg]
   ((dispatch/combined-method [advice op advice-type] model reverse) arg))
 
-;; after & around have the same impl for `:behavior/apply-combined`
-(defmethod apply-advice [:operation/any :advice/any :behavior/apply-combined :model/any]
-  [op advice-type _ model result]
-  ((dispatch/combined-method [advice op advice-type] model) result))
+(defmethod apply-advice [:operation/any ::combine-normally :behavior/apply-combined :model/any]
+  [op advice-type _ model arg]
+  ((dispatch/combined-method [advice op advice-type] model reverse) arg))
 
 
 ;;; ### Predefined Advice Behaviors
@@ -103,7 +116,7 @@
   [op advice-type _ model arg]
   (printf "[%s] Invoking %s advice for model %s, arg:\n" op advice-type model) ;; WOW!
   (println arg)
-  (apply-advice op advice-type (default-advice-behavior op) model arg))
+  (apply-advice op advice-type (default-behavior-for-operation op) model arg))
 
 (defmacro debug [& body]
   `(binding [*advice-behavior* :behavior/debug]
@@ -127,13 +140,16 @@
 ;;; ### Helper Fns
 
 (defn- do-operation-with-advice [operation model f arg]
-  (let [behavior     (or *advice-behavior* (default-advice-behavior operation))
+  (let [behavior     (or *advice-behavior* (default-behavior-for-operation operation))
         apply-advice (fn [advice-type arg]
-                       (apply-advice operation advice-type behavior model arg))]
-    (->> arg
-         (apply-advice :advice/before)
-         ((apply-advice :advice/around f))
-         (apply-advice :advice/after))))
+                       (debug/debug-println (list 'apply-advice operation advice-type behavior model (class arg)))
+                       (apply-advice operation advice-type behavior model arg))
+        f            (fn [arg]
+                       (->> arg
+                            (apply-advice :advice/before)
+                            ((apply-advice :advice/around f))
+                            (apply-advice :advice/after)))]
+    ((apply-advice :advice/around-all f) arg)))
 
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
@@ -144,13 +160,18 @@
 
 (defmulti operation
   {:arglists '([operation-type model arg])}
-  (fn [operation-type model _] [operation-type model])
+  dispatch/dispatch-2
   :hierarchy #'dispatch/hierarchy)
 
 
 ;;; ### Helper Fns
 
-(defn do-operation [operation-type model arg]
+(defmulti do-operation
+  {:arglists '([operation-type model arg])}
+  dispatch/dispatch-2
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod do-operation :default [operation-type model arg]
   (let [f (partial operation operation-type model)]
     (do-operation-with-advice operation-type model f arg)))
 
@@ -202,7 +223,7 @@
 
 (defmethod apply-advice [:operation/select :advice/after :behavior/apply-combined :model/any]
   [op advice-type behavior model results]
-  (let [parent-method (get-method apply-advice [:operation/select-reducible advice-type behavior model])]
+  (let [parent-method (u/get-method-for-dispatch-value apply-advice :operation/select-reducible advice-type behavior model results)]
     (seq (parent-method op advice-type behavior model results))))
 
 
@@ -242,3 +263,73 @@
 
 (def-after-advice select ::Parent [results]
   results)
+
+(dispatch/derive ::cached-behavior :behavior/any)
+
+(def Venue ::Venue)
+(dispatch/derive Venue :model/any)
+
+(def-after-advice select Venue [result]
+  (assoc result :after-venue? true))
+
+(def ^:private cache
+  (atom {}))
+
+(defn- cached-fn [f]
+  (fn [query]
+    (or
+     (when-let [cached-results (get @cache query)]
+       (println "CACHED!!")
+       cached-results)
+     (println "Fetching from DB...")
+     (let [results (f query)]
+       (swap! cache assoc query results)
+       results))))
+
+;; behavior-based caching
+
+(defmethod apply-advice [:operation/any :advice/around ::cached-behavior :model/any]
+  [op advice-type behavior model f]
+  (apply-advice op advice-type (default-behavior-for-operation op) model (cached-fn f)))
+
+
+(defn y []
+  (binding [*advice-behavior* ::cached-behavior]
+    (select ::Child "SELECT * FROM venues LIMIT 2;")))
+
+
+;; derived model caching
+
+(dispatch/derive ::CachedModel :model/any)
+
+(defmethod operation [:operation/select ::CachedModel]
+  [op model query]
+  (let [other-parent-model (first (disj (parents dispatch/hierarchy model) ::CachedModel))
+        method             (u/get-method-for-dispatch-value operation op other-parent-model query)]
+    ((cached-fn (partial method op model)) query)))
+
+(defmacro def-cached-model [model-name parent]
+  `(do
+     (def ~model-name
+       ~(keyword (name (ns-name *ns*)) (str (name model-name) "_")))
+     (dispatch/derive ~model-name ~parent)
+     (dispatch/derive ~model-name ::CachedModel)))
+
+(def-cached-model CachedVenue Venue)
+
+(defn z []
+  (select CachedVenue "SELECT * FROM venues LIMIT 2;"))
+
+;; wrapped model caching
+
+(dispatch/derive ::cached-wrapper :model/any)
+
+(defmethod do-operation [:operation/select ::cached-wrapper]
+  [op [_ wrapped-model] query]
+  ((cached-fn (partial do-operation op wrapped-model)) query))
+
+(defn wrap-cached [model]
+  [::cached-wrapper model])
+
+(defn- b []
+  (select (wrap-cached Venue) "SELECT * FROM venues LIMIT 2;"))
