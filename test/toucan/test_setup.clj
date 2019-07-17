@@ -6,7 +6,8 @@
             [toucan
              [connection :as connection]
              [db :as db]
-             [test-models :as m]])
+             [test-models :as m]]
+            [toucan.operations :as ops])
   (:import java.sql.Timestamp))
 
 ;; Don't run unit tests whenever JVM shuts down
@@ -79,7 +80,7 @@
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))
 
 (defn- insert-test-data! []
-  (binding [db/*behavior* :no-pre-post]
+  (ops/ignore-advice
     ;; User
     (db/insert! m/User
       [{:first-name "Cam", :last-name "Saul"}

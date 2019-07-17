@@ -1,41 +1,55 @@
 (ns toucan.db
   "Helper functions for querying the DB and inserting or updating records using Toucan models."
   (:refer-clojure :exclude [count])
-  (:require [potemkin :as potemkin]
-            [toucan
+  (:require [toucan
              [compile :as compile]
              [connection :as connection]
-             [dispatch :as dispatch]
              [instance :as instance]
              [models :as models]
-             [util :as u]]
-            [toucan.db.impl :as impl]))
+             [operations :as ops]]))
 
 ;; TODO - we shouldn't reference `jdbc` here, everything should be in `connection` instead
 
-(def ^:dynamic *behavior* :default)
+(defn connection
+  "Convenience."
+  []
+  (connection/connection))
+
+(defmacro transaction
+  "Execute all queries within the body in a single transaction. (Convenience for `connection/transaction`.)"
+  {:style/indent 0}
+  [& body]
+  `(connection/transaction ~@body))
+
+(defn query
+  ([honeysql-form-or-sql-args]
+   (query nil honeysql-form-or-sql-args))
+
+  ([model honeysql-form-or-sql-args]
+   (ops/query model honeysql-form-or-sql-args)))
+
+(defn execute!
+  ([honeysql-form-or-sql-args]
+   (execute! nil honeysql-form-or-sql-args))
+
+  ([model honeysql-form-or-sql-args]
+   (ops/execute! model honeysql-form-or-sql-args)))
+
 ;;;                                                       select
 ;;; ==================================================================================================================xf
 
-(defn select
-  ([model-or-object]
-   (if-let [pk-value (models/primary-key-value model-or-object)]
-     (select model-or-object pk-value)
-     (select model-or-object {})))
+(defn select*
+  ([op model-or-instance]
+   (if-let [pk-value (compile/primary-key-value model-or-instance)]
+     (select* op model-or-instance pk-value)
+     (select* op model-or-instance {})))
 
-  ([model & args]
-   (let [query*        (partial connection/query model)
-         honeysql-form (apply compile/compile-select model args)]
-     (seq (impl/do-select *behavior* model query* honeysql-form)))))
+  ([op model & args]
+   (let [honeysql-form (apply compile/compile-select model args)]
+     (op model honeysql-form))))
 
-(defn select-reducible
-  ([object]
-   (select object (models/primary-key-value object)))
-
-  ([model & args]
-   (let [query*        (partial connection/reducible-query model)
-         honeysql-form (apply compile/compile-select model args)]
-     (impl/do-select *behavior* model query* honeysql-form))))
+(def ^{:arglists '([model-or-instance] [model & args])} select           (partial select* ops/select))
+(def ^{:arglists '([model-or-instance] [model & args])} select-reducible (partial select* ops/select-reducible))
 
 (defn select-one
   "Select a single object from the database.
@@ -60,7 +74,7 @@
      (select-one-id 'Database :name \"Sample Dataset\") -> 1"
   {:style/indent 1, :arglists '([object] [model & args])}
   [model & args]
-  (let [pk-key (models/primary-key model)]
+  (let [pk-key (compile/primary-key model)]
     (if-not (sequential? pk-key)
       (apply select-one-field pk-key model args)
       (let [[result] (apply select-one (into [model] pk-key) args)]
@@ -84,7 +98,7 @@
 
 (defn select-id-seq
   [model & options]
-  (let [pk-key (models/primary-key model)]
+  (let [pk-key (compile/primary-key model)]
     (if-not (sequential? pk-key)
       (apply select-field-seq pk-key model options)
       (when-let [results (seq (apply select (into [model] pk-key) options))]
@@ -115,7 +129,7 @@
      (select-field->id :name 'Database) -> {\"Sample Dataset\" 1, \"test-data\" 2}"
   {:style/indent 2}
   [field model & options]
-  (let [pk-key (models/primary-key model)]
+  (let [pk-key (compile/primary-key model)]
     (if-not (sequential? pk-key)
       (apply select-field->field field pk-key model options)
       (when-let [rows (seq (apply select (into [model field] pk-key) options))]
@@ -128,7 +142,7 @@
      (select-id->field :name 'Database) -> {1 \"Sample Dataset\", 2 \"test-data\"}"
   {:style/indent 2}
   [field model & options]
-  (let [pk-key (models/primary-key model)]
+  (let [pk-key (compile/primary-key model)]
     (if-not (sequential? pk-key)
       (apply select-field->field pk-key field model options)
       (when-let [rows (seq (apply select (into [model field] pk-key) options))]
@@ -155,33 +169,19 @@
     (db/exists? User :id 100)"
   {:style/indent 1}
   ([object]
-   (exists? object {:where (models/primary-key-where-clause object)}))
+   (exists? object {:where (compile/primary-key-where-clause object)}))
 
   ([model & options]
-   (let [results (connection/query model (merge
-                                          (compile/compile-select-options options)
-                                          {:select [[true :exists]]
-                                           :from   [(models/table model)]
-                                           :limit  1}))]
+   (let [results (ops/query model (merge
+                                   (compile/compile-select-options options)
+                                   {:select [[true :exists]]
+                                    :from   [(models/table model)]
+                                    :limit  1}))]
      (boolean (seq results)))))
-
 
 
 ;;;                                                      update!
 ;;; ==================================================================================================================
-
-(defn- update!* [[instance :as instances]]
-  (let [where-clauses (for [instance instances
-                            :let     [changes (instance/changes instance)]
-                            :when    (seq changes)]
-                        (let [honeysql-form {:update [(models/table instance)]
-                                             :set    changes
-                                             :where  (models/primary-key-where-clause instance)}]
-                          (when (connection/execute! instance honeysql-form)
-                            (models/primary-key-where-clause instance))))]
-    ;; return updated objects
-    ;; TODO - seems inefficient
-    (select instance {:where (into [:or] where-clauses)})))
 
 (defn update!
   "Update a single row in the database. Returns updated object if a row was affected, `nil` otherwise. Accepts either an
@@ -192,19 +192,26 @@
      (db/update! Label 11 :name \"ToucanFriendly\")
      (db/update! Label 11 {:name \"ToucanFriendly\"})"
   ([instance-or-instances]
-   (when-let [instances (seq (u/sequencify instance-or-instances))]
-     (impl/do-update! *behavior* update!* instances)))
+   (if (sequential? instance-or-instances)
+     (update! (first instance-or-instances) instance-or-instances)
+     (update! instance-or-instances instance-or-instances)))
+
+  ([model instance-or-instances]
+   (when (seq instance-or-instances)
+     (if (sequential? instance-or-instances)
+       (ops/update! model instance-or-instances)
+       (first (ops/update! model [instance-or-instances])))))
 
   ([model pk-value changes]
    (when (seq changes)
-     (update! (instance/toucan-instance
-               model
-               (models/assoc-primary-key-value (instance/of model) pk-value)
-               (models/dissoc-primary-key-value (instance/of model changes))
-               nil))))
+     (update! model (instance/toucan-instance
+                     model
+                     (compile/assoc-primary-key  (instance/of model) pk-value)
+                     (compile/dissoc-primary-key (instance/of model changes))
+                     nil))))
 
-  ([model id k v & more]
-   (update! model id (into {k v} more))))
+  ([model pk-value k v & more]
+   (update! model pk-value (into {k v} more))))
 
 (defn update-where!
   "Convenience for updating several objects matching `conditions-map`. Selects objects matching `conditions` map, then
@@ -218,7 +225,7 @@
   care about calling the usual `pre-update` and `post-update` hooks) consider using `execute!` directly."
   {:style/indent 2}
   ([model conditions changes]
-   {:pre [(dispatch/dispatch-value model) (map? conditions) (map? changes)]}
+   {:pre [(map? conditions) (map? changes)]}
    (when (seq changes)
      (when-let [matching-objects (seq (apply select model conditions))]
        (update! (for [object matching-objects]
@@ -242,36 +249,6 @@
 ;;;                                                      insert!
 ;;; ==================================================================================================================
 
-#_(def ^:private ^:deprecated inserted-id-keys
-  "Different possible keys that might come back for the ID of a newly inserted row. Differs by DB."
-  [;; Postgres, newer H2, and most others return :id
-   :id
-   ;; :generated_key is returned by MySQL
-   :generated_key
-   ;; MariaDB returns :insert_id
-   :insert_id
-   ;; scope_identity() returned by older versions of H2
-   (keyword "scope_identity()")
-   ;; last_insert_rowid() returned by SQLite3
-   (keyword "last_insert_rowid()")])
-
-#_(defn ^:deprecated get-inserted-id
-  "Get the ID of a row inserted by `jdbc/db-do-prepared-return-keys`."
-  [primary-key insert-result]
-  (when insert-result
-    (some insert-result (cons primary-key inserted-id-keys))))
-
-(defn- insert!* [[instance :as instances]]
-  (let [honeysql-form {:insert-into (models/table instance)
-                       :values      instances}
-        result-rows   (connection/insert! instance honeysql-form)]
-    (map
-     (fn [instance result-row]
-       (let [pk-value (models/primary-key-value (instance/of instance result-row))]
-         (models/assoc-primary-key-value instance pk-value)))
-     instances
-     result-rows)))
-
 (defn insert!
   "Insert a new object into the Database. Resolves `entity`, calls its `pre-insert` method on `row-map` to prepare
   it before insertion; after insert, it fetches and the newly created object, passes it to `post-insert`, and
@@ -284,14 +261,14 @@
   {:style/indent 1} ; TODO - not sure if want
   ([instance-or-instances]
    (if (sequential? instance-or-instances)
-     (impl/do-insert! *behavior* insert!* instance-or-instances)
-     (first (insert! [instance-or-instances]))))
+     (insert! (first instance-or-instances) instance-or-instances)
+     (insert! instance-or-instances instance-or-instances)))
 
-  ([model row-or-rows]
-   (insert! (if (sequential? row-or-rows)
-              (for [row row-or-rows]
-                (instance/of model row))
-              (instance/of model row-or-rows))))
+  ([model instance-or-instances]
+   (when (seq instance-or-instances)
+     (if (sequential? instance-or-instances)
+       (ops/insert! model instance-or-instances)
+       (first (ops/insert! model [instance-or-instances])))))
 
   ([model k v & more]
    (insert! model (into {k v} more))))
@@ -299,10 +276,6 @@
 
 ;;;                                                      delete!
 ;;; ==================================================================================================================
-
-(defn delete!* [[instance :as instances]]
-  (connection/delete! instance {:delete-from [(models/table instance)]
-                                :where       (into [:or] (map models/primary-key-where-clause instances))}))
 
 ;; TODO
 (defn delete!
@@ -314,9 +287,10 @@
      (delete! Database :id 1)"
   {:style/indent 1}
   ([instance-or-instances]
-   (let [[instance :as instances] (u/sequencify instance-or-instances)]
-     (when (seq instances))
-     (impl/do-delete! *behavior* delete!* instances)))
+   (when (seq instance-or-instances)
+     (if (sequential? instance-or-instances)
+       (ops/delete! (first instance-or-instances) instance-or-instances)
+       (first (ops/delete! instance-or-instances [instance-or-instances])))))
 
   ([model & conditions]
    (delete! (apply select model conditions))))
@@ -326,27 +300,31 @@
 ;;; |                                                     save!                                                      |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-;; TODO
+(defn save!
+  ([instance-or-instances]
+   (if (sequential? instance-or-instances)
+     (save! (first instance-or-instances) instance-or-instances)
+     (save! instance-or-instances instance-or-instances)))
+
+  ([model instance-or-instances]
+   (when (seq instance-or-instances)
+     (if (sequential? instance-or-instances)
+       (ops/save! model instance-or-instances)
+       (first (ops/save! model [instance-or-instances]))))))
+
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
-;;; |                                                     copy!                                                      |
+;;; |                                                     clone!                                                     |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-;; TODO
+(defn clone!
+  ([instance-or-instances]
+   (if (sequential? instance-or-instances)
+     (clone! (first instance-or-instances) instance-or-instances)
+     (clone! instance-or-instances instance-or-instances)))
 
-;;; +----------------------------------------------------------------------------------------------------------------+
-;;; |                                                      Etc                                                       |
-;;; +----------------------------------------------------------------------------------------------------------------+
-
-
-
-#_(potemkin/import-vars
- [impl]
- [connection
-  connection
-  transaction
-  query
-  reducible-query
-  execute!])
-
-;; TODO - `instance-of` <-> `instance/of`
+  ([model instance-or-instances]
+   (when (seq instance-or-instances)
+     (if (sequential? instance-or-instances)
+       (ops/clone! model instance-or-instances)
+       (first (ops/clone! model [instance-or-instances]))))))

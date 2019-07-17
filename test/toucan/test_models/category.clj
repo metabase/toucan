@@ -9,7 +9,8 @@
   (:require [clojure.string :as str]
             [toucan
              [db :as db]
-             [models :as models]]))
+             [models :as models]
+             [operations :as ops]]))
 
 (defn- maybe-lowercase-string [s]
   (some-> s str/lower-case))
@@ -31,7 +32,7 @@
       (format "A category with ID %d does not exist." parent-category-id)))
   category)
 
-(defn- delete-child-categories [{:keys [id]}]
+(defn- delete-child-categories! [{:keys [id]}]
   (db/delete! Category :parent-category-id id))
 
 (def categories-awaiting-moderation
@@ -49,22 +50,19 @@
 (defn add-category-to-updated-queue! [{:keys [id]}]
   (swap! categories-recently-updated conj id))
 
-(defmethod models/pre-insert Category
-  [_ category]
+(ops/def-before-advice ops/insert! Category [category]
   (assert-parent-category-exists category)
   category)
 
-(defmethod models/post-insert Category
-  [_ category]
+
+(ops/def-after-advice ops/insert! Category [category]
   (add-category-to-moderation-queue! category)
   category)
 
-(defmethod models/pre-update Category
-  [_ category]
+(ops/def-before-advice ops/update! Category [category]
   (assert-parent-category-exists category)
   category)
 
-(defmethod models/pre-delete Category
-  [_ category]
-  (delete-child-categories category)
+(ops/def-before-advice ops/delete! Category [category]
+  (delete-child-categories! category)
   category)

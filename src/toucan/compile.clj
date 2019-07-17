@@ -5,13 +5,21 @@
              [helpers :as h]]
             [toucan
              [dispatch :as dispatch]
-             [instance :as instance]
-             [models :as models]]
-            [toucan.util :as u]))
+             [util :as u]]))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                              HoneySQL Compilation                                              |
 ;;; +----------------------------------------------------------------------------------------------------------------+
+
+(defmulti automatically-convert-dashes-and-underscores?
+  {:arglists '([model])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(when-not (get-method automatically-convert-dashes-and-underscores? :default)
+  (defmethod automatically-convert-dashes-and-underscores? :default
+    [_]
+    false))
 
 ;; TODO - I think we do need seperate options
 (defmulti honeysql-options
@@ -25,14 +33,15 @@
   * `:allow-dashed-names?` -- whether to convert dashes to underscores in identifiers when compiling a HoneySQL form.
     By default, this is `true`, which means dashes are left as-is; set it to `false` to automatically convert them."
   {:arglists '([model])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 ;; TODO - should we validate the options before use?
 
 (when-not (get-method honeysql-options :default)
   (defmethod honeysql-options :default
     [model]
-    {:quoting :ansi, :allow-dashed-names? (not (models/automatically-convert-dashes-and-underscores? model))}))
+    {:quoting :ansi, :allow-dashed-names? (not (automatically-convert-dashes-and-underscores? model))}))
 
 (defn quoting-style
   ;; TODO - dox
@@ -50,6 +59,101 @@
 
   ([model]
    (get @#'honeysql.format/quote-fns (quoting-style model))))
+
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                         Info about models needed for compilation (table, primary-key)                          |
+;;; +----------------------------------------------------------------------------------------------------------------+
+
+(defmulti table
+  {:arglists '([model-or-instance])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod table :default [x]
+  (throw
+   (ex-info
+    (str (or (dispatch/dispatch-value x) x)
+         " does not have a table associated with it. You can specify its `table` by implementing `toucan.compile/table`"
+         " or by passing a `(table ...)` to `defmodel`.")
+    {:arg x, :model (dispatch/dispatch-value x)})))
+
+;; TODO - you could override this to validate etc
+(defmulti primary-key
+  "Defines the primary key(s) for this Model. Defaults to `:id`.
+
+    (defmethod primary-key User [_]
+      :email)
+
+  You can specify a composite key by returning a vector of keys:
+
+    (defmethod primary-key Session [_]
+      [:user_id :session_token])"
+  {:arglists '([model])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod primary-key :default
+  [_]
+  :id)
+
+(defmulti primary-key-value
+  {:arglists '([instance])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod primary-key-value :default
+  [instance]
+  (let [pk-key (primary-key instance)]
+    (if-not (sequential? pk-key)
+      (get instance pk-key)
+      (mapv (partial get instance) pk-key))))
+
+(defmulti assoc-primary-key
+  {:arglists '([instance primary-key-value])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod assoc-primary-key :default
+  [instance primary-key-value]
+  (let [pk-key (primary-key instance)]
+    (if-not (sequential? pk-key)
+      (assoc instance pk-key primary-key-value)
+      (into instance (zipmap pk-key primary-key-value)))))
+
+(defmulti dissoc-primary-key
+  {:arglists '([instance])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod dissoc-primary-key :default
+  [instance]
+  (let [pk-key (primary-key instance)]
+    (if-not (sequential? pk-key)
+      (dissoc instance pk-key)
+      (reduce dissoc instance pk-key))))
+
+(defmulti primary-key-where-clause
+  {:arglists '([instance] [model pk-value])}
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
+
+(defmethod primary-key-where-clause :default
+  ([instance]
+   (primary-key-where-clause instance (primary-key-value instance)))
+
+  ;; TODO - not sure if needed
+  ([model pk-value]
+   (when-let [pk-key (primary-key model)]
+     (if-not (sequential? pk-key)
+       [:= pk-key pk-value]
+       (into [:and] (for [[k v] (zipmap pk-key pk-value)]
+                      [:= k v]))))))
+
+
+;;; +----------------------------------------------------------------------------------------------------------------+
+;;; |                                                  Compilation                                                   |
+;;; +----------------------------------------------------------------------------------------------------------------+
 
 
 (defn compile-honeysql
@@ -86,7 +190,7 @@
   [model field-name]
   (if (vector? field-name)
     [(qualify model (first field-name)) (second field-name)]
-    (hsql/qualify (models/table model) field-name)))
+    (hsql/qualify (table model) field-name)))
 
 (defn maybe-qualify
   "Qualify `field-name` with its table name if it's not already qualified."
@@ -132,18 +236,19 @@
 (defn compile-select
   {:arglists '([model-or-object pk-value-or-honeysql-form? & options])}
   ([object]
-   (compile-select object (models/primary-key-value object)))
+   (compile-select object (primary-key-value object)))
 
   ([model form]
+   ;; TODO - how to differentiate wrapped model w/ model + fields vector...
    (let [[model & fields] (u/sequencify model)]
      (if (map? form)
        (merge
         {:select (if (seq fields)
                    (vec fields)
                    [:*])
-         :from   [(models/table model)]}
+         :from   [(table model)]}
         form)
-       (compile-select model {:where (models/primary-key-where-clause model form)}))))
+       (compile-select model {:where (primary-key-where-clause model form)}))))
 
   ([model arg & more]
    (compile-select model (compile-select-options (cons arg more)))))

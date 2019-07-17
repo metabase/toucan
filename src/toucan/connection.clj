@@ -1,11 +1,6 @@
 (ns toucan.connection
   (:require [clojure.java.jdbc :as jdbc]
-            [clojure.pprint :as pprint]
-            [toucan
-             [compile :as compile]
-             [debug :as debug]
-             [dispatch :as dispatch]
-             [models :as models]]))
+            [toucan.dispatch :as dispatch]))
 
 ;;;                                                     Connection
 ;;; ==================================================================================================================
@@ -39,7 +34,8 @@
 
     (defmethod connecton/spec :default [_] @connection-pool)"
   {:arglists '([model])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (when-not (get-method spec :default)
   (defmethod spec :default
@@ -73,102 +69,6 @@
 
 (defmacro transaction
   "Execute all queries within the body in a single transaction."
-  {:arglists '([body] [options & body]), :style/indent 0}
+  {:style/indent 0}
   [& body]
-  `(do-in-transaction (fn [] ~@body)))
-
-
-;;;                                              Low-level JDBC functions
-;;; ==================================================================================================================
-
-(defn- maybe-compile [model query]
-  (when (map? query)
-    (debug/debug-println "HoneySQL form:" (with-out-str (pprint/pprint query))))
-  (let [sql-args (compile/maybe-compile-honeysql model query)]
-    (debug/debug-println "SQL & Args:" (with-out-str (pprint/pprint sql-args)))
-    sql-args))
-
-(defn- optional-model [args]
-  (if (dispatch/dispatch-value (first args))
-    args
-    (cons nil args)))
-
-(defmulti query*
-  ;; TODO
-  {:arglists '([model honeysql-form-or-sql-params jdbc-options])}
-  dispatch/dispatch-value)
-
-(when-not false #_(get-method query* :default)
-  (defmethod query* :default
-    [model honeysql-form-or-sql-params jdbc-options]
-    (debug/inc-call-count!)
-    (jdbc/query (connection model) (maybe-compile model honeysql-form-or-sql-params) jdbc-options)))
-
-(defn query
-  ;; TODO - update dox
-  "Compile `honeysql-from` and call `jdbc/query` against the application database. Options are passed along to
-  `jdbc/query`."
-  {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
-  [& args]
-  (let [[model query jdbc-options] (optional-model args)]
-    (query* model query jdbc-options)))
-
-(defmulti reducible-query*
-  ;; TODO
-  {:arglists '([model honeysql-form-or-sql-params jdbc-options])}
-  dispatch/dispatch-value)
-
-(when-not (get-method reducible-query* :default)
-  (defmethod reducible-query* :default
-    [model honeysql-form-or-sql-params jdbc-options]
-    (debug/inc-call-count!)
-    (jdbc/reducible-query (connection model) (maybe-compile model honeysql-form-or-sql-params) jdbc-options)))
-
-(defn reducible-query
-  ;; TODO - update dox
-  "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
-  to `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
-  {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
-  [& args]
-  (let [[model query jdbc-options] (optional-model args)]
-    (reducible-query* model query jdbc-options)))
-
-(defn execute!
-  "Compile `honeysql-form` and call `jdbc/execute!` against the application DB.
-  `options` are passed directly to `jdbc/execute!` and can be things like `:multi?` (default `false`) or
-  `:transaction?` (default `true`)."
-  {:arglists '([model? honeysql-form-or-sql-params jdbc-options?])}
-  [& args]
-  (let [[model statement jdbc-options] (optional-model args)]
-    (debug/inc-call-count!)
-    (jdbc/execute! (connection model) (maybe-compile model statement) jdbc-options)))
-
-;; TODO - should these go here, or in `db.impl` ?
-
-(defn insert!
-  ;; TODO - `[honeysql-form-or-sql-params]` and `[model honeysql-form-or-sql-params opts]` arities
-  [model honeysql-form-or-sql-params]
-  (let [[sql & params] (maybe-compile model honeysql-form-or-sql-params)]
-    (with-open [^java.sql.PreparedStatement prepared-statement (jdbc/prepare-statement
-                                                                (jdbc/get-connection (connection model))
-                                                                sql
-                                                                {:return-keys (let [pk (models/primary-key model)]
-                                                                                (if (sequential? pk) pk [pk]))})]
-      (#'jdbc/dft-set-parameters prepared-statement params)
-      (debug/inc-call-count!)
-      (when (pos? (.executeUpdate prepared-statement))
-        (with-open [generated-keys-result-set (.getGeneratedKeys prepared-statement)]
-          (vec (jdbc/result-set-seq generated-keys-result-set)))))))
-
-(defn update!
-  [model honeysql-form-or-sql-params]
-  (let [sql-params (maybe-compile model honeysql-form-or-sql-params)]
-    (let [[rows-affected] (execute! model sql-params)]
-      (not (zero? rows-affected)))))
-
-(defn delete!
-  ;; TODO - `[honeysql-form-or-sql-params]` and `[model honeysql-form-or-sql-params opts]` arities
-  [model honeysql-form-or-sql-params]
-  (let [sql-params (maybe-compile model honeysql-form-or-sql-params)]
-    (let [[rows-affected] (execute! model sql-params)]
-      (not (zero? rows-affected)))))
+  `(connection/do-in-transaction (fn [] ~@body)))

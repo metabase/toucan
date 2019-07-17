@@ -3,8 +3,8 @@
             [toucan
              [compile :as compile]
              [db :as db]
-             [models :as models]
              [instance :as instance]
+             [models :as models]
              [test-models :as m]]))
 
 (defmethod compile/honeysql-options ::mysql [_]
@@ -48,27 +48,26 @@
  ((compile/quote-fn ::sqlserver) "toucan"))
 
 ;; Test allowing dashed field names
-;; TODO - not sure if this belongs here or in `db`
 
 (models/defmodel AutoConvertAddress)
 
 (derive AutoConvertAddress m/Address)
 
-(defmethod models/automatically-convert-dashes-and-underscores? AutoConvertAddress
+(defmethod compile/automatically-convert-dashes-and-underscores? AutoConvertAddress
   [_]
   true)
 
 ;; default value = false
 (expect
  false
- (models/automatically-convert-dashes-and-underscores? nil))
+ (compile/automatically-convert-dashes-and-underscores? nil))
 
 (expect
  false
- (models/automatically-convert-dashes-and-underscores? m/Address))
+ (compile/automatically-convert-dashes-and-underscores? m/Address))
 
 (expect
- (models/automatically-convert-dashes-and-underscores? AutoConvertAddress))
+ (compile/automatically-convert-dashes-and-underscores? AutoConvertAddress))
 
 ;; TODO - don't think these belong here
 (expect

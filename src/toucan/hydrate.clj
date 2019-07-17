@@ -8,11 +8,13 @@
 
 (defmulti can-hydrate-with-strategy?
   {:arglists '([strategy results k])}
-  (fn [strategy _ _] strategy))
+  (fn [strategy _ _] strategy)
+  :hierarchy #'dispatch/hierarchy)
 
 (defmulti hydrate-with-strategy
   {:arglists '([strategy results k])}
-  (fn [strategy _ _] strategy))
+  (fn [strategy _ _] strategy)
+  :hierarchy #'dispatch/hierarchy)
 
 ;;;                                  Automagic Batched Hydration (via :model-keys)
 ;;; ==================================================================================================================
@@ -22,12 +24,14 @@
   of this model. For example, `User` might include `:creator`, which means `hydrate` will look for `:creator_id` or
   `:creator-id` in other objects to find the User ID, and fetch the `Users` corresponding to those values."
   {:arglists '([model])}
-  dispatch/dispatch-value)
+  dispatch/dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmulti automagic-hydration-key-model
   {:arglists '([k])}
   identity
-  :default ::default)
+  :default ::default
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod automagic-hydration-key-model ::default
   [_]
@@ -88,7 +92,8 @@
 
 (defmulti batched-hydrate
   {:arglists '([results k])}
-  batched-hydrate-dispatch-value)
+  batched-hydrate-dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod can-hydrate-with-strategy? ::multimethod-batched
   [_ results k]
@@ -113,7 +118,8 @@
 
 (defmulti simple-hydrate
   {:arglists '([result k])}
-  simple-hydrate-dispatch-value)
+  simple-hydrate-dispatch-value
+  :hierarchy #'dispatch/hierarchy)
 
 (defmethod can-hydrate-with-strategy? ::multimethod-simple
   [_ results k]

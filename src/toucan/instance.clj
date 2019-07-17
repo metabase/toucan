@@ -54,6 +54,8 @@
   (invoke [_ k not-found]
     (get m k not-found)))
 
+(ns-unmap 'toucan.instance '->ToucanInstance)
+
 (defmulti instance-type
   {:arglists '([model])}
   dispatch/dispatch-value
@@ -69,12 +71,14 @@
 
 ;; TODO - dox
 (defn of
+  {:style/indent 1}
   ([model]
    (toucan-instance model nil nil nil))
 
   ;; TODO - not 100% sure calling `model` here makes sense... what if we do something like the following (see below)
   ([model m]
-   {:pre [((some-fn nil? map?) m)]}
+   (assert ((some-fn nil? map?) m)
+           (format "Not a map: %s" m))
    (toucan-instance model m m (meta m))))
 
 (defn changes [m]

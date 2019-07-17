@@ -1,13 +1,13 @@
 (ns toucan.models-test
   (:require [expectations :refer [expect]]
             [toucan
-             [connection :as connection]
+             [compile :as compile]
              [db :as db]
              [dispatch :as dispatch]
              [models :as models]
+             [operations :as ops]
              [test-models :as m]
              [test-setup :as test]]
-            [toucan.db.impl :as db.impl]
             [toucan.test-models.category :as category]))
 
 ;; Test types (keyword)
@@ -161,12 +161,12 @@
 ;; query
 (expect
  {:select [:first-name :last-name]}
- ((dispatch/combined-method models/pre-select UserWithDefaultFields) {}))
+ ((dispatch/combined-method [ops/advice :operation/select :advice/before] UserWithDefaultFields) {}))
 
 ;; if there is already a `:select` clause, `default-fields` should leave HoneySQL query as-is
 (expect
  {:select [:email]}
- ((dispatch/combined-method models/pre-select UserWithDefaultFields) {:select [:email]}))
+ ((dispatch/combined-method [ops/advice :operation/select :advice/before] UserWithDefaultFields) {:select [:email]}))
 
 ;; Test default-fields
 ;; by default m/Venue doesn't return :created-at or :updated-at
@@ -184,9 +184,10 @@
  [{:id 1, :name "Tempest"}
   {:id 2, :name "Ho's Tavern"}
   {:id 3, :name "BevMo"}]
- (connection/query {:select   [:id :name]
-                    :from     [m/Venue]
-                    :order-by [:id]}))
+ (ops/query
+  {:select   [:id :name]
+   :from     [m/Venue]
+   :order-by [:id]}))
 
 ;; Test (empty)
 (expect
@@ -196,13 +197,13 @@
 ;; model with multiple primary keys
 (expect
  [1 2]
- (with-redefs [models/primary-key (constantly [:a :b])]
-   (models/primary-key-value {:a 1, :b 2, :c 3})))
+ (with-redefs [compile/primary-key (constantly [:a :b])]
+   (compile/primary-key-value {:a 1, :b 2, :c 3})))
 
 (expect
  [:and [:= :a 1] [:= :b 2]]
- (with-redefs [models/primary-key (constantly [:a :b])]
-   (models/primary-key-where-clause {:a 1, :b 2, :c 3})))
+ (with-redefs [compile/primary-key (constantly [:a :b])]
+   (compile/primary-key-where-clause {:a 1, :b 2, :c 3})))
 
 
 ;;;                                            Pre-definied aspects: types
@@ -210,14 +211,15 @@
 
 (expect
  {:count 1}
- (models/post-select [:toucan.models/types {:count (fnil inc 0)}] {}))
+ (let [model [:toucan.models/types {:count (fnil inc 0)}]]
+   (ops/advice :operation/select :advice/after model {})))
 
 (models/defmodel ModelWithInlineType
   (types {:count (fnil inc 0)}))
 
 (expect
  {:count 1}
- (models/post-select ModelWithInlineType {}))
+ (ops/advice :operation/select :advice/after ModelWithInlineType {}))
 
 (defmethod models/type-in ::json [_ v]
   (list 'json v))
@@ -227,14 +229,15 @@
 
 (expect
  {:query '(parse-json "{\"json\":true}")}
- (models/post-select [:toucan.models/types {:query ::json}] {:query "{\"json\":true}"}))
+ (let [model [:toucan.models/types {:query ::json}]]
+   (ops/advice :operation/select :advice/after model {:query "{\"json\":true}"})))
 
 (models/defmodel ModelWithNamedType
   (types {:query ::json}))
 
 (expect
  {:query '(parse-json "{\"json\":true}")}
- ((db.impl/post-select-fn ModelWithNamedType) {:query "{\"json\":true}"}))
+ (ops/apply-advice :operation/select :advice/after (ops/default-strategy-for-operation :operation/select) ModelWithNamedType {:query "{\"json\":true}"}))
 
 ;; TODO - e2e tests using `select` for both Models
 ;; TODO - tests for pre-insert or somthing else testing `in`

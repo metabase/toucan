@@ -1,10 +1,10 @@
 (ns toucan.dispatch-test
   (:require [expectations :refer [expect]]
-            [flatland.ordered.map :as ordered-map]
             [toucan
              [dispatch :as dispatch]
              [instance :as instance]
-             [models :as models]]))
+             [models :as models]
+             [operations :as ops]]))
 
 (expect
   nil
@@ -67,20 +67,20 @@
   B
   C)
 
-(defmethod models/post-select A [_ m] (update m :post concat ['A]))
-(defmethod models/post-select B [_ m] (update m :post concat ['B]))
-(defmethod models/post-select C [_ m] (update m :post concat ['C]))
+(ops/def-after-advice ops/select A [m] (update m :post concat ['A]))
+(ops/def-after-advice ops/select B [m] (update m :post concat ['B]))
+(ops/def-after-advice ops/select C [m] (update m :post concat ['C]))
 
-(defmethod models/post-select MyModel [_ m] (update m :post concat ['MyModel]))
-
-(expect
-  (ordered-map/ordered-map
-   A       (get-method models/post-select A)
-   B       (get-method models/post-select B)
-   C       (get-method models/post-select C)
-   MyModel (get-method models/post-select MyModel))
-  (dispatch/all-aspect-methods models/post-select MyModel))
+(ops/def-after-advice ops/select MyModel [m]
+  (update m :post concat ['MyModel]))
 
 (expect
-  {:post '(A B C MyModel)}
-  ((dispatch/combined-method models/post-select MyModel) {}))
+ [A B C MyModel]
+ (keys (dispatch/all-aspect-methods [ops/advice :operation/select :advice/after] MyModel)))
+
+(expect
+ (every? fn? (vals (dispatch/all-aspect-methods [ops/advice :operation/select :advice/after] MyModel))))
+
+(expect
+ {:post '(A B C MyModel)}
+ ((dispatch/combined-method [ops/advice :operation/select :advice/after] MyModel) {}))

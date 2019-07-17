@@ -1,16 +1,16 @@
 (ns toucan.test-models.venue
   "A model with `:types`, custom `:properties`, and `:default-fields`."
-  (:require [toucan.models :as models])
+  (:require [toucan
+             [models :as models]
+             [operations :as ops]])
   (:import java.sql.Timestamp))
 
 (defn- now [] (Timestamp. (System/currentTimeMillis)))
 
-(defmethod models/pre-insert ::timestamped
-  [_ obj]
+(ops/def-before-advice ops/insert! ::timestamped [obj]
   (assoc obj :created-at (now), :updated-at (now)))
 
-(defmethod models/pre-update ::timestamped
-  [obj]
+(ops/def-before-advice ops/update! ::timestamped [obj]
   (assoc obj :updated-at (now)))
 
 (models/defmodel Venue

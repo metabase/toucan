@@ -4,6 +4,7 @@
              [connection :as connection]
              [db :as db]
              [debug :as debug]
+             [operations :as ops]
              [test-models :as m]
              [test-setup :as test]]))
 
@@ -46,7 +47,7 @@
 ;; Test query
 (expect
  [{:id 1, :first-name "Cam", :last-name "Saul"}]
- (connection/query {:select   [:*]
+ (ops/query {:select   [:*]
                     :from     [:users]
                     :order-by [:id]
                     :limit    1}))
@@ -59,10 +60,10 @@
 ;; Test query-reducible
 (expect
  #{{:id 1, :first-name "Cam", :last-name "Saul"}}
- (transduce-to-set (connection/reducible-query {:select   [:*]
-                                                :from     [:users]
-                                                :order-by [:id]
-                                                :limit    1})))
+ (transduce-to-set (ops/reducible-query {:select   [:*]
+                                         :from     [:users]
+                                         :order-by [:id]
+                                         :limit    1})))
 
 
 
@@ -77,8 +78,8 @@
 
 ;; Test simple-select-reducible
 (expect
-  #{{:id 1, :first-name "Cam", :last-name "Saul"}}
-  (transduce-to-set (db/select-reducible m/User {:where [:= :id 1]})))
+ #{{:id 1, :first-name "Cam", :last-name "Saul"}}
+ (transduce-to-set (ops/select-reducible m/User {:where [:= :id 1]})))
 
 ;; Test select-one
 (expect
@@ -95,13 +96,13 @@
    (db/select-one m/User :id 1)))
 
 (expect
-  {:number "012345678", :country_code "AU"}
-  (test/with-clean-db
-    (let [id "012345678"]
-      (binding [db/*behavior* :no-pre-post]
-        (db/insert! m/PhoneNumber {:number id, :country_code "US"}))
-      (db/update! m/PhoneNumber id :country_code "AU")
-      (db/select-one m/PhoneNumber :number id))))
+ {:number "012345678", :country_code "AU"}
+ (test/with-clean-db
+   (let [id "012345678"]
+     (ops/ignore-advice
+       (db/insert! m/PhoneNumber {:number id, :country_code "US"}))
+     (db/update! m/PhoneNumber id :country_code "AU")
+     (db/select-one m/PhoneNumber :number id))))
 
 ;; Test update-where!
 (expect
