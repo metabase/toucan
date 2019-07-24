@@ -1,5 +1,6 @@
 (ns toucan.compile-test
   (:require [expectations :refer [expect]]
+            [honeysql.format :as hformat]
             [toucan
              [compile :as compile]
              [db :as db]
@@ -30,6 +31,10 @@
 (expect
  :mysql
  (compile/quoting-style ::mysql))
+
+(expect
+ (get @#'hformat/quote-fns :mysql)
+ (compile/quote-fn ::mysql))
 
 (expect
  "\"toucan\""

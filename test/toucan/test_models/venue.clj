@@ -7,10 +7,11 @@
 
 (defn- now [] (Timestamp. (System/currentTimeMillis)))
 
-(ops/def-before-advice ops/insert! ::timestamped [obj]
+(ops/defbefore ops/insert! ::timestamped [obj]
+  (println "obj:" obj) ; NOCOMMIT
   (assoc obj :created-at (now), :updated-at (now)))
 
-(ops/def-before-advice ops/update! ::timestamped [obj]
+(ops/defbefore ops/update! ::timestamped [obj]
   (assoc obj :updated-at (now)))
 
 (models/defmodel Venue

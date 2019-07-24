@@ -6,7 +6,8 @@
              [connection :as connection]
              [instance :as instance]
              [models :as models]
-             [operations :as ops]]))
+             [operations :as ops]]
+            [toucan.util :as u]))
 
 ;; TODO - we shouldn't reference `jdbc` here, everything should be in `connection` instead
 
@@ -26,14 +27,21 @@
    (query nil honeysql-form-or-sql-args))
 
   ([model honeysql-form-or-sql-args]
-   (ops/query model honeysql-form-or-sql-args)))
+   (seq (ops/query model honeysql-form-or-sql-args))))
+
+(defn reducible-query
+  ([honeysql-form-or-sql-args]
+   (reducible-query nil honeysql-form-or-sql-args))
+
+  ([model honeysql-form-or-sql-args]
+   (ops/reducible-query model honeysql-form-or-sql-args)))
 
 (defn execute!
   ([honeysql-form-or-sql-args]
    (execute! nil honeysql-form-or-sql-args))
 
   ([model honeysql-form-or-sql-args]
-   (ops/execute! model honeysql-form-or-sql-args)))
+   (seq (ops/execute! model honeysql-form-or-sql-args))))
 
 ;;;                                                       select
 ;;; ==================================================================================================================xf
@@ -48,7 +56,7 @@
    (let [honeysql-form (apply compile/compile-select model args)]
      (op model honeysql-form))))
 
-(def ^{:arglists '([model-or-instance] [model & args])} select           (partial select* ops/select))
+(def ^{:arglists '([model-or-instance] [model & args])} select           (comp seq (partial select* ops/select)))
 (def ^{:arglists '([model-or-instance] [model & args])} select-reducible (partial select* ops/select-reducible))
 
 (defn select-one
@@ -111,7 +119,7 @@
      (select-ids 'Table :db_id 1) -> #{1 2 3 4}"
   {:style/indent 1}
   [model & options]
-  (seq (apply select-id-seq model options)))
+  (set (apply select-id-seq model options)))
 
 (defn select-field->field
   "Select fields `k` and `v` from objects in the database, and return them as a map from `k` to `v`.
@@ -121,7 +129,7 @@
   [k v model & options]
   {:pre [(keyword? k) (keyword? v)]}
   (into {} (for [result (apply select [model k v] options)]
-             {(k result) (v result)})))
+             [(k result) (v result)])))
 
 (defn select-field->id
   "Select `field` and `:id` from objects in the database, and return them as a map from `field` to `:id`.
@@ -199,7 +207,7 @@
   ([model instance-or-instances]
    (when (seq instance-or-instances)
      (if (sequential? instance-or-instances)
-       (ops/update! model instance-or-instances)
+       (seq (ops/update! model instance-or-instances))
        (first (ops/update! model [instance-or-instances])))))
 
   ([model pk-value changes]
@@ -211,7 +219,7 @@
                      nil))))
 
   ([model pk-value k v & more]
-   (update! model pk-value (into {k v} more))))
+   (update! model pk-value (u/varargs->map k v more))))
 
 (defn update-where!
   "Convenience for updating several objects matching `conditions-map`. Selects objects matching `conditions` map, then
@@ -232,7 +240,7 @@
                   (merge object changes))))))
 
   ([model conditions-map k v & more]
-   (update-where! model conditions-map (into {k v} more))))
+   (update-where! model conditions-map (u/varargs->map k v more))))
 
 
 (defn update-non-nil-keys!
@@ -267,11 +275,11 @@
   ([model instance-or-instances]
    (when (seq instance-or-instances)
      (if (sequential? instance-or-instances)
-       (ops/insert! model instance-or-instances)
+       (seq (ops/insert! model instance-or-instances))
        (first (ops/insert! model [instance-or-instances])))))
 
   ([model k v & more]
-   (insert! model (into {k v} more))))
+   (insert! model (u/varargs->map k v more))))
 
 
 ;;;                                                      delete!
@@ -289,7 +297,7 @@
   ([instance-or-instances]
    (when (seq instance-or-instances)
      (if (sequential? instance-or-instances)
-       (ops/delete! (first instance-or-instances) instance-or-instances)
+       (seq (ops/delete! (first instance-or-instances) instance-or-instances))
        (first (ops/delete! instance-or-instances [instance-or-instances])))))
 
   ([model & conditions]
@@ -309,7 +317,7 @@
   ([model instance-or-instances]
    (when (seq instance-or-instances)
      (if (sequential? instance-or-instances)
-       (ops/save! model instance-or-instances)
+       (seq (ops/save! model instance-or-instances))
        (first (ops/save! model [instance-or-instances]))))))
 
 
@@ -326,5 +334,5 @@
   ([model instance-or-instances]
    (when (seq instance-or-instances)
      (if (sequential? instance-or-instances)
-       (ops/clone! model instance-or-instances)
+       (seq (ops/clone! model instance-or-instances))
        (first (ops/clone! model [instance-or-instances]))))))

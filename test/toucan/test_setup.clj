@@ -7,7 +7,11 @@
              [connection :as connection]
              [db :as db]
              [test-models :as m]]
-            [toucan.operations :as ops])
+            [toucan.operations :as ops]
+            [toucan.models :as models]
+            [honeysql.core :as hsql]
+            [toucan.compile :as compile]
+            [clojure.string :as str])
   (:import java.sql.Timestamp))
 
 ;; Don't run unit tests whenever JVM shuts down
@@ -32,81 +36,86 @@
   [_]
   spec)
 
-(defn- execute! {:style/indent 0} [& statements]
-  (jdbc/with-db-connection [conn spec]
-    (doseq [sql statements]
-      (jdbc/execute! conn [sql]))))
+(def ^:private model->ddl
+  {m/User
+   "CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      \"first-name\" VARCHAR(256) NOT NULL,
+      \"last-name\" VARCHAR(256) NOT NULL
+    );"
 
-;; TODO - maybe these should go in each model's namespace?
-(defn- create-models! []
-  (execute!
-    ;; User
-    "CREATE TABLE IF NOT EXISTS users (
-       id SERIAL PRIMARY KEY,
-       \"first-name\" VARCHAR(256) NOT NULL,
-       \"last-name\" VARCHAR(256) NOT NULL
-     );"
-    "TRUNCATE TABLE users RESTART IDENTITY CASCADE;"
-    ;; Venue
-    "CREATE TABLE IF NOT EXISTS venues (
-       id SERIAL PRIMARY KEY,
-       name VARCHAR(256) UNIQUE NOT NULL,
-       category VARCHAR(256) NOT NULL,
-       \"created-at\" TIMESTAMP NOT NULL,
-       \"updated-at\" TIMESTAMP NOT NULL
-      );"
-    "TRUNCATE TABLE venues RESTART IDENTITY CASCADE;"
-    ;; Category
-    "CREATE TABLE IF NOT EXISTS categories (
-       id SERIAL PRIMARY KEY,
-       name VARCHAR(256) UNIQUE NOT NULL,
-       \"parent-category-id\" INTEGER
-     );"
-    "TRUNCATE TABLE categories RESTART IDENTITY CASCADE;"
-    ;; Address
-    "CREATE TABLE IF NOT EXISTS address (
-       id SERIAL PRIMARY KEY,
-       street_name text NOT NULL
-     );"
-    "TRUNCATE TABLE address RESTART IDENTITY CASCADE;"
-    ;; Phone Number
-    "CREATE TABLE IF NOT EXISTS phone_numbers (
+   m/Venue
+   "CREATE TABLE IF NOT EXISTS venues (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(256) UNIQUE NOT NULL,
+      category VARCHAR(256) NOT NULL,
+      \"created-at\" TIMESTAMP NOT NULL,
+      \"updated-at\" TIMESTAMP NOT NULL
+    );"
+
+   m/Address
+   "CREATE TABLE IF NOT EXISTS address (
+      id SERIAL PRIMARY KEY,
+      street_name text NOT NULL
+    );"
+
+   m/Category
+   "CREATE TABLE IF NOT EXISTS categories (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(256) UNIQUE NOT NULL,
+      \"parent-category-id\" INTEGER
+    );"
+
+   m/PhoneNumber
+   "CREATE TABLE IF NOT EXISTS phone_numbers (
       number TEXT PRIMARY KEY,
       country_code VARCHAR(3) NOT NULL
-    );"
-    "TRUNCATE TABLE phone_numbers;"))
+    );"})
+
+(defn- model-truncate-statement [model]
+  (format "TRUNCATE TABLE %s RESTART IDENTITY CASCADE;"
+          (first
+           (apply hsql/format (models/table model) (mapcat identity (compile/honeysql-options model))))))
 
 
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))
 
-(defn- insert-test-data! []
+(def ^:private model->rows
+  {m/User     [{:first-name "Cam", :last-name "Saul"}
+               {:first-name "Rasta", :last-name "Toucan"}
+               {:first-name "Lucky", :last-name "Bird"}]
+   m/Venue    [{:name "Tempest", :category "bar", :created-at jan-first-2017, :updated-at jan-first-2017}
+               {:name "Ho's Tavern", :category "bar", :created-at jan-first-2017, :updated-at jan-first-2017}
+               {:name "BevMo", :category "store", :created-at jan-first-2017, :updated-at jan-first-2017}]
+   m/Category [{:name "bar"}
+               {:name "dive-bar", :parent-category-id 1}
+               {:name "resturaunt"}
+               {:name "mexican-resturaunt", :parent-category-id 3}]
+   m/Address  [{:street_name "1 Toucan Drive"}]})
+
+(defn- init-model! [model]
   (ops/ignore-advice
-    ;; User
-    (db/insert! m/User
-      [{:first-name "Cam", :last-name "Saul"}
-       {:first-name "Rasta", :last-name "Toucan"}
-       {:first-name "Lucky", :last-name "Bird"}])
-    ;; Venue
-    (db/insert! m/Venue
-      [{:name "Tempest", :category "bar", :created-at jan-first-2017, :updated-at jan-first-2017}
-       {:name "Ho's Tavern", :category "bar", :created-at jan-first-2017, :updated-at jan-first-2017}
-       {:name "BevMo", :category "store", :created-at jan-first-2017, :updated-at jan-first-2017}])
-    ;; Category
-    (db/insert! m/Category
-      [{:name "bar"}
-       {:name "dive-bar", :parent-category-id 1}
-       {:name "resturaunt"}
-       {:name "mexican-resturaunt", :parent-category-id 3}])
-    ;; Address
-    (db/insert! m/Address {:street_name "1 Toucan Drive"})))
+    (db/execute! (get model->ddl model))
+    (db/execute! (model-truncate-statement model))
+    (when-let [rows (seq (get model->rows model))]
+      (db/insert! model rows))))
+
+(defn- init-models! []
+  (dorun (pmap init-model! (keys model->ddl))))
+
+(defn kill-existing-connections! []
+  (db/query (str "SELECT pg_terminate_backend(pg_stat_activity.pid) "
+                 "FROM pg_stat_activity "
+                 "WHERE pg_stat_activity.datname = 'toucan-test'"
+                 " AND pid <> pg_backend_pid();")))
 
 (defn reset-db!
   "Reset the DB to its initial state, creating tables if needed and inserting the initial test data."
   []
   (println "Initializing test DB...")
-  (create-models!)
-  (insert-test-data!))
-
+  (db/transaction
+    (kill-existing-connections!)
+    (init-models!)))
 
 (defmacro with-clean-db
   "Run test `body` and reset the database to its initial state afterwards."

@@ -206,7 +206,7 @@
    (compile/primary-key-where-clause {:a 1, :b 2, :c 3})))
 
 
-;;;                                            Pre-definied aspects: types
+;;;                                            Pre-definied advisors: types
 ;;; ==================================================================================================================
 
 (expect

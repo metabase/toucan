@@ -35,20 +35,20 @@
      [~'&operation ~'&advice-type ~'&model ~(or arg-binding '_)]
      ~@body))
 
-(defmacro def-before-advice {:style/indent 3} [operation model [arg-binding] & body]
+(defmacro defbefore {:style/indent 3} [operation model [arg-binding] & body]
   `(defadvice ~operation :advice/before ~model [~arg-binding]
      ~@body))
 
-(defmacro def-after-advice {:style/indent 3} [operation model [results-binding] & body]
+(defmacro defafter {:style/indent 3} [operation model [results-binding] & body]
   `(defadvice ~operation :advice/after ~model [~results-binding]
      ~@body))
 
-(defmacro def-around-advice {:style/indent 3} [operation model [f-binding] & body]
+(defmacro defaround {:style/indent 3} [operation model [f-binding] & body]
   `(defadvice ~operation :advice/around ~model [~f-binding]
      ~@body))
 
 ;; TODO - not sure we need this...
-(defmacro def-around-all-advice {:style/indent 3} [operation model [f-binding] & body]
+(defmacro defaround-all {:style/indent 3} [operation model [f-binding] & body]
   `(defadvice ~operation :advice/around-all ~model [~f-binding]
      ~@body))
 
@@ -92,7 +92,10 @@
 
 (defmethod apply-advice [:operation/any :advice/any :strategy/normal :model/any]
   [op advice-type _ model arg]
-  (advice op advice-type model arg))
+  (let [method (partial advice op advice-type model)]
+    (if (sequential? arg)
+      (eduction method arg)
+      (method arg))))
 
 ;; `around-all` and `before` both combine in reversed order; `around` and `after` both combine in normal order
 (dispatch/derive :advice/around-all ::combine-reversed)
@@ -102,35 +105,26 @@
 
 (defmethod apply-advice [:operation/any ::combine-reversed :strategy/combine :model/any]
   [op advice-type _ model arg]
-  ((dispatch/combined-method [advice op advice-type] model reverse) arg))
+  (let [method (dispatch/combined-method [advice op advice-type] model reverse)]
+    (if (sequential? arg)
+      (eduction method arg)
+      (method arg))))
 
 (defmethod apply-advice [:operation/any ::combine-normally :strategy/combine :model/any]
   [op advice-type _ model arg]
-  ((dispatch/combined-method [advice op advice-type] model reverse) arg))
+  (let [method (dispatch/combined-method [advice op advice-type] model)]
+    (if (sequential? arg)
+      (eduction method arg)
+      (method arg))))
 
 
 ;;; ### Predefined Advice Behaviors
-
-;;; #### Debugging
-
-(dispatch/derive :strategy/debug :strategy/any)
-
-(defmethod apply-advice [:operation/any :advice/any :strategy/debug :model/any]
-  [op advice-type _ model arg]
-  (printf "[%s] Invoking %s advice for model %s, arg:\n" op advice-type model) ;; WOW!
-  (println arg)
-  (apply-advice op advice-type (default-strategy-for-operation op) model arg))
-
-(defmacro debug {:style/indent 0} [& body]
-  `(binding [*advice-strategy* :strategy/debug]
-     ~@body))
-
 
 ;;; ### Ignoring
 
 (defmethod apply-advice [:operation/any :advice/any :strategy/skip :model/any]
   [op advice-type _ _ arg]
-  (debug/debug-println "IGNORING" op advice-type)
+  #_(debug/debug-println "IGNORING" op advice-type) ; NOCOMMIT
   arg)
 
 ;; TODO - maybe rename this to `skip-advice` or `ignore-advice-fns` to make it clearer at first glance
@@ -200,7 +194,10 @@
        ~@(when (seq body)
            `[(defmethod operation [~operation-kw :model/any]
                [~'&operation ~model-binding ~arg-binding]
-               ~@body)])
+               ~@body)
+             (defmethod operation [~operation-kw nil]
+               [~'operation ~'_ ~'arg]
+               (operation ~'operation :model/any ~'arg))])
 
        (def ~(vary-meta (symbol (name operation-symb)) (partial merge {:arglists   (list 'quote (list ['model arg-binding]))
                                                                        ::operation operation-kw}))
@@ -213,7 +210,7 @@
 ;;; |                                             Operation Definitions                                              |
 ;;; +----------------------------------------------------------------------------------------------------------------+
 
-(dispatch/derive :operation/read :operation/any)
+(dispatch/derive :operation/read  :operation/any)
 (dispatch/derive :operation/write :operation/any)
 
 ;; TODO - should `query` and `execute!` be operations themselves?
@@ -223,19 +220,26 @@
 (defoperation query
   {:dispatch-value :operation/query, :dispatch-parent :operation/read}
   [model a-query]
-  (jdbc/query (connection/connection) (compile/maybe-compile-honeysql model a-query) *jdbc-options*))
+  (debug/inc-call-count!)
+  (let [sql-args (compile/maybe-compile-honeysql model a-query)]
+    (debug/debug-println "query" sql-args)
+    (jdbc/query (connection/connection) sql-args *jdbc-options*)))
 
 (defoperation reducible-query
   {:dispatch-value :operation/reducible-query, :dispatch-parent :operation/query}
   [model a-query]
   (debug/inc-call-count!)
-  (jdbc/reducible-query (connection/connection) (compile/maybe-compile-honeysql model a-query) *jdbc-options*))
+  (let [sql-args (compile/maybe-compile-honeysql model a-query)]
+    (debug/debug-println "reducible-query" sql-args)
+    (jdbc/reducible-query (connection/connection) sql-args *jdbc-options*)))
 
 (defoperation execute!
   {:dispatch-value :operation/execute!, :dispatch-parent :operation/write}
   [model statement]
   (debug/inc-call-count!)
-  (jdbc/execute! (connection/connection) (compile/maybe-compile-honeysql model statement) *jdbc-options*))
+  (let [sql-args (compile/maybe-compile-honeysql model statement)]
+    (debug/debug-println "execute!" sql-args)
+    (jdbc/execute! (connection/connection) sql-args *jdbc-options*)))
 
 
 ;;; -------------------------------------------- Higher-level operations ---------------------------------------------
@@ -265,31 +269,38 @@
 (defoperation execute-returning-primary-keys!
   {:dispatch-value :operation/execute-returning-primary-keys!, :dispatch-parent :operation/execute!}
   [model [sql & params]]
-  (with-open [^java.sql.PreparedStatement prepared-statement (jdbc/prepare-statement
-                                                              (jdbc/get-connection (connection/connection model))
-                                                              sql
-                                                              {:return-keys (u/sequencify (compile/primary-key model))})]
-    (#'jdbc/dft-set-parameters prepared-statement params)
-    (debug/inc-call-count!)
-    (when (pos? (.executeUpdate prepared-statement))
-      (with-open [generated-keys-result-set (.getGeneratedKeys prepared-statement)]
-        (vec (jdbc/result-set-seq generated-keys-result-set))))))
+  (let [return-keys (u/sequencify (compile/primary-key model))]
+    (with-open [^java.sql.PreparedStatement prepared-statement (jdbc/prepare-statement
+                                                                (jdbc/get-connection (connection/connection model))
+                                                                sql
+                                                                {:return-keys return-keys})]
+      (#'jdbc/dft-set-parameters prepared-statement params)
+      (debug/inc-call-count!)
+      (debug/debug-println "execute! returning primary keys" sql "return-keys:" return-keys)
+      (when (pos? (.executeUpdate prepared-statement))
+        (with-open [generated-keys-result-set (.getGeneratedKeys prepared-statement)]
+          (vec (jdbc/result-set-seq generated-keys-result-set)))))))
 
 ;; provided for convenience since often times it's nice to do things like validate values on either insert or update
 (dispatch/derive :operation/insert-or-update :operation/write)
 
 (defoperation insert!
   {:dispatch-value :operation/insert!, :dispatch-parent :operation/insert-or-update}
-  [model instances]
-  (when (seq instances)
+  [model rows]
+  (when (seq rows)
     (let [honeysql-form {:insert-into (compile/table model)
-                         :values      instances}
+                         :values      rows}
+          ;; TODO - execute returning all keys?
           result-rows   (execute-returning-primary-keys! model (compile/compile-honeysql model honeysql-form))]
-      (map
-       (fn [instance result-row]
-         (let [pk-value (compile/primary-key-value (instance/of instance result-row))]
-           (compile/assoc-primary-key instance pk-value)))
-       instances
+      ;; TODO - should we call `post-select` on newly inserted values?
+      ;; NOCOMMIT
+      result-rows
+      #_(map
+       (fn [row result-row]
+         (println "result-row:" result-row) ; NOCOMMIT
+         (let [pk-value (compile/primary-key-value (instance/of model result-row))]
+           (compile/assoc-primary-key row pk-value)))
+       rows
        result-rows))))
 
 (defoperation update!

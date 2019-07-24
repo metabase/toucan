@@ -30,6 +30,10 @@
   (meta*      [_]                 mta)
   (with-meta* [_ new-meta]        (ToucanInstance. model orig m new-meta))
 
+  Original
+  (original [_]
+    orig)
+
   clojure.lang.IPersistentCollection
   (empty [_]
     (ToucanInstance. model (empty orig) (empty m) mta))
@@ -72,11 +76,11 @@
 ;; TODO - dox
 (defn of
   {:style/indent 1}
-  ([model]
+  (^toucan.instance.ToucanInstance [model]
    (toucan-instance model nil nil nil))
 
   ;; TODO - not 100% sure calling `model` here makes sense... what if we do something like the following (see below)
-  ([model m]
+  (^toucan.instance.ToucanInstance [model m]
    (assert ((some-fn nil? map?) m)
            (format "Not a map: %s" m))
    (toucan-instance model m m (meta m))))

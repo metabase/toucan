@@ -73,38 +73,38 @@
 
 ;; TODO - are we sure this belongs here, and not in `models`?
 ;; TODO - dox
-(defmulti aspects
+(defmulti advisors
   {:arglists '([model])}
   dispatch-value
   :hierarchy #'hierarchy)
 
-(defmethod aspects :default
+(defmethod advisors :default
   [_]
   nil)
 
 ;; TODO - dox
-(defn all-aspects
+(defn all-advisors
   ([x]
-   (all-aspects x #{}))
+   (all-advisors x #{}))
 
   ([x already-seen]
    (concat
     (reduce
-     (fn [acc aspect]
-       (if (already-seen aspect)
+     (fn [acc advisor]
+       (if (already-seen advisor)
          acc
-         (concat acc (all-aspects aspect (into already-seen acc)))))
+         (concat acc (all-advisors advisor (into already-seen acc)))))
      []
-     (aspects x))
+     (advisors x))
     [x])))
 
 ;; TODO - dox
-(defn all-aspect-methods
+(defn all-advisor-methods
   ([multifn model]
    (let [[multifn & args] (if (sequential? multifn)
                             multifn
                             [multifn])]
-     (all-aspect-methods multifn args model)))
+     (all-advisor-methods multifn args model)))
 
   ([multifn multifn-args model]
    {:pre [(instance? clojure.lang.MultiFn multifn) (some? model)]}
@@ -113,22 +113,23 @@
       (ordered-map/ordered-map
        (when default-method
          {:default default-method}))
-      (for [aspect (all-aspects model)
-            :let   [method (apply u/get-method-for-dispatch-value multifn (concat multifn-args [(dispatch-value aspect)]))]
+      (for [advisor (all-advisors model)
+            :let   [method (apply u/get-method-for-dispatch-value multifn (concat multifn-args [(dispatch-value advisor)]))]
             :when  (not (identical? method default-method))]
-        [aspect (if (seq multifn-args)
-                  (apply partial method multifn-args)
-                  method)])))))
+        [advisor (if (seq multifn-args)
+                   (apply partial method multifn-args)
+                   method)])))))
 
 (defn combined-method [multifn model & [all-methods-xform]]
-  (debug/debug-println (format "Combining methods of %s for model %s (all aspects: %s)" multifn model (vec (all-aspects model))))
+  (debug/debug-println (format "Combining methods of %s for model %s (all advisors: %s)"
+                               multifn model (vec (all-advisors model))))
   (reduce
    (fn [f [dispatch-value method]]
      (fn [arg]
        (debug/debug-println (list method dispatch-value (list f arg)))
        (method dispatch-value (f arg))))
    identity
-   (when-let [all-methods (seq (all-aspect-methods multifn model))]
+   (when-let [all-methods (seq (all-advisor-methods multifn model))]
      (debug/debug-println (format "Combining methods %s (xform: %s)" all-methods all-methods-xform))
      ((or all-methods-xform identity) all-methods))))
 

@@ -12,7 +12,7 @@
 (dispatch/derive ::Parent :model/any)
 (dispatch/derive ::Child :model/any)
 
-(ops/def-after-advice ops/select ::Parent [results]
+(ops/defafter ops/select ::Parent [results]
   results)
 
 (dispatch/derive ::cached-strategy :strategy/any)
@@ -21,7 +21,7 @@
 
 (dispatch/derive Venue :model/any)
 
-(ops/def-after-advice ops/select Venue [result]
+(ops/defafter ops/select Venue [result]
   (assoc result :after-venue? true))
 
 (def ^:private cache

@@ -50,19 +50,19 @@
 (defn add-category-to-updated-queue! [{:keys [id]}]
   (swap! categories-recently-updated conj id))
 
-(ops/def-before-advice ops/insert! Category [category]
+(ops/defbefore ops/insert! Category [category]
   (assert-parent-category-exists category)
   category)
 
 
-(ops/def-after-advice ops/insert! Category [category]
+(ops/defafter ops/insert! Category [category]
   (add-category-to-moderation-queue! category)
   category)
 
-(ops/def-before-advice ops/update! Category [category]
+(ops/defbefore ops/update! Category [category]
   (assert-parent-category-exists category)
   category)
 
-(ops/def-before-advice ops/delete! Category [category]
+(ops/defbefore ops/delete! Category [category]
   (delete-child-categories! category)
   category)

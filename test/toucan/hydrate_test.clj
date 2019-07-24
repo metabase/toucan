@@ -51,7 +51,8 @@
    ::venue    {:category :bar, :name "Tempest", :id 1}}
   {::venue-id 2
    ::venue    {:category :bar, :name "Ho's Tavern", :id 2}}]
- (hydrate/hydrate [{::venue_id 1} {::venue-id 2}] ::venue))
+ (for [result (hydrate/hydrate [{::venue_id 1} {::venue-id 2}] ::venue)]
+   (update result ::venue #(dissoc % :updated-at :created-at))))
 
 ;; ### valid-hydration-form?
 (defn- valid-form? [form]

@@ -40,3 +40,11 @@
 (expect
  [{:2-cans {:2-cans true}}]
  (u/transform-keys u/replace-underscores [{:2_cans {:2_cans true}}]))
+
+(expect
+ {:a 1, :b 2, :c 3}
+ (u/varargs->map '(:a 1 :b 2 :c 3)))
+
+(expect
+ {:k :v, :a 1, :b 2, :c 3}
+ (u/varargs->map :k :v '(:a 1 :b 2 :c 3)))

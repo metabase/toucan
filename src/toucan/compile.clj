@@ -5,7 +5,8 @@
              [helpers :as h]]
             [toucan
              [dispatch :as dispatch]
-             [util :as u]]))
+             [util :as u]]
+            [toucan.debug :as debug]))
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
 ;;; |                                              HoneySQL Compilation                                              |
@@ -58,7 +59,7 @@
    (quote-fn :default))
 
   ([model]
-   (get @#'honeysql.format/quote-fns (quoting-style model))))
+   (get @#'hformat/quote-fns (quoting-style model))))
 
 
 ;;; +----------------------------------------------------------------------------------------------------------------+
@@ -172,7 +173,9 @@
   [model honeysql-form-or-sql-args]
   {:pre [((some-fn map? string? sequential?) honeysql-form-or-sql-args)]}
   (if (map? honeysql-form-or-sql-args)
-    (compile-honeysql model honeysql-form-or-sql-args)
+    (do
+      (debug/debug-println "HoneySQL:" honeysql-form-or-sql-args)
+      (compile-honeysql model honeysql-form-or-sql-args))
     honeysql-form-or-sql-args))
 
 (defn qualified?

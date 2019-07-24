@@ -67,19 +67,19 @@
   B
   C)
 
-(ops/def-after-advice ops/select A [m] (update m :post concat ['A]))
-(ops/def-after-advice ops/select B [m] (update m :post concat ['B]))
-(ops/def-after-advice ops/select C [m] (update m :post concat ['C]))
+(ops/defafter ops/select A [m] (update m :post concat ['A]))
+(ops/defafter ops/select B [m] (update m :post concat ['B]))
+(ops/defafter ops/select C [m] (update m :post concat ['C]))
 
-(ops/def-after-advice ops/select MyModel [m]
+(ops/defafter ops/select MyModel [m]
   (update m :post concat ['MyModel]))
 
 (expect
  [A B C MyModel]
- (keys (dispatch/all-aspect-methods [ops/advice :operation/select :advice/after] MyModel)))
+ (keys (dispatch/all-advisor-methods [ops/advice :operation/select :advice/after] MyModel)))
 
 (expect
- (every? fn? (vals (dispatch/all-aspect-methods [ops/advice :operation/select :advice/after] MyModel))))
+ (every? fn? (vals (dispatch/all-advisor-methods [ops/advice :operation/select :advice/after] MyModel))))
 
 (expect
  {:post '(A B C MyModel)}

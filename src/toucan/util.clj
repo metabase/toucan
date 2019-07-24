@@ -58,3 +58,10 @@
 
 (defn get-method-for-dispatch-value [multifn & args]
   (get-method multifn (apply dispatch-value multifn args)))
+
+(defn varargs->map
+  ([args]
+   (into {} (map vec (partition-all 2 args))))
+
+  ([k v args]
+   (varargs->map (into [k v] args))))

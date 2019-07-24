@@ -150,21 +150,6 @@
        strategy))
    @strategies))
 
-;; TODO - not sure if want
-(defn the-hydration-strategy [results k]
-  (or (hydration-strategy results k)
-      #_(throw
-       (ex-info
-        (str (format "Don't know how to hydrate %s for dispatch value %s." k [(or (dispatch/dispatch-value results) :default) k])
-             " Define hydration behavior by providing an implementation for `simple-hydrate`,"
-             " `hydrate-dispatch-value`, or `batched-hydrate`. ")
-        ;; this info provided primarily to make life easier when debugging
-        {:dispatch-value   (dispatch/dispatch-value results)
-         :k                k
-         :existing-methods {:automagic-batched (set (keys (methods automagic-hydration-key-model)))
-                            :batched           (set (keys (methods batched-hydrate)))
-                            :simple-hydrate    (set (keys (methods simple-hydrate)))}}))))
-
 
 ;;;                                               Primary Hydration Fns
 ;;; ==================================================================================================================
@@ -173,7 +158,7 @@
 
 (defn- hydrate-key
   [results k]
-  (if-let [strategy (the-hydration-strategy results k)]
+  (if-let [strategy (hydration-strategy results k)]
     (do
       (debug/debug-println (format "Hydrating %s with strategy %s" k strategy))
       (hydrate-with-strategy strategy results k))
@@ -186,15 +171,16 @@
     (throw (ex-info (str (format "Invalid hydration form: replace %s with %s. Vectors are for nested hydration." coll k)
                          " There's no need to use one when you only have a single key.")
                     {:invalid-form coll})))
-  (let [results                          (hydrate results k)
-        values-of-k                      (map k results)
-        recursively-hydrated-values-of-k (apply hydrate values-of-k nested-keys)]
+  (let [results                     (hydrate results k)
+        newly-hydrated-values       (map k results)
+        recursively-hydrated-values (apply hydrate newly-hydrated-values nested-keys)]
     (map
      (fn [result v]
-       (when result
-         (assoc result k v)))
+       (if (and result (some? v))
+         (assoc result k v)
+         result))
      results
-     recursively-hydrated-values-of-k)))
+     recursively-hydrated-values)))
 
 (declare hydrate-one-form)
 

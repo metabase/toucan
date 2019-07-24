@@ -31,14 +31,6 @@
   {:arglists '([option model])}
   dispatch/dispatch-value)
 
-(defmulti aspect?
-  {:arglists '([option])}
-  dispatch/dispatch-value)
-
-(defmethod aspect? :default
-  [_]
-  true)
-
 (defn parse-options [model options]
   (for [option options]
     (try
@@ -50,8 +42,7 @@
                       `[~symb ~option])
          :init-form (when (get-method init! (dispatch/dispatch-value option))
                       `(init! ~symb ~model))
-         :aspect    (when (aspect? option)
-                      symb)})
+         :symb      symb})
       (catch Throwable e
         (println "Error parsing option" option)
         (throw (ex-info (format "Error parsing option %s" option) {:model model, :option option} e))))))
@@ -59,7 +50,8 @@
 (defmacro defmodel-options [model & options]
   (let [options (parse-options model options)]
     `(let [~@(mapcat :let-form options)]
-       (defmethod dispatch/aspects ~model
-         [~'_]
-         ~(filterv some? (map :aspect options)))
+       ~(when (seq options)
+          `(defmethod dispatch/advisors ~model
+             [~'_]
+             ~(mapv :symb options)))
        ~@(filter some? (map :init-form options)))))

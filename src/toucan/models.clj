@@ -56,8 +56,6 @@
 (defmethod options/init! ::table [[_ table-name] model]
   (.addMethod ^MultiFn compile/table model (constantly table-name)))
 
-(defmethod options/aspect? ::table [_] false)
-
 
 ;;; ### `primary-key`
 
@@ -71,15 +69,13 @@
                   (every? keyword? pk)))]}
   (.addMethod ^MultiFn compile/primary-key model (constantly pk)))
 
-(defmethod options/aspect? ::primary-key [_] false)
-
 ;;; ### `default-fields`
 
 (defmethod options/parse-list-option 'default-fields
   [_ default-fields]
   [::default-fields default-fields])
 
-(ops/def-before-advice ops/select ::default-fields [{existing-select :select, :as honeysql-form}]
+(ops/defbefore ops/select ::default-fields [{existing-select :select, :as honeysql-form}]
   (let [[_ fields] &model]
     (assert ((some-fn sequential? set?) fields))
     (if (or (not existing-select) (= existing-select [:*]))
@@ -150,15 +146,15 @@
    instance
    types))
 
-(ops/def-after-advice ops/select ::types [instance]
+(ops/defafter ops/select ::types [instance]
   (let [[_ types] &model]
     (apply-type-fns type-out instance types)))
 
-(ops/def-before-advice :operations/insert-or-update ::types [instance]
+(ops/defbefore :operations/insert-or-update ::types [instance]
   (let [[_ types] &model]
     (apply-type-fns type-in instance types)))
 
-(ops/def-after-advice :operations/insert-or-update ::types [instance]
+(ops/defafter :operations/insert-or-update ::types [instance]
   (let [[_ types] &model]
     (apply-type-fns type-out instance types)))
 

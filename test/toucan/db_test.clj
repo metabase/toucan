@@ -1,5 +1,6 @@
 (ns toucan.db-test
   (:require [expectations :refer [expect]]
+            [honeysql.core :as hsql]
             [toucan
              [connection :as connection]
              [db :as db]
@@ -47,10 +48,10 @@
 ;; Test query
 (expect
  [{:id 1, :first-name "Cam", :last-name "Saul"}]
- (ops/query {:select   [:*]
-                    :from     [:users]
-                    :order-by [:id]
-                    :limit    1}))
+ (db/query {:select   [:*]
+            :from     [:users]
+            :order-by [:id]
+            :limit    1}))
 
 (defn- transduce-to-set
   "Process `reducible-query-result` using a transducer that puts the rows from the resultset into a set"
@@ -60,10 +61,10 @@
 ;; Test query-reducible
 (expect
  #{{:id 1, :first-name "Cam", :last-name "Saul"}}
- (transduce-to-set (ops/reducible-query {:select   [:*]
-                                         :from     [:users]
-                                         :order-by [:id]
-                                         :limit    1})))
+ (transduce-to-set (db/reducible-query {:select   [:*]
+                                        :from     [:users]
+                                        :order-by [:id]
+                                        :limit    1})))
 
 
 
@@ -79,7 +80,7 @@
 ;; Test simple-select-reducible
 (expect
  #{{:id 1, :first-name "Cam", :last-name "Saul"}}
- (transduce-to-set (ops/select-reducible m/User {:where [:= :id 1]})))
+ (transduce-to-set (db/select-reducible m/User {:where [:= :id 1]})))
 
 ;; Test select-one
 (expect
@@ -164,7 +165,7 @@
  [4 5]
  (test/with-clean-db
    (db/insert! m/User [{:first-name "Grass" :last-name #sql/call [:upper "Hopper"]}
-                          {:first-name "Ko" :last-name "Libri"}])))
+                       {:first-name "Ko" :last-name "Libri"}])))
 
 ;; It must call pre-insert hooks
 (expect

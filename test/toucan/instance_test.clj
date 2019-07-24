@@ -26,13 +26,28 @@
   (assoc (instance/of ::MyModel {:original? true}) :original? false))
 
 (expect
-  {:original? true}
-  (instance/original (assoc (instance/of ::MyModel {:original? true}) :original? false)))
-
+ {:original? true}
+ (.orig (instance/of ::MyModel {:original? true})))
 
 (expect
-  {}
-  (dissoc (instance/of ::MyModel {:original? true}) :original?))
+ {:original? true}
+ (.m (instance/of ::MyModel {:original? true})))
+
+(expect
+ {:original? true}
+ (.orig ^toucan.instance.ToucanInstance (assoc (instance/of ::MyModel {:original? true}) :original? false)))
+
+(expect
+ {:original? false}
+ (.m ^toucan.instance.ToucanInstance (assoc (instance/of ::MyModel {:original? true}) :original? false)))
+
+(expect
+ {:original? true}
+ (instance/original (assoc (instance/of ::MyModel {:original? true}) :original? false)))
+
+(expect
+ {}
+ (dissoc (instance/of ::MyModel {:original? true}) :original?))
 
 (expect
   {:original? true}
