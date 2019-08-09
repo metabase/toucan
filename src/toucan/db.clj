@@ -153,7 +153,7 @@
      (model-symb->ns 'CardFavorite) -> 'my-project.models.card-favorite"
   [symb]
   {:pre [(symbol? symb)]}
-  (symbol (str (models/root-namespace) \. (s/lower-case (s/replace (name symb) #"([a-z])([A-Z])" "$1-$2")))))
+  (symbol (str (models/root-namespace) \. (u/lower-case (s/replace (name symb) #"([a-z])([A-Z])" "$1-$2")))))
 
 (defn- resolve-model-from-symbol
   "Resolve the model associated with SYMB, calling `require` on its namespace if needed.
@@ -271,7 +271,11 @@
   "Compile `honeysql-from` and call `jdbc/query` against the application database. Options are passed along to
   `jdbc/query`."
   [honeysql-form & {:as options}]
-  (jdbc/query (connection) (honeysql->sql honeysql-form) options))
+  (jdbc/query (connection)
+              (honeysql->sql honeysql-form)
+              ; FIXME: This has already been fixed in `clojure.java.jdbc`, so
+              ;        this option can be removed when using >= 0.7.10.
+              (into options {:identifiers u/lower-case})))
 
 (defn reducible-query
   "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
