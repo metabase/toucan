@@ -16,5 +16,5 @@
   `clojure.string/lower-case` uses the default locale in conversions, turning
   `ID` into `ıd`, in the Turkish locale. This function always uses the
   `Locale/US` locale."
-  [s]
+  [^CharSequence s]
   (.. s toString (toLowerCase (Locale/US))))
