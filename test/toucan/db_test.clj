@@ -1,5 +1,6 @@
 (ns toucan.db-test
-  (:require [expectations :refer :all]
+  (:require [clojure.java.jdbc :as jdbc]
+            [expectations :refer :all]
             [toucan
              [db :as db]
              [test-setup :as test]]
@@ -8,7 +9,8 @@
              [category :refer [Category]]
              [phone-number :refer [PhoneNumber]]
              [user :refer [User]]
-             [venue :refer [Venue]]]))
+             [venue :refer [Venue]]])
+  (:import java.util.Locale))
 
 ;; Test overriding quoting-style
 (expect
@@ -161,6 +163,23 @@
              :from     [:users]
              :order-by [:id]
              :limit    1}))
+
+;; Test that identifiers are correctly lower cased in Turkish locale (#59)
+(expect
+  :id
+  (let [connection      (db/connection)
+        original-locale (Locale/getDefault)]
+    (try
+      (Locale/setDefault (Locale/forLanguageTag "tr"))
+      (jdbc/execute! connection "DROP TABLE IF EXISTS heroes")
+      (jdbc/execute! connection "CREATE TABLE heroes (\"ID\" SERIAL PRIMARY KEY, \"NAME\" VARCHAR(256))")
+      (jdbc/execute! connection "INSERT INTO heroes (\"NAME\") VALUES ('Batman')")
+      (let [first-row (first (db/query {:select [:ID] :from [:heroes]}))]
+        ;; If `db/query` (jdbc) uses `clojure.string/lower-case`, `:ID` will be converted to `:ıd` in Turkish locale
+        (first (keys first-row)))
+      (finally
+        (jdbc/execute! connection "DROP TABLE IF EXISTS heroes")
+        (Locale/setDefault original-locale)))))
 
 (defn- transduce-to-set
   "Process `reducible-query-result` using a transducer that puts the rows from the resultset into a set"
