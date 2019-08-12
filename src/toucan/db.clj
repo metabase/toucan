@@ -273,8 +273,8 @@
   [honeysql-form & {:as options}]
   (jdbc/query (connection)
               (honeysql->sql honeysql-form)
-              ; FIXME: This has already been fixed in `clojure.java.jdbc`, so
-              ;        this option can be removed when using >= 0.7.10.
+              ;; FIXME: This has already been fixed in `clojure.java.jdbc`, so
+              ;;        this option can be removed when using >= 0.7.10.
               (into options {:identifiers u/lower-case})))
 
 (defn reducible-query
