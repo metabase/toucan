@@ -1,6 +1,7 @@
 (ns toucan.db-test
   (:require [clojure.java.jdbc :as jdbc]
             [expectations :refer :all]
+            [honeysql.core :as hsql]
             [toucan
              [db :as db]
              [test-setup :as test]]
@@ -295,7 +296,7 @@
 (expect
  [4 5]
  (test/with-clean-db
-   (db/simple-insert-many! User [{:first-name "Grass" :last-name #sql/call [:upper "Hopper"]}
+   (db/simple-insert-many! User [{:first-name "Grass" :last-name (hsql/call :upper "Hopper")}
                                  {:first-name "Ko" :last-name "Libri"}])))
 
 ;;; Test insert-many!
@@ -304,7 +305,7 @@
 (expect
  [4 5]
  (test/with-clean-db
-   (db/insert-many! User [{:first-name "Grass" :last-name #sql/call [:upper "Hopper"]}
+   (db/insert-many! User [{:first-name "Grass" :last-name (hsql/call :upper "Hopper")}
                           {:first-name "Ko" :last-name "Libri"}])))
 
 ;; It must call pre-insert hooks
@@ -332,7 +333,7 @@
 (expect
  #toucan.test_models.user.UserInstance{:id 4, :first-name "Grass", :last-name "HOPPER"}
  (test/with-clean-db
-   (db/insert! User {:first-name "Grass" :last-name #sql/call [:upper "Hopper"]})))
+   (db/insert! User {:first-name "Grass" :last-name (hsql/call :upper "Hopper")})))
 
 ;; get-inserted-id shouldn't fail if nothing is returned for some reason
 (expect
