@@ -109,7 +109,7 @@
 ;;;                                         TRANSACTION & CONNECTION UTIL FNS
 ;;; ==================================================================================================================
 
-(def ^:private ^:dynamic *transaction-connection*
+(def ^:dynamic *transaction-connection*
   "Transaction connection to the application DB. Used internally by `transaction`."
   nil)
 
