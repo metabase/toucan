@@ -48,8 +48,8 @@
 (defn add-category-to-updated-queue! [{:keys [id]}]
   (swap! categories-recently-updated conj id))
 
-(models/defmodel Category :categories
-  models/IModel
+(extend-protocol models/IModel
+  (class Category)
   (types [_]
     {:name :lowercase-string})
   (pre-insert [this]
