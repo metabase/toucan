@@ -17,3 +17,4 @@ profiles.clj
 /build.xml
 /*.iml
 .envrc
+/.eastwood
