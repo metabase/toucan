@@ -492,6 +492,7 @@
         defrecord-form      `(defrecord ~instance []
                                clojure.lang.Named
                                (~'getName [~'_] ~(name model))
+                               (~'getNamespace [~'_] ~(name (ns-name *ns*)))
 
                                clojure.lang.IFn
                                ~@(ifn-invoke-forms)
