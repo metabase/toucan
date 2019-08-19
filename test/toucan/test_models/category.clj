@@ -20,9 +20,7 @@
   :in  maybe-lowercase-string
   :out maybe-lowercase-string)
 
-
 (models/defmodel Category :categories)
-
 
 (defn- assert-parent-category-exists [{:keys [parent-category-id], :as category}]
   (when parent-category-id
@@ -49,7 +47,7 @@
   (swap! categories-recently-updated conj id))
 
 (extend-protocol models/IModel
-  (class Category)
+  CategoryInstance
   (types [_]
     {:name :lowercase-string})
   (pre-insert [this]

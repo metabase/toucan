@@ -150,10 +150,6 @@
    (set (Category))))
 
 ;; Test default-fields
-;; by default Venue doesn't return :created-at or :updated-at
-(expect
- #toucan.test_models.venue.VenueInstance{:category :bar, :name "Tempest", :id 1}
- (db/select-one Venue :id 1))
 
 ;; check that we can still override default-fields
 (expect
