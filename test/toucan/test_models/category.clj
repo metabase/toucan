@@ -20,7 +20,25 @@
   :in  maybe-lowercase-string
   :out maybe-lowercase-string)
 
-(models/defmodel Category :categories)
+(declare assert-parent-category-exists
+         delete-child-categories
+         add-category-to-moderation-queue!
+         add-category-to-updated-queue!)
+
+(models/defmodel Category :categories
+  models/IModel
+  (types [_]
+    {:name :lowercase-string})
+  (pre-insert [this]
+    (assert-parent-category-exists this))
+  (post-insert [this]
+    (add-category-to-moderation-queue! this))
+  (pre-update [this]
+    (assert-parent-category-exists this))
+  (post-update [this]
+    (add-category-to-updated-queue! this))
+  (pre-delete [this]
+    (delete-child-categories this)))
 
 (defn- assert-parent-category-exists [{:keys [parent-category-id], :as category}]
   (when parent-category-id
@@ -45,18 +63,3 @@
 
 (defn add-category-to-updated-queue! [{:keys [id]}]
   (swap! categories-recently-updated conj id))
-
-(extend-protocol models/IModel
-  CategoryInstance
-  (types [_]
-    {:name :lowercase-string})
-  (pre-insert [this]
-    (assert-parent-category-exists this))
-  (post-insert [this]
-    (add-category-to-moderation-queue! this))
-  (pre-update [this]
-    (assert-parent-category-exists this))
-  (post-update [this]
-    (add-category-to-updated-queue! this))
-  (pre-delete [this]
-    (delete-child-categories this)))
