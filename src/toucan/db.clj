@@ -105,6 +105,17 @@
   [db-connection-map]
   (reset! default-db-connection db-connection-map))
 
+(defonce ^:private default-jdbc-options
+  ;; FIXME: This has already been fixed in `clojure.java.jdbc`, so
+  ;;        this option can be removed when using >= 0.7.10.
+  (atom {:identifiers u/lower-case}))
+
+(defn set-default-jdbc-options!
+  "Set the default options to be used for all calls to `clojure.java.jdbc/query` or `execute!`."
+  [jdbc-options]
+  (reset! default-jdbc-options jdbc-options))
+
+
 
 ;;;                                         TRANSACTION & CONNECTION UTIL FNS
 ;;; ==================================================================================================================
@@ -273,9 +284,7 @@
   [honeysql-form & {:as options}]
   (jdbc/query (connection)
               (honeysql->sql honeysql-form)
-              ;; FIXME: This has already been fixed in `clojure.java.jdbc`, so
-              ;;        this option can be removed when using >= 0.7.10.
-              (into options {:identifiers u/lower-case})))
+              (merge @default-jdbc-options options)))
 
 (defn reducible-query
   "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
@@ -412,7 +421,7 @@
   `options` are passed directly to `jdbc/execute!` and can be things like `:multi?` (default `false`) or
   `:transaction?` (default `true`)."
   [honeysql-form & {:as options}]
-  (jdbc/execute! (connection) (honeysql->sql honeysql-form) options))
+  (jdbc/execute! (connection) (honeysql->sql honeysql-form) (merge @default-jdbc-options options)))
 
 (defn- where
   "Generate a HoneySQL `where` form using key-value args.
