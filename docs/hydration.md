@@ -101,7 +101,7 @@ e.g.
 
 ```clojure
 (defn with-fields
-  \"Efficiently add `Fields` to a collection of TABLES.\"
+  "Efficiently add `Fields` to a collection of `tables`."
   {:batched-hydrate :fields}
   [tables]
   ...)
