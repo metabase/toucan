@@ -19,20 +19,20 @@
 
   :dependencies
   [[org.clojure/java.classpath "0.3.0"]
-   [org.clojure/java.jdbc "0.7.9"]
+   [org.clojure/java.jdbc "0.7.10"]
    [org.clojure/tools.logging "0.5.0"]
    [org.clojure/tools.namespace "0.3.1"]
-   [honeysql "0.9.5"]]
+   [honeysql "0.9.8"]]
 
   :profiles
   {:dev
    {:dependencies
     [[org.clojure/clojure "1.10.1"]
      [expectations "2.2.0-beta2"]
-     [org.postgresql/postgresql "42.2.5"]]
+     [org.postgresql/postgresql "42.2.8"]]
 
     :plugins
-    [[lein-check-namespace-decls "1.0.1"]
+    [[lein-check-namespace-decls "1.0.2"]
      [lein-expectations "0.0.8"]
      [lein-shell "0.5.0"]]
 
