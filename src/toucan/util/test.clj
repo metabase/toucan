@@ -1,6 +1,7 @@
 (ns toucan.util.test
   "Utility functions for writing tests with Toucan models."
-  (:require [toucan.db :as db]))
+  (:require [toucan.db :as db]
+            [potemkin.types :as p.types]))
 
 ;;;                                                    TEMP OBJECTS
 ;;; ==================================================================================================================
@@ -68,7 +69,7 @@
 ;; similar macros for other unit test frameworks are welcome!)
 
 
-(defprotocol WithTempDefaults
+(p.types/defprotocol+ WithTempDefaults
   "Protocol defining the `with-temp-defaults` method, which provides default values for new temporary objects."
   (with-temp-defaults ^clojure.lang.IPersistentMap [this]
     "Return a map of default values that should be used when creating a new temporary object of this model.

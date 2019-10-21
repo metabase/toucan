@@ -3,6 +3,7 @@
    the `IModel` protocol and default implementations, which implement Toucan model functionality."
   (:require [clojure.walk :refer [postwalk]]
             [honeysql.format :as hformat]
+            [potemkin.types :as p.types]
             [toucan.util :as u])
   (:import honeysql.format.ToSql))
 
@@ -174,7 +175,7 @@
 ;;;                                                 IModel Interface
 ;;; ==================================================================================================================
 
-(defprotocol IModel
+(p.types/defprotocol+ IModel
   "The `IModel` protocol defines the various methods that are used to provide custom behavior for various models.
 
    This protocol contains the various methods model classes can optionally implement. All methods have a default
@@ -312,7 +313,7 @@
         :else   (recur obj       more)))))
 
 
-(defprotocol ICreateFromMap
+(p.types/defprotocol+ ICreateFromMap
   "Used by internal functions like `do-post-select`."
   (^:private map-> [klass, ^clojure.lang.IPersistentMap m]
    "Convert map M to instance of record type KLASS."))
@@ -489,7 +490,7 @@
                               (drop 1 args))
         instance            (symbol (str model "Instance"))
         map->instance       (symbol (str "map->" instance))
-        defrecord-form      `(defrecord ~instance []
+        defrecord-form      `(p.types/defrecord+ ~instance []
                                clojure.lang.Named
                                (~'getName [~'_] ~(name model))
                                (~'getNamespace [~'_] ~(name (ns-name *ns*)))

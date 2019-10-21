@@ -1,4 +1,4 @@
-(defproject toucan "1.14.1"
+(defproject toucan "1.15"
   :description "Functionality for defining your application's models and querying the database."
   :url "https://github.com/metabase/toucan"
   :license {:name "Eclipse Public License"
@@ -22,7 +22,8 @@
    [org.clojure/java.jdbc "0.7.10"]
    [org.clojure/tools.logging "0.5.0"]
    [org.clojure/tools.namespace "0.3.1"]
-   [honeysql "0.9.8"]]
+   [honeysql "0.9.8"]
+   [potemkin "0.4.5"]]
 
   :profiles
   {:dev
