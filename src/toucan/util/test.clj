@@ -1,7 +1,7 @@
 (ns toucan.util.test
   "Utility functions for writing tests with Toucan models."
-  (:require [toucan.db :as db]
-            [potemkin.types :as p.types]))
+  (:require [potemkin.types :as p.types]
+            [toucan.db :as db]))
 
 ;;;                                                    TEMP OBJECTS
 ;;; ==================================================================================================================
