@@ -2865,8 +2865,8 @@ net.brehaut.ClojureTools = (function (SH) {
     build_tree: build_tree
   };
 })(SyntaxHighlighter);
-</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.12.0-SNAPSHOT</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
-</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.8</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.4.1</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.2.10</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.4</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
+</script><title>toucan -- Marginalia</title></head><body><table><tr><td class="docs"><div class="header"><h1 class="project-name"><a href="https://github.com/metabase/toucan">toucan</a></h1><h2 class="project-version">1.15.0</h2><br /><p>Functionality for defining your application's models and querying the database.</p>
+</div><div class="dependencies"><h3>dependencies</h3><table><tr><td class="dep-name">org.clojure/java.classpath</td><td class="dotted"><hr /></td><td class="dep-version">0.3.0</td></tr><tr><td class="dep-name">org.clojure/java.jdbc</td><td class="dotted"><hr /></td><td class="dep-version">0.7.10</td></tr><tr><td class="dep-name">org.clojure/tools.logging</td><td class="dotted"><hr /></td><td class="dep-version">0.5.0</td></tr><tr><td class="dep-name">org.clojure/tools.namespace</td><td class="dotted"><hr /></td><td class="dep-version">0.3.1</td></tr><tr><td class="dep-name">honeysql</td><td class="dotted"><hr /></td><td class="dep-version">0.9.8</td></tr><tr><td class="dep-name">potemkin</td><td class="dotted"><hr /></td><td class="dep-version">0.4.5</td></tr></table></div></td><td class="codes" style="text-align: center; vertical-align: middle;color: #666;padding-right:20px"><br /><br /><br />(this space intentionally left almost blank)</td></tr><tr><td class="docs"><div class="toc"><a name="toc"><h3>namespaces</h3></a><ul><li><a href="#toucan.db">toucan.db</a></li><li><a href="#toucan.hydrate">toucan.hydrate</a></li><li><a href="#toucan.models">toucan.models</a></li><li><a href="#toucan.util.test">toucan.util.test</a></li><li><a href="#toucan.util">toucan.util</a></li></ul></div></td><td class="codes">&nbsp;</td></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.db" name="toucan.db"><h1 class="project-name">toucan.db</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Helper functions for querying the DB and inserting or updating records using Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.db
   (:refer-clojure :exclude [count])
   (:require [clojure
@@ -2944,9 +2944,16 @@ a C3PO connection pool.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn set-default-db-connection!
   {:style/indent 0}
   [db-connection-map]
-  (reset! default-db-connection db-connection-map))</pre></td></tr><tr><td class="docs"><h1>                                        TRANSACTION & CONNECTION UTIL FNS</h1>
+  (reset! default-db-connection db-connection-map))</pre></td></tr><tr><td class="docs">
+</td><td class="codes"><pre class="brush: clojure">(defonce ^:private default-jdbc-options
+  ;; FIXME: This has already been fixed in `clojure.java.jdbc`, so
+  ;;        this option can be removed when using &gt;= 0.7.10.
+  (atom {:identifiers u/lower-case}))</pre></td></tr><tr><td class="docs"><p>Set the default options to be used for all calls to <code>clojure.java.jdbc/query</code> or <code>execute!</code>.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn set-default-jdbc-options!
+  [jdbc-options]
+  (reset! default-jdbc-options jdbc-options))</pre></td></tr><tr><td class="docs"><h1>                                        TRANSACTION & CONNECTION UTIL FNS</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Transaction connection to the application DB. Used internally by <code>transaction</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^:private ^:dynamic *transaction-connection*
+</td><td class="codes"><pre class="brush: clojure">(def ^:dynamic *transaction-connection*
   nil)</pre></td></tr><tr><td class="docs"><p>Fetch the JDBC connection details for passing to <code>clojure.java.jdbc</code>. Returns <code>*db-connection*</code>, if it is set;
   otherwise <code>*transaction-connection*</code>, if we're inside a <code>transaction</code> (this is bound automatically); otherwise the
   default DB connection, set by <code>set-default-db-connection!</code>.</p>
@@ -2977,7 +2984,7 @@ a C3PO connection pool.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn- model-symb-&gt;ns
   [symb]
   {:pre [(symbol? symb)]}
-  (symbol (str (models/root-namespace) \. (s/lower-case (s/replace (name symb) #&quot;([a-z])([A-Z])&quot; &quot;$1-$2&quot;)))))</pre></td></tr><tr><td class="docs"><p>Resolve the model associated with SYMB, calling <code>require</code> on its namespace if needed.</p>
+  (symbol (str (models/root-namespace) \. (u/lower-case (s/replace (name symb) #&quot;([a-z])([A-Z])&quot; &quot;$1-$2&quot;)))))</pre></td></tr><tr><td class="docs"><p>Resolve the model associated with SYMB, calling <code>require</code> on its namespace if needed.</p>
 
 <pre><code> (resolve-model-from-symbol 'CardFavorite) -&gt; my-project.models.card-favorite/CardFavorite
 </code></pre>
@@ -3072,7 +3079,9 @@ a C3PO connection pool.</p>
   <code>jdbc/query</code>.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn query
   [honeysql-form &amp; {:as options}]
-  (jdbc/query (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-from</code> and call <code>jdbc/reducible-query</code> against the application database. Options are passed along
+  (jdbc/query (connection)
+              (honeysql-&gt;sql honeysql-form)
+              (merge @default-jdbc-options options)))</pre></td></tr><tr><td class="docs"><p>Compile <code>honeysql-from</code> and call <code>jdbc/reducible-query</code> against the application database. Options are passed along
   to <code>jdbc/reducible-query</code>. Note that the query won't actually be executed until it's reduced.</p>
 </td><td class="codes"><pre class="brush: clojure">(defn reducible-query
   [honeysql-form &amp; {:as options}]
@@ -3187,7 +3196,7 @@ a C3PO connection pool.</p>
   <code>:transaction?</code> (default <code>true</code>).</p>
 </td><td class="codes"><pre class="brush: clojure">(defn execute!
   [honeysql-form &amp; {:as options}]
-  (jdbc/execute! (connection) (honeysql-&gt;sql honeysql-form) options))</pre></td></tr><tr><td class="docs"><p>Generate a HoneySQL <code>where</code> form using key-value args.</p>
+  (jdbc/execute! (connection) (honeysql-&gt;sql honeysql-form) (merge @default-jdbc-options options)))</pre></td></tr><tr><td class="docs"><p>Generate a HoneySQL <code>where</code> form using key-value args.</p>
 
 <pre><code> (where {} :a :b)        -&gt; (h/merge-where {} [:= :a :b])
  (where {} :a [:!= b])   -&gt; (h/merge-where {} [:!= :a :b])
@@ -3867,6 +3876,7 @@ automagically-batched-hydrate    can-fn-based-batched-hydrate?
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.models
   (:require [clojure.walk :refer [postwalk]]
             [honeysql.format :as hformat]
+            [potemkin.types :as p.types]
             [toucan.util :as u])
   (:import honeysql.format.ToSql))</pre></td></tr><tr><td class="docs"><h1>                                                  Configuration</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><h3>Root Model Namespace</h3>
@@ -4033,7 +4043,7 @@ making properties even more flexible.</p>
    IModel
    (merge IModelDefaults {...}))
 </code></pre>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol IModel
+</td><td class="codes"><pre class="brush: clojure">(p.types/defprotocol+ IModel
   (pre-insert [this]
     &quot;Gets called by `insert!` immediately before inserting a new object.
      This provides an opportunity to do things like encode JSON or provide default values for certain fields.
@@ -4121,7 +4131,7 @@ making properties even more flexible.</p>
         (not k) obj
         f       (recur (f obj v) more)
         :else   (recur obj       more)))))</pre></td></tr><tr><td class="docs"><p>Used by internal functions like <code>do-post-select</code>.</p>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol ICreateFromMap
+</td><td class="codes"><pre class="brush: clojure">(p.types/defprotocol+ ICreateFromMap
   (^:private map-&gt; [klass, ^clojure.lang.IPersistentMap m]
    &quot;Convert map M to instance of record type KLASS.&quot;))</pre></td></tr><tr><td class="docs"><p>these functions call (map-> model ...) twice to make sure functions like pre-insert/post-select
 didn't do something that accidentally removed the typing</p>
@@ -4175,8 +4185,10 @@ didn't do something that accidentally removed the typing</p>
      (invoke-model model (primary-key model) id)))
   ([model k v &amp; more]
    (apply (resolve 'toucan.db/select-one) model k v more)))</pre></td></tr><tr><td class="docs"><p>Is model a valid toucan model?</p>
-</td><td class="codes"><pre class="brush: clojure">(def ^:const ^{:arglists '([model])} ^Boolean model?
-  ::model)</pre></td></tr><tr><td class="docs"><p>Check whether OBJ is an model (e.g. <code>Database</code>) or an object from the DB; if an model,
+</td><td class="codes"><pre class="brush: clojure">(defn model?
+  [model]
+  (and (record? model)
+       (::model model)))</pre></td></tr><tr><td class="docs"><p>Check whether OBJ is an model (e.g. <code>Database</code>) or an object from the DB; if an model,
    call <code>invoked-model</code>; otherwise call <code>get</code>.</p>
 
 <p>We use the same record type (e.g., <code>DatabaseInstance</code>) for both the "model" (e.g., <code>Database</code>) and objects fetched
@@ -4278,9 +4290,10 @@ Invoking an instance calls get so you can do things like <code>(db :name)</code>
                               (drop 1 args))
         instance            (symbol (str model &quot;Instance&quot;))
         map-&gt;instance       (symbol (str &quot;map-&gt;&quot; instance))
-        defrecord-form      `(defrecord ~instance []
+        defrecord-form      `(p.types/defrecord+ ~instance []
                                clojure.lang.Named
                                (~'getName [~'_] ~(name model))
+                               (~'getNamespace [~'_] ~(name (ns-name *ns*)))
                                clojure.lang.IFn
                                ~@(ifn-invoke-forms)
                                (~'applyTo [~'this ^clojure.lang.ISeq ~'args]
@@ -4309,7 +4322,8 @@ Invoking an instance calls get so you can do things like <code>(db :name)</code>
                           :name   ~(name model)
                           ::model true})))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util.test" name="toucan.util.test"><h1 class="project-name">toucan.util.test</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions for writing tests with Toucan models.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.util.test
-  (:require [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
+  (:require [potemkin.types :as p.types]
+            [toucan.db :as db]))</pre></td></tr><tr><td class="docs"><h1>                                                   TEMP OBJECTS</h1>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>For your convenience Toucan makes testing easy with <em>Temporary Objects</em>. A temporary object is created and made
 available to some body of code, and then wiped from that database via a <code>finally</code> statement (i.e., whether the body
 completes successfully or not). This makes it easy to write tests that do not change your test database when they
@@ -4378,7 +4392,7 @@ create multiple objects at once:</p>
 <p>This macro makes the temporary object available to both the "expected" and "actual" parts of the test. (PRs for
 similar macros for other unit test frameworks are welcome!)</p>
 </td><td class="codes"></td></tr><tr><td class="docs"><p>Protocol defining the <code>with-temp-defaults</code> method, which provides default values for new temporary objects.</p>
-</td><td class="codes"><pre class="brush: clojure">(defprotocol WithTempDefaults
+</td><td class="codes"><pre class="brush: clojure">(p.types/defprotocol+ WithTempDefaults
   (with-temp-defaults ^clojure.lang.IPersistentMap [this]
     &quot;Return a map of default values that should be used when creating a new temporary object of this model.
        ;; Use a random first and last name for new temporary Users unless otherwise specified
@@ -4458,14 +4472,21 @@ similar macros for other unit test frameworks are welcome!)</p>
              (catch Throwable ~'_))
            (second @~with-temp-form))))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr><tr><td class="docs"><div class="docs-header"><a class="anchor" href="#toucan.util" name="toucan.util"><h1 class="project-name">toucan.util</h1><a class="toc-link" href="#toc">toc</a></a></div></td><td class="codes" /></tr><tr><td class="docs"><p>Utility functions used by other Toucan modules.</p>
 </td><td class="codes"><pre class="brush: clojure">(ns toucan.util
-  (:require [clojure.string :as s]))</pre></td></tr><tr><td class="docs"><p>Return keyword K as a string, including its namespace, if any (unlike <code>name</code>).</p>
+  (:require [clojure.string :as s])
+  (:import java.util.Locale))</pre></td></tr><tr><td class="docs"><p>Return keyword K as a string, including its namespace, if any (unlike <code>name</code>).</p>
 
 <pre><code> (keyword-&gt;qualified-name :type/FK) -&gt; "type/FK"
 </code></pre>
 </td><td class="codes"><pre class="brush: clojure">(defn keyword-&gt;qualified-name
   [k]
   (when k
-    (s/replace (str k) #&quot;^:&quot; &quot;&quot;)))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_toucan.db">toucan.db</li><li class="floating-toc-li" id="floating-toc_toucan.hydrate">toucan.hydrate</li><li class="floating-toc-li" id="floating-toc_toucan.models">toucan.models</li><li class="floating-toc-li" id="floating-toc_toucan.util.test">toucan.util.test</li><li class="floating-toc-li" id="floating-toc_toucan.util">toucan.util</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
+    (s/replace (str k) #&quot;^:&quot; &quot;&quot;)))</pre></td></tr><tr><td class="docs"><p>Locale-agnostic version of <code>clojure.string/lower-case</code>.
+  <code>clojure.string/lower-case</code> uses the default locale in conversions, turning
+  <code>ID</code> into <code>ıd</code>, in the Turkish locale. This function always uses the
+  <code>Locale/US</code> locale.</p>
+</td><td class="codes"><pre class="brush: clojure">(defn lower-case
+  [^CharSequence s]
+  (.. s toString (toLowerCase (Locale/US))))</pre></td></tr><tr><td class="spacer docs">&nbsp;</td><td class="codes" /></tr></table><div class="footer">Generated by <a href="https://github.com/gdeer81/marginalia">Marginalia</a>.&nbsp;&nbsp;Syntax highlighting provided by Alex Gorbatchev's <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a><div id="floating-toc"><ul><li class="floating-toc-li" id="floating-toc_toucan.db">toucan.db</li><li class="floating-toc-li" id="floating-toc_toucan.hydrate">toucan.hydrate</li><li class="floating-toc-li" id="floating-toc_toucan.models">toucan.models</li><li class="floating-toc-li" id="floating-toc_toucan.util.test">toucan.util.test</li><li class="floating-toc-li" id="floating-toc_toucan.util">toucan.util</li></ul></div></div><script type="text/javascript">SyntaxHighlighter.defaults['gutter'] = false;
 SyntaxHighlighter.all();
 
 // hackity hack
