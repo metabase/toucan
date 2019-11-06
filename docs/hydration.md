@@ -69,7 +69,7 @@ is found in the objects being batch hydrated.
 (models/defmodel User :users
   models/IModel
   ;; tell Toucan to do batched hydration of the key `:user` by fetching instances of User with given `:id`s
-  (hydration-keys []
+  (hydration-keys [_]
     [:user]))
 
 ;; ... later, somewhere else ...
