@@ -265,10 +265,10 @@ perform the equivalent of a SQL `INSERT`.
 object or key-value arg pairs:
 
 ```clojure
-(db/insert! Label {:name \"Toucan Friendly\"})
+(db/insert! Label {:name "Toucan Friendly"})
 
 ;; same as
-(db/insert! 'Label :name \"Toucan Friendly\")
+(db/insert! 'Label :name "Toucan Friendly")
 ```
 
 Before `insert!` inserts an object into the database, it goes through several steps. First, it calls the model's implementation
@@ -292,8 +292,8 @@ Most of the examples above are explored in more detail in the [guide to defining
 `insert-many!` is a variation of `insert!` that can be used to insert many objects at once.
 
 ```clojure
-(db/insert-many! Label [{:name \"Toucan Friendly\"}
-                        {:name \"Bird Approved\"}]) ;; -> [38 39]
+(db/insert-many! Label [{:name "Toucan Friendly"}
+                        {:name "Bird Approved"}]) ;; -> [38 39]
 ```
 
 `insert-many!` returns a sequence of the IDs of the newly created objects.
@@ -322,10 +322,10 @@ The `update!` family of functions, which predictably correspond to SQL `UPDATE` 
 or key-value argument pairs:
 
 ```clojure
-(db/update! Label 11 :name \"ToucanFriendly\")
+(db/update! Label 11 :name "ToucanFriendly")
 
 ;; same as
-(db/update! Label 11 {:name \"ToucanFriendly\"})
+(db/update! Label 11 {:name "ToucanFriendly"})
 ```
 
 In the examples above, `update!` changes the `:name` of a Label with `:id` 11. No other values of Label 11 are affected.
@@ -388,11 +388,11 @@ don't follow this pattern, you can use `simple-delete!` instead. This is somethi
 `simple-delete!` is similar to `delete!`, but doesn't pass objects about to be deleted to `pre-delete`.
 
 ```clojure
-;; delete labels where :name == \"Cam\"
-(db/simple-delete! Label :name \"Cam\")
+;; delete labels where :name == "Cam"
+(db/simple-delete! Label :name "Cam")
 
 ;; for flexibility either a single map or kwargs are accepted
-(db/simple-delete! Label {:name \"Cam\"})
+(db/simple-delete! Label {:name "Cam"})
 ```
 
 `simple-delete!` *doesn't* assume objects have a primary key named `:id`, so it's useful in situations where that's not the case.
