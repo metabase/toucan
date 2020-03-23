@@ -105,15 +105,18 @@
   [db-connection-map]
   (reset! default-db-connection db-connection-map))
 
-(defonce ^:private default-jdbc-options
+(defonce ^:private default-default-jdbc-options
   ;; FIXME: This has already been fixed in `clojure.java.jdbc`, so
   ;;        this option can be removed when using >= 0.7.10.
-  (atom {:identifiers u/lower-case}))
+  {:identifiers u/lower-case})
+
+(defonce ^:private default-jdbc-options
+  (atom default-default-jdbc-options))
 
 (defn set-default-jdbc-options!
   "Set the default options to be used for all calls to `clojure.java.jdbc/query` or `execute!`."
   [jdbc-options]
-  (reset! default-jdbc-options jdbc-options))
+  (reset! default-jdbc-options (merge default-default-jdbc-options jdbc-options)))
 
 
 
