@@ -1,10 +1,12 @@
 (ns toucan.db-test
   (:require [clojure.java.jdbc :as jdbc]
+            [clojure.string :as str]
             [expectations :refer :all]
             [honeysql.core :as hsql]
             [toucan
              [db :as db]
-             [test-setup :as test]]
+             [test-setup :as test]
+             [util :as u]]
             [toucan.test-models
              [address :refer [Address]]
              [category :refer [Category]]
@@ -56,6 +58,34 @@
   "1 Toucan Drive"
   (binding [db/*automatically-convert-dashes-and-underscores* true]
     (db/select-one-field :street-name Address)))
+
+;; Ensure that (:identifiers @default-jdbc-options) defaults to `u/lower-case`
+(defn- mangle-a-chars
+  [s]
+  (-> s u/lower-case (str/replace "a" "â")))
+
+(expect
+  [mangle-a-chars #{:first-nâme :lâst-nâme :id}] ; Note the circumflexes over a's
+  (let [original-options @@(var db/default-jdbc-options)]
+    (try
+      (db/set-default-jdbc-options! {:identifiers mangle-a-chars})
+      [(:identifiers @@(var db/default-jdbc-options))
+       (-> (db/select-one 'User) keys set)]
+      (finally
+        (db/set-default-jdbc-options! original-options)))))
+
+(expect
+  [u/lower-case #{:first-name :last-name :id}] ; Note the absence of circumflexes over a's
+  (let [original-options @@(var db/default-jdbc-options)]
+    (try
+      (db/set-default-jdbc-options! {:identifiers mangle-a-chars})
+      ;; Setting default options without `:identifiers` should default to u/lower-case. If it doesn't, we can expect
+      ;; either the current value `mangle-a-chars` (:identifiers wasn't updated), or nil (overwritten).
+      (db/set-default-jdbc-options! {})
+      [(:identifiers @@(var db/default-jdbc-options))
+       (-> (db/select-one 'User) keys set)]
+      (finally
+        (db/set-default-jdbc-options! original-options)))))
 
 ;; Test replace-underscores
 (expect
