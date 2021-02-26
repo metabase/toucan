@@ -293,7 +293,7 @@
   "Compile `honeysql-from` and call `jdbc/reducible-query` against the application database. Options are passed along
   to `jdbc/reducible-query`. Note that the query won't actually be executed until it's reduced."
   [honeysql-form & {:as options}]
-  (jdbc/reducible-query (connection) (honeysql->sql honeysql-form) options))
+  (jdbc/reducible-query (connection) (honeysql->sql honeysql-form) (merge @default-jdbc-options options)))
 
 
 (defn qualify

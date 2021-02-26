@@ -254,6 +254,16 @@
   #{#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}}
   (transduce-to-set (db/simple-select-reducible User {:where [:= :id 1]})))
 
+;; reducible-query should pass default JDBC options along to clojure.java.jdbc
+(expect
+ (:connection [""] {:a 1, :b 3, :c 4})
+ (let [fn-args (atom nil)]
+    (with-redefs [db/connection           (constantly :connection)
+                  db/default-jdbc-options (atom {:a 1, :b 2})
+                  jdbc/reducible-query    (fn [& args]
+                                            (reset! fn-args args))]
+      (db/reducible-query {} :b 3, :c 4))))
+
 ;; Test simple-select-one
 (expect
  #toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}
