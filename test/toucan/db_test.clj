@@ -256,7 +256,7 @@
 
 ;; reducible-query should pass default JDBC options along to clojure.java.jdbc
 (expect
- (:connection [""] {:a 1, :b 3, :c 4})
+ [:connection [""] {:a 1, :b 3, :c 4}]
  (let [fn-args (atom nil)]
     (with-redefs [db/connection           (constantly :connection)
                   db/default-jdbc-options (atom {:a 1, :b 2})
