@@ -22,7 +22,7 @@
    [org.clojure/java.jdbc "0.7.10"]
    [org.clojure/tools.logging "0.5.0"]
    [org.clojure/tools.namespace "0.3.1"]
-   [honeysql "0.9.8"]
+   [honeysql "1.0.461"]
    [potemkin "0.4.5"]]
 
   :profiles
