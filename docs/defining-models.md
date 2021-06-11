@@ -278,7 +278,7 @@ making properties even more flexible.
 
 ## Lifecycle Methods
 
-When `types` and `properties` aren't enough to implement the custom behavior for models, Toucan provides a menagerire of additional
+When `types` and `properties` aren't enough to implement the custom behavior for models, Toucan provides a menagerie of additional
 methods that can be used to transform objects as they come out of or go into a database.
 
 ### pre-insert
