@@ -10,6 +10,7 @@
             [toucan.test-models
              [address :refer [Address]]
              [category :refer [Category]]
+             [food :refer [Food]]
              [phone-number :refer [PhoneNumber]]
              [user :refer [User]]
              [venue :refer [Venue]]])
@@ -286,6 +287,13 @@
       (db/update! PhoneNumber id :country_code "AU")
       (db/select-one PhoneNumber :number id))))
 
+(expect
+ #toucan.test_models.food.FoodInstance{:id "F4", :price 42.42M}
+ (test/with-clean-db
+  (db/insert! Food {:id "F4" :price 9.01M})
+  (db/update! Food "F4" :price 42.42M)
+  (db/select-one Food :id "F4")))
+
 ;; Test update-where!
 (expect
  [#toucan.test_models.user.UserInstance{:id 1, :first-name "Cam", :last-name "Saul"}
@@ -502,3 +510,11 @@
   (db/exists? User, :first-name "Kanye", :last-name "Nest"))
 
 ;; TODO - Test delete!
+
+;; Test delete! with transformed PK
+(expect
+ 0
+ (test/with-clean-db
+  (db/insert! Food {:id "F4" :price 9.01M})
+  (db/delete! Food :id "F4")
+  (db/count Food :id "F4")))
