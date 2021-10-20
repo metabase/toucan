@@ -70,7 +70,13 @@
       number TEXT PRIMARY KEY,
       country_code VARCHAR(3) NOT NULL
     );"
-    "TRUNCATE TABLE phone_numbers;"))
+    "TRUNCATE TABLE phone_numbers;"
+    ;; Food
+    "CREATE TABLE IF NOT EXISTS foods (
+      id BYTEA PRIMARY KEY,
+      price DECIMAL(10,2) NOT NULL
+    );"
+    "TRUNCATE TABLE foods;"))
 
 
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))

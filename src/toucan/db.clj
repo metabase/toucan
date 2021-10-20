@@ -456,10 +456,11 @@
   *plus* other clauses).
 
      (where+ {} [:id 1 {:limit 10}]) -> {:where [:= :id 1], :limit 10}"
-  [honeysql-form args]
+  [model honeysql-form args]
   (loop [honeysql-form honeysql-form, [first-arg & [second-arg & more, :as butfirst]] args]
     (cond
-      (keyword? first-arg) (recur (where honeysql-form first-arg second-arg) more)
+      (keyword? first-arg) (recur (where honeysql-form first-arg
+                                         (models/do-type-fn model first-arg second-arg :in)) more)
       first-arg            (recur (merge honeysql-form first-arg)            butfirst)
       :else                honeysql-form)))
 
@@ -486,10 +487,10 @@
    {:pre [(some? id) (map? kvs) (every? keyword? (keys kvs))]}
    (let [model       (resolve-model model)
          primary-key (models/primary-key model)
-         kvs         (-> (models/do-pre-update model (assoc kvs primary-key id))
-                         (dissoc primary-key))
+         kvs-with-pk (models/do-pre-update model (assoc kvs primary-key id))
+         kvs         (dissoc kvs-with-pk primary-key)
          updated?    (update! model (-> (h/sset {} kvs)
-                                        (where primary-key id)))]
+                                        (where primary-key (primary-key kvs-with-pk))))]
         (when (and updated?
                    (method-implemented? :post-update model))
           (models/post-update (model id)))
@@ -608,7 +609,7 @@
    {:pre [(map? row-map) (every? keyword? (keys row-map))]}
    (let [model (resolve-model model)]
      (when-let [id (simple-insert! model (models/do-pre-insert model row-map))]
-       (models/post-insert (model id)))))
+       (models/post-insert (model (models/do-type-fn model (models/primary-key model) id :out))))))
   ([model k v & more]
    (insert! model (apply array-map k v more))))
 
@@ -624,7 +625,7 @@
   {:style/indent 1}
   [model & options]
   (let [fields (model->fields model)]
-    (simple-select-one model (where+ {:select (or fields [:*])} options))))
+    (simple-select-one model (where+ (resolve-model model) {:select (or fields [:*])} options))))
 
 (defn select-one-field
   "Select a single `field` of a single object from the database.
@@ -659,7 +660,8 @@
      (select 'Database :name [:not= nil] {:limit 2}) -> [...]"
   {:style/indent 1}
   [model & options]
-  (simple-select model (where+ {:select (or (model->fields model)
+  (simple-select model (where+ (resolve-model model)
+                               {:select (or (model->fields model)
                                             [:*])}
                                options)))
 
@@ -670,7 +672,8 @@
         -> [\"name1\", \"name2\"]"
   {:style/indent 1}
   [model & options]
-  (simple-select-reducible model (where+ {:select (or (model->fields model)
+  (simple-select-reducible model (where+ (resolve-model model)
+                                         {:select (or (model->fields model)
                                                       [:*])}
                                          options)))
 
@@ -768,4 +771,5 @@
         primary-key (models/primary-key model)]
     (doseq [object (apply select model conditions)]
       (models/pre-delete object)
-      (simple-delete! model primary-key (primary-key object)))))
+      (simple-delete! model primary-key
+                      (models/do-type-fn model primary-key (primary-key object) :in)))))

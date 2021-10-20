@@ -351,6 +351,13 @@
     (map-> model <>)
     (apply-property-fns :select <>)))
 
+(defn do-type-fn
+  "Don't call this directly! This is automatically applied when doing select."
+  [model col v direction]
+  (if-let [type (col (types model))]
+    ((get-in @type-fns [type direction]) v)
+    v))
+
 (def IModelDefaults
   "Default implementations for `IModel` methods."
   {:default-fields (constantly nil)
