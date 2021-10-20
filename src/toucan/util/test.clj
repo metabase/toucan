@@ -1,7 +1,9 @@
 (ns toucan.util.test
   "Utility functions for writing tests with Toucan models."
   (:require [potemkin.types :as p.types]
-            [toucan.db :as db]))
+            [toucan
+             [db :as db]
+             [models :as models]]))
 
 ;;;                                                    TEMP OBJECTS
 ;;; ==================================================================================================================
@@ -91,11 +93,12 @@
   [model attributes f]
   (let [temp-object (db/insert! model (merge (when (satisfies? WithTempDefaults model)
                                                (with-temp-defaults model))
-                                             attributes))]
+                                             attributes))
+        primary-key (models/primary-key model)]
     (try
       (f temp-object)
       (finally
-        (db/delete! model :id (:id temp-object))))))
+        (db/delete! model primary-key (primary-key temp-object))))))
 
 
 (defmacro with-temp
