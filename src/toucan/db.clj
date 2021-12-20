@@ -647,8 +647,10 @@
      (select-one ['Database :name] :id 1) -> {:name \"Sample Dataset\"}"
   {:style/indent 1}
   [model & options]
-  (let [fields (model->fields model)]
-    (simple-select-one model (where+ (resolve-model model) {:select (or fields [:*])} options))))
+  (simple-select-one model (where+ (resolve-model model)
+                                   {:select (or (model->fields model)
+                                                [:*])}
+                                   options)))
 
 (defn select-one-field
   "Select a single `field` of a single object from the database.
