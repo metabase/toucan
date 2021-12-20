@@ -76,7 +76,18 @@
       id BYTEA PRIMARY KEY,
       price DECIMAL(10,2) NOT NULL
     );"
-    "TRUNCATE TABLE foods;"))
+    "TRUNCATE TABLE foods;"
+    ;; TypedThing
+    "DROP TYPE IF EXISTS thing_type CASCADE;"
+    "CREATE TYPE thing_type AS ENUM (
+      'type-1',
+      'type-2'
+    );"
+    "DROP TABLE IF EXISTS typed;"
+    "CREATE TABLE IF NOT EXISTS typed (
+      id SERIAL PRIMARY KEY,
+      type thing_type NOT NULL
+    );"))
 
 
 (def ^java.sql.Timestamp jan-first-2017 (Timestamp/valueOf "2017-01-01 00:00:00"))

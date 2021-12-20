@@ -11,6 +11,7 @@
              [address :refer [Address]]
              [category :refer [Category]]
              [food :refer [Food]]
+             [pg-enum :refer [TypedThing]]
              [phone-number :refer [PhoneNumber]]
              [user :refer [User]]
              [venue :refer [Venue]]])
@@ -293,6 +294,13 @@
   (db/insert! Food {:id "F4" :price 9.01M})
   (db/update! Food "F4" :price 42.42M)
   (db/select-one Food :id "F4")))
+
+(expect
+  #toucan.test_models.pg_enum.TypedThingInstance{:id 1, :type :thing-type/type-2}
+  (test/with-clean-db
+    (db/insert! TypedThing {:id 1 :type :thing-type/type-1})
+    (db/update! TypedThing 1 :type :thing-type/type-2)
+    (db/select-one TypedThing :type [:= :thing-type/type-2])))
 
 ;; Test update-where!
 (expect
