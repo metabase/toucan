@@ -450,6 +450,30 @@
   ([honeysql-form k v & more]
    (apply where (where honeysql-form k v) more)))
 
+(defn- where*
+  "Generate a HoneySQL `where` form using key-value args + apply type fn to the value in all possible cases,
+   i.e. to a plain vanilla value and to a vector form of applying a function to a value (e.g. `!=` or `in`).
+
+     (where {} :a :b)        -> (h/merge-where {} [:= :a :b])
+     (where {} :a [:!= b])   -> (h/merge-where {} [:!= :a :b])
+     (where {} {:a [:!= b]}) -> (h/merge-where {} [:!= :a :b])"
+  {:style/indent 1}
+  [model honeysql-form k v]
+  (let [do-type-fn #(models/do-type-fn model k % :in)]
+    (h/merge-where honeysql-form (if (vector? v)
+                                   (let [[f & [first-arg & rest-args]] v ; e.g. :id [:!= 1] -> [:!= :id 1]
+                                         _ (assert (keyword? f))
+                                         args (case f
+                                                ;; form is [:in #{...}] => first-arg=#{...}, rest-args=nil
+                                                (:in :not-in) (list (map do-type-fn first-arg))
+                                                ;; form is [:between a b] => first-arg=a, rest-args=(b)
+                                                :between (list (do-type-fn first-arg)
+                                                               (do-type-fn (first rest-args)))
+                                                ;; all other forms comply with this default syntax
+                                                (cons (do-type-fn first-arg) rest-args))]
+                                     (vec (cons f (cons k args))))
+                                   [:= k (do-type-fn v)]))))
+
 (defn- where+
   "Generate a HoneySQL form, converting pairs of arguments with keywords into a `where` clause, and merging other
   HoneySQL clauses in as-is. Meant for internal use by functions like `select`. (So-called because it handles `where`
@@ -459,9 +483,8 @@
   [model honeysql-form args]
   (loop [honeysql-form honeysql-form, [first-arg & [second-arg & more, :as butfirst]] args]
     (cond
-      (keyword? first-arg) (recur (where honeysql-form first-arg
-                                         (models/do-type-fn model first-arg second-arg :in)) more)
-      first-arg            (recur (merge honeysql-form first-arg)            butfirst)
+      (keyword? first-arg) (recur (where* model honeysql-form first-arg second-arg) more)
+      first-arg            (recur (merge honeysql-form first-arg) butfirst)
       :else                honeysql-form)))
 
 ;;; ### UPDATE!
