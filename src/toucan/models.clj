@@ -297,10 +297,10 @@
 ;;; ==================================================================================================================
 
 (defn- apply-type-fns
-  "Apply the appropriate `type-fns` for OBJ."
+  "Apply the appropriate `type-fns` for an `obj` implementing some `IModel`."
   [obj direction]
   (into obj (for [[col type] (types obj)]
-              (when-let [v (get obj col)]
+              (when-some [v (get obj col)]
                 {col ((get-in @type-fns [type direction]) v)}))))
 
 (defn- apply-property-fns
