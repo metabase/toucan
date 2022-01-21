@@ -5,11 +5,13 @@
             [honeysql.core :as hsql]
             [toucan
              [db :as db]
+             [models :as models]
              [test-setup :as test]
              [util :as u]]
             [toucan.test-models
              [address :refer [Address]]
              [category :refer [Category]]
+             [falsey :refer [Falsey]]
              [food :refer [Food]]
              [pg-enum :refer [TypedThing]]
              [phone-number :refer [PhoneNumber]]
@@ -169,6 +171,20 @@
 (expect Exception (db/resolve-model "User"))
 (expect Exception (db/resolve-model :user))
 (expect Exception (db/resolve-model 'user)) ; entities symbols are case-sensitive
+
+;; Test applying `type-fns`
+(expect
+  #toucan.test_models.falsey.FalseyInstance{:bool? "true"}
+  (#'models/apply-type-fns #toucan.test_models.falsey.FalseyInstance{:bool? "Text"} :in))
+(expect
+  #toucan.test_models.falsey.FalseyInstance{:bool? nil}
+  (#'models/apply-type-fns #toucan.test_models.falsey.FalseyInstance{:bool? nil} :in))
+(expect
+  #toucan.test_models.falsey.FalseyInstance{:bool? "true"}
+  (#'models/apply-type-fns #toucan.test_models.falsey.FalseyInstance{:bool? true} :in))
+(expect
+  #toucan.test_models.falsey.FalseyInstance{:bool? "false"}
+  (#'models/apply-type-fns #toucan.test_models.falsey.FalseyInstance{:bool? false} :in))
 
 ;; Test with-call-counting
 (expect
