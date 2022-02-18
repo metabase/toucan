@@ -172,13 +172,23 @@
 (defn- resolve-model-from-symbol
   "Resolve the model associated with SYMB, calling `require` on its namespace if needed.
 
-     (resolve-model-from-symbol 'CardFavorite) -> my-project.models.card-favorite/CardFavorite"
+     (resolve-model-from-symbol 'CardFavorite) -> my-project.models.card-favorite/CardFavorite
+
+  If model is not found in the namespace as configured with [[models/root-namespace]], it checks a private registry
+  populated by `defmodel` to try again."
   [symb]
-  (let [model-ns (model-symb->ns symb)]
-    @(try (ns-resolve model-ns symb)
-          (catch Throwable _
-            (require model-ns)
-            (ns-resolve model-ns symb)))))
+  (letfn [(sym->model [ns' symb']
+            (try
+              (some-> (requiring-resolve (symbol (str ns') (str symb')))
+                      deref)
+              (catch java.io.FileNotFoundException _e nil)))]
+    (let [inferred-ns (model-symb->ns symb)]
+      (or (sym->model inferred-ns symb)
+          (when-let [registered-ns (get @models/model-sym->namespace-sym symb)]
+            (sym->model registered-ns symb))
+          (throw (ex-info (format "Could not find model for: %s" symb)
+                          {:symbol               symb
+                           :configured-namespace inferred-ns}))))))
 
 (defn resolve-model
   "Resolve a model *if* it's quoted. This also unwraps entities when they're inside vectores.

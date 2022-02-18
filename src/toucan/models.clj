@@ -447,6 +447,12 @@
                [(fully-qualified-symbol form) acc]
                [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))
 
+(defonce
+  ^{:doc "Mapping from model name to namespace containing the model. Useful in order to resolve models which
+  are not defined in a namespace matching the convention."}
+  model-sym->namespace-sym
+  (atom {}))
+
 (defmacro defmodel
   "Define a new \"model\". Models encapsulate information and behaviors related to a specific table in the application
   DB, and have their own unique record type.
@@ -515,6 +521,7 @@
                                      f))
                                  (macroexpand defrecord-form))]
     `(do
+       (swap! @#'model-sym->namespace-sym assoc '~model (ns-name *ns*))
        ~defrecord-form
 
        (extend ~instance
