@@ -175,20 +175,30 @@
      (resolve-model-from-symbol 'CardFavorite) -> my-project.models.card-favorite/CardFavorite
 
   If model is not found in the namespace as configured with [[models/root-namespace]], it checks a private registry
-  populated by `defmodel` to try again."
+  populated by `defmodel` to try again.
+
+  Multiple Models with the same name:
+
+  The first branch using the conventional namespace location will resolve to a model even if multiple are defined. The
+  second branch will not try to guess which model is intended if there are multiple models defined. Otherwise an error
+  will be throw containing data including the conventional namespace tried and any namespaces that have a model by
+  that name."
   [symb]
   (letfn [(sym->model [ns' symb']
             (try
               (some-> (requiring-resolve (symbol (str ns') (str symb')))
                       deref)
               (catch java.io.FileNotFoundException _e nil)))]
-    (let [inferred-ns (model-symb->ns symb)]
+    (let [inferred-ns    (model-symb->ns symb)
+          registered-nss (get @models/model-sym->namespace-sym symb)]
       (or (sym->model inferred-ns symb)
-          (when-let [registered-ns (get @models/model-sym->namespace-sym symb)]
-            (sym->model registered-ns symb))
+          (let [[registered-ns & ambig] registered-nss]
+            (when-not ambig
+              (sym->model registered-ns symb)))
           (throw (ex-info (format "Could not find model for: %s" symb)
-                          {:symbol               symb
-                           :configured-namespace inferred-ns}))))))
+                          {:symbol                symb
+                           :configured-namespace  inferred-ns
+                           :registered-namespaces registered-nss}))))))
 
 (defn resolve-model
   "Resolve a model *if* it's quoted. This also unwraps entities when they're inside vectores.

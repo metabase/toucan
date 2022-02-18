@@ -447,9 +447,9 @@
                [(fully-qualified-symbol form) acc]
                [type (assoc-in acc [type (keyword (first form))] `(fn ~@(drop 1 form)))])) [nil {}] forms)))
 
-(defonce
-  ^{:doc "Mapping from model name to namespace containing the model. Useful in order to resolve models which
-  are not defined in a namespace matching the convention."}
+(defonce ^{:doc "Mapping from model name to namespaces containing the model. Useful in order to resolve models which
+  are not defined in a namespace matching the convention. Keys are sets of namespaces to help in error reporting if
+  there are multiple namespaces matching a single model name."}
   model-sym->namespace-sym
   (atom {}))
 
@@ -521,7 +521,7 @@
                                      f))
                                  (macroexpand defrecord-form))]
     `(do
-       (swap! @#'model-sym->namespace-sym assoc '~model (ns-name *ns*))
+       (swap! @#'model-sym->namespace-sym update '~model (fnil conj #{}) (ns-name *ns*))
        ~defrecord-form
 
        (extend ~instance

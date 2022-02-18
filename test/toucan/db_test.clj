@@ -175,7 +175,7 @@
 ;; We save the defining namespace in an atom keyed by model symbol
 (expect
   (get @models/model-sym->namespace-sym 'Nowfound)
-  'toucan.db-test)
+  #{'toucan.db-test})
 
 ;; ... as should trying to resolve things that aren't entities or symbols
 (expect Exception (db/resolve-model {}))
