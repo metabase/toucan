@@ -163,7 +163,19 @@
 ;; Trying to resolve an model that cannot be found should throw an Exception
 (expect
  Exception
- (db/resolve-model 'Fish))
+ (db/resolve-model 'Unfound))
+
+(models/defmodel Nowfound :testing_model_resolution)
+
+;; we can resolve models when their namespace doesn't follow convention
+(expect
+  Nowfound
+  (db/resolve-model 'Nowfound))
+
+;; We save the defining namespace in an atom keyed by model symbol
+(expect
+  (get @models/model-sym->namespace-sym 'Nowfound)
+  #{'toucan.db-test})
 
 ;; ... as should trying to resolve things that aren't entities or symbols
 (expect Exception (db/resolve-model {}))
