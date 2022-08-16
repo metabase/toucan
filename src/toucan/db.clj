@@ -152,6 +152,21 @@
   [& body]
   `(do-in-transaction (fn [] ~@body)))
 
+(defn do-in-transaction-with-rollback
+  "Execute F inside a DB transaction with rollback (will not commit changes on complete). Prefer macro form
+  `transaction-with-rollback` to using this directly."
+  [f]
+  (jdbc/with-db-transaction [conn (connection)]
+    (jdbc/db-set-rollback-only! conn)
+    (binding [*transaction-connection* conn]
+    (f))))
+
+(defmacro transaction-with-rollback
+  "Execute all queries within the body in a single transaction, all of which will not be committed when completed."
+  {:arglists '([body] [options & body]), :style/indent 0}
+  [& body]
+  `(do-in-transaction-with-rollback (fn [] ~@body)))
+
 
 ;;;                                                   QUERY UTIL FNS
 ;;; ==================================================================================================================

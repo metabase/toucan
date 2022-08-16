@@ -148,6 +148,26 @@
      (catch Throwable _))
    (db/count Venue :name "Cam's Toucannery")))
 
+;; Test transaction with rollback
+(expect
+  1
+  ;; we will insert a Venue and check that we indeed have a single venue
+  ;; on the database while inside the defmacro
+  (test/with-clean-db
+    (db/transaction-with-rollback
+      (db/insert! Venue :name "Cam's Toucannery", :category "Pet Store")
+      (db/count Venue :name "Cam's Toucannery"))))
+
+;; Test transaction with rollback
+(expect
+  0
+  ;; we will insert a Venue and check that after the defmacro we no longer have
+  ;; any values on the database
+  (test/with-clean-db
+    (db/transaction-with-rollback
+      (db/insert! Venue :name "Cam's Toucannery", :category "Pet Store"))
+    (db/count Venue :name "Cam's Toucannery")))
+
 ;; TODO - Test DB logging (how?)
 
 ;; Test resolve-model
