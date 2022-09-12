@@ -159,7 +159,7 @@
   (jdbc/with-db-transaction [conn (connection)]
     (jdbc/db-set-rollback-only! conn)
     (binding [*transaction-connection* conn]
-    (f))))
+      (f))))
 
 (defmacro transaction-with-rollback
   "Execute all queries within the body in a single transaction, all of which will not be committed when completed."
