@@ -6,6 +6,11 @@
 
 [![Clojars Project](https://clojars.org/toucan/latest-version.svg)](http://clojars.org/toucan)
 
+> [!WARNING]
+> This version of Toucan is deprecated. Please use [Toucan 2](https://github.com/camsaul/toucan2) instead; it's a
+> complete rewrite with many improvements over Toucan 1. If you're already using Toucan 1, check out the
+> [toucan2-toucan1](https://github.com/camsaul/toucan2#toucan2-toucan1) migration helper.
+
 # Toucan
 
 ![Toucan](https://github.com/metabase/toucan/blob/master/assets/toucan-logo.png)
